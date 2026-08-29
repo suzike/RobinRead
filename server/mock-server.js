@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NanJuPaper 本地联调服务器（零依赖，node server/mock-server.js）
+ * RobinRead 本地联调服务器（零依赖，node server/mock-server.js）
  *
  * 与 cloudfunctions/njpaper-api 完全相同的 API 契约，内存存储：
  *   - 微信登录未配置 → /api/config 返回 wx_login_enabled:false，/api/auth/dev-login 可用
@@ -259,7 +259,7 @@ const server = http.createServer((req, res) => {
       return send(200, { ok: true, codes: list, stats });
     }
     if (req.method === 'GET' && path === '/auth/callback') {
-      return send(200, '<!DOCTYPE html><html><head><meta charset="utf-8"><title>NanJuPaper</title></head><body style="font-family:system-ui;text-align:center;padding-top:80px;color:#333">授权成功，请回到 NanJuPaper 应用。</body></html>');
+      return send(200, '<!DOCTYPE html><html><head><meta charset="utf-8"><title>RobinRead</title></head><body style="font-family:system-ui;text-align:center;padding-top:80px;color:#333">授权成功，请回到知更 RobinRead 应用。</body></html>');
     }
     if (req.method === 'GET' && path === '/__dump') {
       // 调试：查看全部用户与订单

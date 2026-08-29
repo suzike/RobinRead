@@ -1,4 +1,4 @@
-# NanJuPaper 账号登录 + 会员订阅 设计方案
+# 知更 账号登录 + 会员订阅 设计方案
 
 > 状态：**Phase 1–4 已实现并通过端到端验证（2026-08-19，mock 模式 21/21 断言）**。
 > 实现差异：后端为单云函数 `cloudfunctions/njpaper-api`（文档数据库三集合替代 SQL 表）；本地联调服务器 `server/mock-server.js`；探针 `scripts/probe-account.js`。部署步骤见 `docs/deploy-backend.md`。
@@ -38,7 +38,7 @@
 
 ```
 ┌─────────────────────┐        ┌──────────────────────┐       ┌─────────────────┐
-│ NanJuPaper (Electron)│  HTTPS │ 后端（CloudBase）      │ HTTPS │ 微信开放平台      │
+│ RobinRead (Electron)│  HTTPS │ 后端（CloudBase）      │ HTTPS │ 微信开放平台      │
 │                     │ ──────►│ ├ auth 云函数          │ ────► │ (snsapi_login)  │
 │ · 登录子窗口(扫码)    │  JWT   │ ├ pay 云函数           │       ├ 微信支付 v3      │
 │ · 支付弹窗(二维码)    │        │ │  (Native下单/回调)    │ ◄───► │  Native/回调/查单 │

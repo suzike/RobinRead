@@ -103,7 +103,7 @@
 - 中英双语界面，`Ctrl+/` 随时呼出快捷键帮助
 - 凭据使用 Windows DPAPI 加密存储，AI API Key 不出本机
 - 模型接入：DeepSeek / 任意 OpenAI 兼容 API / 可信局域网 HTTP 服务
-- 从旧版（NanJuPaper / PaperRss）升级自动迁移数据目录、偏好与阅读状态
+- 旧版本升级自动迁移数据目录、偏好与阅读状态，不覆盖新数据
 
 ## ⌨️ 键盘快捷键
 
@@ -184,7 +184,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 ## 🔒 数据与隐私
 
-订阅、文章、阅读状态、批注、AI 配置全部保存在 `%APPDATA%\RobinRead`，卸载不残留云端副本。从旧版本（NanJuPaper / PaperRss 数据目录）升级时会在首次启动自动迁移，不覆盖新数据。AI 调用直连你配置的模型服务商，本应用不经手、不存储。
+订阅、文章、阅读状态、批注、AI 配置全部保存在 `%APPDATA%\RobinRead`，卸载不残留云端副本。从旧版本升级时，数据会在首次启动自动迁移，不覆盖新数据。AI 调用直连你配置的模型服务商，本应用不经手、不存储。
 
 ## 🏷 版本记录
 
@@ -193,11 +193,9 @@ website/                    # 官网源码（CloudBase 静态托管）
 - **[v2.2.0 — 开源基线](https://github.com/suzike/RobinRead/releases/tag/v2.2.0)**（2026-08-29）：仓库首个 Release，与客户端构建 v2.2.0 同版本号
 - 更早的构建历史见 [CHANGELOG.md](CHANGELOG.md)
 
-## 📄 许可证与致谢
+## 📄 许可证
 
-本项目基于 [GPL-3.0](LICENSE) 协议开源。
-
-知更的前身是 [ohmyangboy/PaperRss](https://github.com/ohmyangboy/PaperRss)（macOS / Swift），经历 NanJuPaper（南橘）到 RobinRead（知更）的 Windows 重构与全面重设计——感谢原项目打开的大门。
+本项目基于 [GPL-3.0](LICENSE) 协议开源，欢迎自由使用、修改与二次分发。
 
 <div align="center">
   <sub><a href="https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/">ronbinread · tcloudbaseapp.com</a> — 双语流转，克制智能化</sub>

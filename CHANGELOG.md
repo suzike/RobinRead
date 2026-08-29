@@ -59,10 +59,6 @@
 
 ## v2.0.0（2026-08-19）
 
-- 全面品牌重塑：PaperRss → NanJuPaper（南橘）→ **RobinRead（知更）**
-- 三级数据迁移：数据目录 / 偏好键 / LocalStorage 自动升级，不覆盖新数据
-- 批注系统（五色高亮 / 段落便签 / 批注面板）、阅读与研究面板折叠
-
-## v1.x — 更早
-
-- 前身 [PaperRss](https://github.com/ohmyangboy/PaperRss)（macOS / Swift，GPL-3.0）与 NanJuPaper 南橘（Windows / Electron 初版）
+- 「知更」视觉体系确立：纸感三栏、衬线排版、OKLCH 主题引擎与主题设计器
+- 数据升级机制：数据目录 / 偏好键 / LocalStorage 三级自动迁移，升级不覆盖新数据
+- 批注系统（五色高亮 / 段落便签 / 批注总览面板）、阅读与研究面板折叠
