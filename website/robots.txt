@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/sitemap.xml

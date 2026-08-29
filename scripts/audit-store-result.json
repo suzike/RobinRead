@@ -1,0 +1,1788 @@
+[
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Simon Willison",
+  "url": "https://simonwillison.net/atom/everything/",
+  "ok": true,
+  "items": 30,
+  "latest": 1787011094000,
+  "feedTitle": "Simon Willison's Weblog"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker News",
+  "url": "https://hnrss.org/frontpage",
+  "ok": true,
+  "items": 20,
+  "latest": 1787028693000,
+  "feedTitle": "Hacker News: Front Page"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Lilian Weng",
+  "url": "https://lilianweng.github.io/index.xml",
+  "ok": true,
+  "items": 53,
+  "latest": 1783123200000,
+  "feedTitle": "Lil&#39;Log"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "OpenAI News",
+  "url": "https://openai.com/news/rss.xml",
+  "ok": true,
+  "items": 653,
+  "latest": 1786944600000,
+  "feedTitle": "OpenAI News"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Interconnects (Nathan Lambert)",
+  "url": "https://www.interconnects.ai/feed",
+  "ok": true,
+  "items": 15,
+  "latest": 1786979269000,
+  "feedTitle": "Interconnects AI"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "BAIR Blog",
+  "url": "https://bair.berkeley.edu/blog/feed.xml",
+  "ok": true,
+  "items": 10,
+  "latest": 1785315600000,
+  "feedTitle": "The Berkeley Artificial Intelligence Research Blog"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Ars Technica — AI",
+  "url": "https://arstechnica.com/ai/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": 1787001529000,
+  "feedTitle": "AI - Ars Technica"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "VentureBeat AI",
+  "url": "https://venturebeat.com/category/ai/feed/",
+  "ok": true,
+  "items": 7,
+  "latest": 1779212700000,
+  "feedTitle": "AI | VentureBeat"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Latent Space (Swyx)",
+  "url": "https://www.latent.space/feed",
+  "ok": true,
+  "items": 12,
+  "latest": 1787008421000,
+  "feedTitle": "Latent.Space"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "LangChain Blog",
+  "url": "https://blog.langchain.dev/rss.xml",
+  "ok": true,
+  "items": 100,
+  "latest": 1786978376000,
+  "feedTitle": "LangChain Blog"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "IEEE Spectrum — Computing",
+  "url": "https://spectrum.ieee.org/feeds/topic/computing.rss",
+  "ok": true,
+  "items": 30,
+  "latest": 1786975201000,
+  "feedTitle": "IEEE Spectrum"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "ACM TechNews",
+  "url": "https://cacm.acm.org/rss",
+  "ok": false,
+  "reason": "HTTP 403"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Wired Science",
+  "url": "https://www.wired.com/feed/rss",
+  "ok": true,
+  "items": 50,
+  "latest": 1787029200000,
+  "feedTitle": "WIRED"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Verge",
+  "url": "https://www.theverge.com/rss/index.xml",
+  "ok": true,
+  "items": 10,
+  "latest": 1787017882000,
+  "feedTitle": "The Verge"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "TechCrunch",
+  "url": "https://techcrunch.com/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": 1787010986000,
+  "feedTitle": "TechCrunch"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker Noon",
+  "url": "https://hackernoon.com/feed",
+  "ok": true,
+  "items": 20,
+  "latest": 1787004018000,
+  "feedTitle": "HackerNoon"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Quanta Magazine",
+  "url": "https://api.quantamagazine.org/feed/",
+  "ok": true,
+  "items": 5,
+  "latest": 1786979477000,
+  "feedTitle": "Quanta Magazine"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Nautilus",
+  "url": "https://nautil.us/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1787004000000,
+  "feedTitle": "Nautilus"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Ars Technica 主刊",
+  "url": "https://feeds.arstechnica.com/arstechnica/index",
+  "ok": true,
+  "items": 20,
+  "latest": 1787025640000,
+  "feedTitle": "Ars Technica - All content"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Martin Fowler",
+  "url": "https://martinfowler.com/feed.atom",
+  "ok": true,
+  "items": 30,
+  "latest": 1786448340000,
+  "feedTitle": "Martin Fowler"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Julia Evans",
+  "url": "https://jvns.ca/atom.xml",
+  "ok": true,
+  "items": 20,
+  "latest": 1784592000000,
+  "feedTitle": ""
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Dan Luu",
+  "url": "https://danluu.com/atom.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "阮一峰的网络日志",
+  "url": "https://www.ruanyifeng.com/blog/atom.xml",
+  "ok": true,
+  "items": 3,
+  "latest": 1787035915000,
+  "feedTitle": "阮一峰的网络日志"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "王垠",
+  "url": "https://www.yinwang.org/feed.xml",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "Surely I am Joking"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "云风 — 博客园",
+  "url": "https://blog.codingnow.com/atom.xml",
+  "ok": true,
+  "items": 15,
+  "latest": 1786244203000,
+  "feedTitle": "云风的 BLOG"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "酷壳 — CoolShell",
+  "url": "https://coolshell.cn/feed",
+  "ok": true,
+  "items": 15,
+  "latest": 1683539526000,
+  "feedTitle": "酷 壳 &#8211; CoolShell"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Netflix TechBlog",
+  "url": "https://netflixtechblog.com/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1786118462000,
+  "feedTitle": "Netflix TechBlog - Medium"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Cloudflare Blog",
+  "url": "https://blog.cloudflare.com/rss/",
+  "ok": true,
+  "items": 20,
+  "latest": 1786713132000,
+  "feedTitle": "Cloudflare Blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Meta Engineering",
+  "url": "https://engineering.fb.com/feed/",
+  "ok": true,
+  "items": 9,
+  "latest": 1786539628000,
+  "feedTitle": "Engineering at Meta"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Stack Overflow Blog",
+  "url": "https://stackoverflow.blog/feed/",
+  "ok": true,
+  "items": 40,
+  "latest": 1787038800000,
+  "feedTitle": "Stack Overflow Blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "The Pragmatic Engineer",
+  "url": "https://newsletter.pragmaticengineer.com/feed",
+  "ok": true,
+  "items": 13,
+  "latest": 1786726555000,
+  "feedTitle": "The Pragmatic Engineer"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Dev.to",
+  "url": "https://dev.to/feed",
+  "ok": true,
+  "items": 12,
+  "latest": 1787041952000,
+  "feedTitle": "DEV Community"
+ },
+ {
+  "cat": "eng",
+  "lang": "中",
+  "name": "InfoQ 中国",
+  "url": "https://www.infoq.cn/feed",
+  "ok": true,
+  "items": 20,
+  "latest": 1787070930000,
+  "feedTitle": "InfoQ - 促进软件开发领域知识与创新的传播"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Blog",
+  "url": "https://github.blog/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786982400000,
+  "feedTitle": "The GitHub Blog"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Changelog",
+  "url": "https://github.blog/changelog/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786747424000,
+  "feedTitle": "Archive: 2026 - GitHub Changelog"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Farnam Street",
+  "url": "https://fs.blog/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": 1786614300000,
+  "feedTitle": "Farnam Street"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AIHOT — 精选",
+  "url": "https://aihot.virxact.com/feed.xml",
+  "ok": true,
+  "items": 50,
+  "latest": 1787036400000,
+  "feedTitle": "AIHOT — 精选"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AIHOT — 全部动态",
+  "url": "https://aihot.virxact.com/feed/all.xml",
+  "ok": true,
+  "items": 50,
+  "latest": 1787039787000,
+  "feedTitle": "AIHOT — 全部 AI 动态"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AIHOT 日报",
+  "url": "https://aihot.virxact.com/feed/daily.xml",
+  "ok": true,
+  "items": 30,
+  "latest": 1787011217000,
+  "feedTitle": "AIHOT 日报"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "少数派",
+  "url": "https://sspai.com/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1787036705000,
+  "feedTitle": "少数派"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "小众软件",
+  "url": "https://www.appinn.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1787028597000,
+  "feedTitle": "小众软件"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Astral Apps Blog",
+  "url": "https://blog.astralapp.com/feed/",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Sebastian Raschka",
+  "url": "https://sebastianraschka.com/rss.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Chip Huyen",
+  "url": "https://huyenchip.com/feed.xml",
+  "ok": true,
+  "items": 10,
+  "latest": 1736985600000,
+  "feedTitle": "Chip Huyen"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Eugene Yan",
+  "url": "https://eugeneyan.com/rss/",
+  "ok": true,
+  "items": 212,
+  "latest": 1782000000000,
+  "feedTitle": "Eugene Yan"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Machine Learning Mastery",
+  "url": "https://machinelearningmastery.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786968015000,
+  "feedTitle": "MachineLearningMastery.com"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Gradient",
+  "url": "https://thegradient.pub/rss",
+  "ok": true,
+  "items": 10,
+  "latest": 1771457152000,
+  "feedTitle": "The Gradient"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Last Week in AI",
+  "url": "https://lastweekin.ai/podcast/rss",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Google DeepMind（需代理）",
+  "url": "https://deepmind.google/blog/rss.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Azure AI Blog",
+  "url": "https://devblogs.microsoft.com/azureai/feed/",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Import AI（需代理）",
+  "url": "https://importai.substack.com/feed",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Batch · 吴恩达（需代理）",
+  "url": "https://www.deeplearning.ai/the-batch/feed/",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "IEEE Spectrum AI",
+  "url": "https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss",
+  "ok": true,
+  "items": 30,
+  "latest": 1786975201000,
+  "feedTitle": "IEEE Spectrum"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Anthropic News（需代理）",
+  "url": "https://www.anthropic.com/rss.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "SemiAnalysis（需代理）",
+  "url": "https://www.semianalysis.com/feed",
+  "ok": true,
+  "items": 5,
+  "latest": 1758044281000,
+  "feedTitle": "SemiAnalysis"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Andrej Karpathy",
+  "url": "https://karpathy.bearblog.dev/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1787004415805,
+  "feedTitle": "karpathy"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Pete Warden",
+  "url": "https://petewarden.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786756176000,
+  "feedTitle": "Pete Warden&#039;s blog"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Drew DeVault",
+  "url": "https://drewdevault.com/feed.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "gwern.net",
+  "url": "https://gwern.net/feed",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "The Old New Thing",
+  "url": "https://devblogs.microsoft.com/oldnewthing/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786982080000,
+  "feedTitle": "The Old New Thing"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Eric Lippert",
+  "url": "https://ericlippert.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1769116662000,
+  "feedTitle": "Fabulous adventures in coding"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Coding Horror",
+  "url": "https://blog.codinghorror.com/feed/",
+  "ok": true,
+  "items": 15,
+  "latest": 1782166242000,
+  "feedTitle": "Coding Horror"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Paul Graham（需代理）",
+  "url": "https://www.aaronsw.com/2002/feeds/pgessays.rss",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "Phodal",
+  "url": "https://www.phodal.com/blog/atom.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Spotify Engineering",
+  "url": "https://engineering.atspotify.com/feed/",
+  "ok": true,
+  "items": 5,
+  "latest": 1786647442000,
+  "feedTitle": "Spotify Engineering"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Shopify Engineering",
+  "url": "https://shopify.engineering/blogs/engineering.atom",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "Work with us | Shopify Engineering - Shopify"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Slack Engineering",
+  "url": "https://slack.engineering/feed/",
+  "ok": true,
+  "items": 8,
+  "latest": 1784045408000,
+  "feedTitle": "Engineering at Slack"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "DoorDash Engineering",
+  "url": "https://doordash.engineering/feed/",
+  "ok": false,
+  "reason": "HTTP 403"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Dropbox Tech",
+  "url": "https://dropbox.tech/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1784559600000,
+  "feedTitle": "Dropbox Tech Blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "V8 Dev Blog",
+  "url": "https://v8.dev/feed.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Microsoft DevBlogs",
+  "url": "https://devblogs.microsoft.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1784833433000,
+  "feedTitle": "Microsoft for Developers"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Chromium Blog",
+  "url": "https://blog.chromium.org/feeds/posts/default?alt=rss",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Chrome Developers",
+  "url": "https://developer.chrome.com/rss/feed.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Discord Engineering",
+  "url": "https://discord.com/blog/rss.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "OSS Insight Blog",
+  "url": "https://blog.ossinsight.io/feed",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Cal Newport",
+  "url": "https://www.calnewport.com/feed/",
+  "ok": false,
+  "reason": "HTTP 403"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Raptitude",
+  "url": "https://www.raptitude.com/feed/",
+  "ok": false,
+  "reason": "HTTP 403"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Barking Up the Wrong Tree",
+  "url": "https://www.bakadesuyo.com/feed/",
+  "ok": true,
+  "items": 5,
+  "latest": 1786955802000,
+  "feedTitle": "Barking Up The Wrong Tree"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "The Marginalian",
+  "url": "https://www.themarginalian.org/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": 1786914802000,
+  "feedTitle": "The Marginalian"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "James Clear",
+  "url": "https://jamesclear.com/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1578334007000,
+  "feedTitle": "James Clear"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AutoGen Blog",
+  "url": "https://microsoft.github.io/autogen/blog/rss.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "Hugging Face Blog（需代理）",
+  "url": "https://huggingface.co/blog/feed.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "美团技术团队",
+  "url": "https://tech.meituan.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786933211000,
+  "feedTitle": "美团 · 技术团队"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "36氪",
+  "url": "https://36kr.com/feed",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": ""
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "爱范儿",
+  "url": "https://www.ifanr.com/feed",
+  "ok": true,
+  "items": 18,
+  "latest": 1787035926000,
+  "feedTitle": "爱范儿"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Solidot",
+  "url": "https://www.solidot.org/index.rss",
+  "ok": true,
+  "items": 20,
+  "latest": 1787042139000,
+  "feedTitle": "奇客Solidot&#8211;传递最新科技情报"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "知乎每日精选",
+  "url": "https://www.zhihu.com/rss",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": ""
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "唐巧的技术博客",
+  "url": "https://blog.devtang.com/atom.xml",
+  "ok": true,
+  "items": 20,
+  "latest": 1786179625172,
+  "feedTitle": "唐巧的博客"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "极客公园",
+  "url": "https://www.geekpark.net/rss",
+  "ok": true,
+  "items": 30,
+  "latest": 1787032574000,
+  "feedTitle": "极客公园"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "BMPI",
+  "url": "https://www.bmpi.dev/index.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Linux 中国",
+  "url": "https://linux.cn/rss.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "开源中国资讯",
+  "url": "https://www.oschina.net/news/rss",
+  "ok": true,
+  "items": 50,
+  "latest": 1787039325000,
+  "feedTitle": "OSCHINA 社区最新新闻"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Google AI Blog",
+  "url": "https://blog.google/technology/ai/rss/",
+  "ok": true,
+  "items": 20,
+  "latest": 1786953600000,
+  "feedTitle": "AI"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Google Research Blog",
+  "url": "https://research.google/blog/rss/",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — AI",
+  "url": "https://rss.arxiv.org/rss/cs.AI",
+  "ok": true,
+  "items": 184,
+  "latest": 1787025600000,
+  "feedTitle": "cs.AI updates on arXiv.org"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — Machine Learning",
+  "url": "https://rss.arxiv.org/rss/cs.LG",
+  "ok": true,
+  "items": 184,
+  "latest": 1787025600000,
+  "feedTitle": "cs.LG updates on arXiv.org"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — NLP",
+  "url": "https://rss.arxiv.org/rss/cs.CL",
+  "ok": true,
+  "items": 101,
+  "latest": 1787025600000,
+  "feedTitle": "cs.CL updates on arXiv.org"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — Computer Vision",
+  "url": "https://rss.arxiv.org/rss/cs.CV",
+  "ok": true,
+  "items": 186,
+  "latest": 1787025600000,
+  "feedTitle": "cs.CV updates on arXiv.org"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Stability AI News",
+  "url": "https://stability.ai/news?format=rss",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "News &amp; Updates &mdash; Stability AI"
+ },
+ {
+  "cat": "ai",
+  "lang": "中",
+  "name": "机器之心 Synced",
+  "url": "https://www.jiqizhixin.com/rss",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "数据服务 | 机器之心"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "MIT Technology Review",
+  "url": "https://www.technologyreview.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786994169000,
+  "feedTitle": "MIT Technology Review"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Nature",
+  "url": "https://www.nature.com/nature.rss",
+  "ok": true,
+  "items": 75,
+  "latest": null,
+  "feedTitle": "Nature"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker News — AI",
+  "url": "https://hnrss.org/newest?q=AI",
+  "ok": true,
+  "items": 20,
+  "latest": 1787040108000,
+  "feedTitle": "Hacker News - Newest: &#34;AI&#34;"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker News — LLM",
+  "url": "https://hnrss.org/newest?q=LLM",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "React Blog",
+  "url": "https://react.dev/rss.xml",
+  "ok": true,
+  "items": 23,
+  "latest": 1786995518000,
+  "feedTitle": ""
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Vue.js Blog",
+  "url": "https://blog.vuejs.org/feed.rss",
+  "ok": true,
+  "items": 15,
+  "latest": 1725148800000,
+  "feedTitle": "The Vue Point"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Rust Blog",
+  "url": "https://blog.rust-lang.org/feed.xml",
+  "ok": true,
+  "items": 10,
+  "latest": 1786968349000,
+  "feedTitle": "Rust Blog"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Go Blog",
+  "url": "https://go.dev/blog/feed.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1779321600000,
+  "feedTitle": "The Go Blog"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Python Insider",
+  "url": "https://blog.python.org/feeds/posts/default",
+  "ok": true,
+  "items": 50,
+  "latest": 1786579200000,
+  "feedTitle": "Python Insider"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Node.js Blog",
+  "url": "https://nodejs.org/en/feed/blog.xml",
+  "ok": true,
+  "items": 1049,
+  "latest": 1786665600000,
+  "feedTitle": "Node.js Blog"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Deno Blog",
+  "url": "https://deno.com/blog/feed.xml",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "Not Found | Deno"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "TypeScript Blog",
+  "url": "https://devblogs.microsoft.com/typescript/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1783526309000,
+  "feedTitle": "TypeScript"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Swift Blog",
+  "url": "https://www.swift.org/atom.xml",
+  "ok": true,
+  "items": 14,
+  "latest": 1786894818000,
+  "feedTitle": "Swift.org"
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Kotlin Blog",
+  "url": "https://blog.jetbrains.com/kotlin/feed/",
+  "ok": true,
+  "items": 12,
+  "latest": 1786972377000,
+  "feedTitle": "Exploring Compose HTML for Server Side Rendering"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Smashing Magazine",
+  "url": "https://www.smashingmagazine.com/feed/",
+  "ok": true,
+  "items": 15,
+  "latest": 1786615200000,
+  "feedTitle": "Articles on Smashing Magazine — For Web Designers And Developers"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "A List Apart",
+  "url": "https://alistapart.com/main/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": null,
+  "feedTitle": ""
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "CSS-Tricks",
+  "url": "https://css-tricks.com/feed/",
+  "ok": true,
+  "items": 15,
+  "latest": 1786976150000,
+  "feedTitle": "CSS-Tricks"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Codrops",
+  "url": "https://tympanus.net/codrops/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786972164000,
+  "feedTitle": "Codrops"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Astro Blog",
+  "url": "https://astro.build/rss.xml",
+  "ok": true,
+  "items": 184,
+  "latest": 1785974400000,
+  "feedTitle": "The Astro Blog"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Svelte Blog",
+  "url": "https://svelte.dev/blog/rss.xml",
+  "ok": true,
+  "items": 29,
+  "latest": 1786579200000,
+  "feedTitle": "Svelte blog"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Next.js Blog",
+  "url": "https://nextjs.org/feed.xml",
+  "ok": true,
+  "items": 71,
+  "latest": 1786021200000,
+  "feedTitle": ""
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Nuxt Blog",
+  "url": "https://nuxt.com/blog/rss.xml",
+  "ok": true,
+  "items": 51,
+  "latest": 1785110400000,
+  "feedTitle": "The Nuxt Blog"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Tailwind CSS Blog",
+  "url": "https://tailwindcss.com/feeds/feed.xml",
+  "ok": true,
+  "items": 62,
+  "latest": 1778270400000,
+  "feedTitle": "Tailwind CSS Blog"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Chrome Developers",
+  "url": "https://developer.chrome.com/blog/feed.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Product Hunt",
+  "url": "https://www.producthunt.com/feed",
+  "ok": true,
+  "items": 50,
+  "latest": 1787042107000,
+  "feedTitle": "Product Hunt — The best new products, every day"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "AWS News Blog",
+  "url": "https://aws.amazon.com/blogs/aws/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": 1786982556000,
+  "feedTitle": "AWS News Blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Google Developers",
+  "url": "https://developers.googleblog.com/feeds/posts/default/",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Mozilla Hacks",
+  "url": "https://hacks.mozilla.org/feed/",
+  "ok": true,
+  "items": 20,
+  "latest": 1782228592000,
+  "feedTitle": "Mozilla Hacks &#8211; the Web developer blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Vercel Blog",
+  "url": "https://vercel.com/atom",
+  "ok": true,
+  "items": 137,
+  "latest": 1786924800000,
+  "feedTitle": "Vercel News"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Supabase Blog",
+  "url": "https://supabase.com/rss.xml",
+  "ok": true,
+  "items": 419,
+  "latest": 1786086000000,
+  "feedTitle": "Supabase Blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Stripe Blog",
+  "url": "https://stripe.com/blog/feed.rss",
+  "ok": true,
+  "items": 10,
+  "latest": 1786924800000,
+  "feedTitle": "Stripe Blog"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "JavaScript Weekly",
+  "url": "https://javascriptweekly.com/rss/",
+  "ok": true,
+  "items": 4,
+  "latest": 1786406400000,
+  "feedTitle": "JavaScript Weekly"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "This Week in Rust",
+  "url": "https://this-week-in-rust.org/atom.xml",
+  "ok": true,
+  "items": 4,
+  "latest": 1786507200000,
+  "feedTitle": "This Week in Rust"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Golang Weekly",
+  "url": "https://golangweekly.com/rss/",
+  "ok": true,
+  "items": 4,
+  "latest": 1786665600000,
+  "feedTitle": "Golang Weekly"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "ByteByteGo",
+  "url": "https://blog.bytebytego.com/feed",
+  "ok": true,
+  "items": 9,
+  "latest": 1786980656000,
+  "feedTitle": "ByteByteGo Newsletter"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Software Engineering Radio",
+  "url": "https://feeds.feedburner.com/se-radio",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Real Python",
+  "url": "https://realpython.com/atom.xml",
+  "ok": true,
+  "items": 50,
+  "latest": 1786975200000,
+  "feedTitle": "Real Python"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "freeCodeCamp News",
+  "url": "https://www.freecodecamp.org/news/rss/",
+  "ok": true,
+  "items": 10,
+  "latest": 1787002293000,
+  "feedTitle": ""
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Scott Hanselman",
+  "url": "https://www.hanselman.com/blog/feed/rss",
+  "ok": true,
+  "items": 11,
+  "latest": 1770616259000,
+  "feedTitle": "Scott Hanselman"
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "Krebs on Security",
+  "url": "https://krebsonsecurity.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786706675000,
+  "feedTitle": "Krebs on Security"
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "Schneier on Security",
+  "url": "https://www.schneier.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786965483000,
+  "feedTitle": "Schneier on Security"
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "Google Security Blog",
+  "url": "https://security.googleblog.com/atom.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "The Hacker News",
+  "url": "https://feeds.feedburner.com/TheHackersNews",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "sec",
+  "lang": "中",
+  "name": "FreeBuf",
+  "url": "https://www.freebuf.com/feed",
+  "ok": true,
+  "items": 20,
+  "latest": 1787042151000,
+  "feedTitle": "FreeBuf网络安全行业门户"
+ },
+ {
+  "cat": "sec",
+  "lang": "中",
+  "name": "安全客 AnQuanKe",
+  "url": "https://api.anquanke.com/data/v1/rss",
+  "ok": true,
+  "items": 20,
+  "latest": 1787039297000,
+  "feedTitle": "安全客-有思想的安全新媒体"
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "CISA News",
+  "url": "https://www.cisa.gov/news.xml",
+  "ok": true,
+  "items": 10,
+  "latest": 1786536000000,
+  "feedTitle": "CISA News"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "Claude Code Releases",
+  "url": "https://github.com/anthropics/claude-code/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1786998058000,
+  "feedTitle": "Release notes from claude-code"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "Gemini CLI Releases",
+  "url": "https://github.com/google-gemini/gemini-cli/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1787014805000,
+  "feedTitle": "Release notes from gemini-cli"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "OpenAI Codex Releases",
+  "url": "https://github.com/openai/codex/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1787033320000,
+  "feedTitle": "Release notes from codex"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "MCP Specification",
+  "url": "https://github.com/modelcontextprotocol/specification/releases.atom",
+  "ok": true,
+  "items": 9,
+  "latest": 1785257306000,
+  "feedTitle": "Release notes from modelcontextprotocol"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "MCP Servers Releases",
+  "url": "https://github.com/modelcontextprotocol/servers/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1783654747000,
+  "feedTitle": "Release notes from servers"
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "LangChain Releases",
+  "url": "https://github.com/langchain-ai/langchain/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1787017900000,
+  "feedTitle": "Release notes from langchain"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "uv Releases",
+  "url": "https://github.com/astral-sh/uv/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1786737472000,
+  "feedTitle": "Release notes from uv"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Zed Releases",
+  "url": "https://github.com/zed-industries/zed/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1787024683000,
+  "feedTitle": "Release notes from zed"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Bun Releases",
+  "url": "https://github.com/oven-sh/bun/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1784375462000,
+  "feedTitle": "Release notes from bun"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Biome Releases",
+  "url": "https://github.com/biomejs/biome/releases.atom",
+  "ok": true,
+  "items": 7,
+  "latest": 1787007807000,
+  "feedTitle": "Release notes from biome"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Copilot Changelog",
+  "url": "https://github.blog/changelog/label/copilot/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786724266000,
+  "feedTitle": "Use Case: copilot - GitHub Changelog"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "RSSHub Releases",
+  "url": "https://github.com/DIYgod/RSSHub/releases.atom",
+  "ok": true,
+  "items": 0,
+  "latest": 1787042154000,
+  "feedTitle": "Release notes from RSSHub"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Fluent Reader Releases",
+  "url": "https://github.com/yang991178/fluent-reader/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1777234009000,
+  "feedTitle": "Release notes from fluent-reader"
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "FreshRSS Releases",
+  "url": "https://github.com/FreshRSS/FreshRSS/releases.atom",
+  "ok": true,
+  "items": 10,
+  "latest": 1779299883000,
+  "feedTitle": "Release notes from FreshRSS"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "V2EX — 最热",
+  "url": "https://www.v2ex.com/feed/tab/hot.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "V2EX — 技术",
+  "url": "https://www.v2ex.com/feed/tab/tech.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Linux.do",
+  "url": "https://linux.do/latest.rss",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "NodeSeek",
+  "url": "https://rss.nodeseek.com/",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "IT之家",
+  "url": "https://www.ithome.com/rss/",
+  "ok": true,
+  "items": 60,
+  "latest": 1787041666000,
+  "feedTitle": "IT之家"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "掘金",
+  "url": "https://juejin.cn/rss",
+  "ok": true,
+  "items": 20,
+  "latest": 1787040386000,
+  "feedTitle": "掘金"
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "CoolShell 镜像",
+  "url": "https://coolshell.cn/feed",
+  "ok": true,
+  "items": 15,
+  "latest": 1683539526000,
+  "feedTitle": "酷 壳 &#8211; CoolShell"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Hillel Wayne",
+  "url": "https://www.hillelwayne.com/post/index.xml",
+  "ok": true,
+  "items": 126,
+  "latest": 1785283200000,
+  "feedTitle": "Blog on Hillel Wayne"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Joel on Software",
+  "url": "https://www.joelonsoftware.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1671454900000,
+  "feedTitle": "Joel on Software"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Overreacted (Dan Abramov)",
+  "url": "https://overreacted.io/rss.xml",
+  "ok": true,
+  "items": 58,
+  "latest": 1781827200000,
+  "feedTitle": "overreacted — A blog by Dan Abramov"
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "rachelbythebay",
+  "url": "https://rachelbythebay.com/w/atom.xml",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "张鑫旭",
+  "url": "https://www.zhangxinxu.com/wordpress/feed/",
+  "ok": true,
+  "items": 5,
+  "latest": 1786706425000,
+  "feedTitle": "张鑫旭-鑫空间-鑫生活"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "DIYGod",
+  "url": "https://diygod.cc/atom.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "MacTalk",
+  "url": "https://macshuo.com/feed",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "MacTalk-池建强的 Blog | 让创作成为一种生活方式"
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "代码家",
+  "url": "https://daimajia.com/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1766046684000,
+  "feedTitle": "代码家"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Wait But Why",
+  "url": "https://waitbutwhy.com/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1764090910000,
+  "feedTitle": "Wait But Why"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Scott Young",
+  "url": "https://www.scotthyoung.com/blog/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1786057095000,
+  "feedTitle": "Scott H Young"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Ness Labs",
+  "url": "https://nesslabs.com/feed",
+  "ok": true,
+  "items": 10,
+  "latest": 1781147562000,
+  "feedTitle": "Ness Labs"
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Derek Sivers",
+  "url": "https://sive.rs/en.atom",
+  "ok": false,
+  "reason": "timeout"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Decoder",
+  "url": "https://the-decoder.com/feed/",
+  "ok": true,
+  "items": 10,
+  "latest": 1787041344000,
+  "feedTitle": "The Decoder"
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Import AI",
+  "url": "https://importai.substack.com/feed",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Airbnb Tech Blog",
+  "url": "https://medium.com/airbnb-engineering/feed",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "LinkedIn Engineering",
+  "url": "https://engineering.linkedin.com/blog.rss",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Uber Engineering",
+  "url": "https://eng.uber.com/feed/",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Pinterest Engineering",
+  "url": "https://medium.com/pinterest-engineering/feed",
+  "ok": false,
+  "reason": "fetch failed"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Databricks Blog",
+  "url": "https://www.databricks.com/blog/rss.xml",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Snowflake Blog",
+  "url": "https://www.snowflake.com/blog/feed/",
+  "ok": false,
+  "reason": "HTTP 404"
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Oracle Developers",
+  "url": "https://developer.oracle.com/feed/",
+  "ok": true,
+  "items": 0,
+  "latest": null,
+  "feedTitle": "Oracle for Developers | Programming Languages, Tools, Community"
+ }
+]

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280">
+  <!-- RobinRead 知更 · 横版字标组合（启动页 / README / 官网用） -->
+  <g>
+    <circle cx="140" cy="140" r="96" fill="#F6F0E2"/>
+    <polygon points="86,150 130,86 176,86 190,150" fill="#33312C"/>
+    <circle cx="118" cy="122" r="7" fill="#F6F0E2"/>
+    <polygon points="62,118 86,112 86,126" fill="#A99F92"/>
+    <polygon points="86,150 190,150 208,168 166,206 108,194 86,170" fill="#E4600B"/>
+    <polygon points="176,86 214,104 206,124 168,110" fill="#6F8A5A"/>
+  </g>
+  <text x="290" y="152" font-family="Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif"
+        font-size="104" font-weight="700" fill="#2B2A26">知更</text>
+  <text x="290" y="216" font-family="Georgia, 'Times New Roman', serif"
+        font-size="46" letter-spacing="6" fill="#6F8A5A">ROBINREAD</text>
+  <text x="560" y="152" font-family="Georgia, 'Times New Roman', serif"
+        font-size="40" fill="#8A857B" letter-spacing="2">Reading First, AI Second</text>
+</svg>

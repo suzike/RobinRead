@@ -1,0 +1,2331 @@
+[
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Simon Willison",
+  "url": "https://simonwillison.net/atom/everything/",
+  "outcome": {
+   "ok": true,
+   "items": 30,
+   "avgBody": 3527,
+   "latestDays": 0,
+   "sampled": 30
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker News",
+  "url": "https://hnrss.org/frontpage",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 350,
+   "latestDays": 0,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Lilian Weng",
+  "url": "https://lilianweng.github.io/index.xml",
+  "outcome": {
+   "ok": true,
+   "items": 53,
+   "avgBody": 1139,
+   "latestDays": 45,
+   "sampled": 53
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "OpenAI News",
+  "url": "https://openai.com/news/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 1132,
+   "avgBody": 0,
+   "latestDays": 1,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Interconnects (Nathan Lambert)",
+  "url": "https://www.interconnects.ai/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 15020,
+   "latestDays": 1,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "BAIR Blog",
+  "url": "https://bair.berkeley.edu/blog/feed.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Ars Technica — AI",
+  "url": "https://arstechnica.com/ai/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 849,
+   "latestDays": 1,
+   "sampled": 22
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "VentureBeat AI",
+  "url": "https://venturebeat.com/category/ai/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 7,
+   "avgBody": 12004,
+   "latestDays": 91,
+   "sampled": 8
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Latent Space (Swyx)",
+  "url": "https://www.latent.space/feed",
+  "outcome": {
+   "ok": true,
+   "items": 18,
+   "avgBody": 25482,
+   "latestDays": 0,
+   "sampled": 17
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "LangChain Blog",
+  "url": "https://blog.langchain.dev/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 100,
+   "avgBody": 181,
+   "latestDays": 1,
+   "sampled": 92
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "IEEE Spectrum — Computing",
+  "url": "https://spectrum.ieee.org/feeds/topic/computing.rss",
+  "outcome": {
+   "ok": true,
+   "items": 30,
+   "avgBody": 7013,
+   "latestDays": 1,
+   "sampled": 31
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "ACM TechNews",
+  "url": "https://cacm.acm.org/rss",
+  "outcome": {
+   "kind": "http",
+   "status": 403
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Wired Science",
+  "url": "https://www.wired.com/feed/rss",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 127,
+   "latestDays": 0,
+   "sampled": 51
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Verge",
+  "url": "https://www.theverge.com/rss/index.xml",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 792,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "TechCrunch",
+  "url": "https://techcrunch.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 27,
+   "latestDays": 0,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker Noon",
+  "url": "https://hackernoon.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 11470,
+   "latestDays": 0,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Quanta Magazine",
+  "url": "https://api.quantamagazine.org/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 5,
+   "avgBody": 235,
+   "latestDays": 1,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Nautilus",
+  "url": "https://nautil.us/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 150,
+   "latestDays": 0,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Ars Technica 主刊",
+  "url": "https://feeds.arstechnica.com/arstechnica/index",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 882,
+   "latestDays": 0,
+   "sampled": 23
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Martin Fowler",
+  "url": "https://martinfowler.com/feed.atom",
+  "outcome": {
+   "ok": true,
+   "items": 30,
+   "avgBody": 5584,
+   "latestDays": 7,
+   "sampled": 30
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Julia Evans",
+  "url": "https://jvns.ca/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 9048,
+   "latestDays": 28,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Dan Luu",
+  "url": "https://danluu.com/atom.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "阮一峰的网络日志",
+  "url": "https://www.ruanyifeng.com/blog/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 3,
+   "avgBody": 2823,
+   "latestDays": 0,
+   "sampled": 6
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "王垠",
+  "url": "https://www.yinwang.org/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "云风 — 博客园",
+  "url": "https://blog.codingnow.com/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 2525,
+   "latestDays": 9,
+   "sampled": 30
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "酷壳 — CoolShell",
+  "url": "https://coolshell.cn/feed",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 2561,
+   "latestDays": 1198,
+   "sampled": 31
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Netflix TechBlog",
+  "url": "https://netflixtechblog.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 18464,
+   "latestDays": 11,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Cloudflare Blog",
+  "url": "https://blog.cloudflare.com/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 5826,
+   "latestDays": 4,
+   "sampled": 41
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Meta Engineering",
+  "url": "https://engineering.fb.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 9,
+   "avgBody": 8595,
+   "latestDays": 6,
+   "sampled": 19
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Stack Overflow Blog",
+  "url": "https://stackoverflow.blog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 40,
+   "avgBody": 84,
+   "latestDays": 0,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "The Pragmatic Engineer",
+  "url": "https://newsletter.pragmaticengineer.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 13311,
+   "latestDays": 4,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Dev.to",
+  "url": "https://dev.to/feed",
+  "outcome": {
+   "ok": true,
+   "items": 12,
+   "avgBody": 10165,
+   "latestDays": 0,
+   "sampled": 13
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "中",
+  "name": "InfoQ 中国",
+  "url": "https://www.infoq.cn/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 171,
+   "latestDays": 0,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Blog",
+  "url": "https://github.blog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 4616,
+   "latestDays": 1,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Changelog",
+  "url": "https://github.blog/changelog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 1216,
+   "latestDays": 3,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Farnam Street",
+  "url": "https://fs.blog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 2593,
+   "latestDays": 5,
+   "sampled": 41
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AIHOT — 精选",
+  "url": "https://aihot.virxact.com/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 221,
+   "latestDays": 0,
+   "sampled": 51
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AIHOT — 全部动态",
+  "url": "https://aihot.virxact.com/feed/all.xml",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 225,
+   "latestDays": 0,
+   "sampled": 51
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AIHOT 日报",
+  "url": "https://aihot.virxact.com/feed/daily.xml",
+  "outcome": {
+   "ok": true,
+   "items": 30,
+   "avgBody": 105,
+   "latestDays": 0,
+   "sampled": 31
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "少数派",
+  "url": "https://sspai.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 171,
+   "latestDays": 0,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "小众软件",
+  "url": "https://www.appinn.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 969,
+   "latestDays": 0,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Astral Apps Blog",
+  "url": "https://blog.astralapp.com/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Sebastian Raschka",
+  "url": "https://sebastianraschka.com/rss.xml",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Chip Huyen",
+  "url": "https://huyenchip.com/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 29979,
+   "latestDays": 579,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Eugene Yan",
+  "url": "https://eugeneyan.com/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 212,
+   "avgBody": 86,
+   "latestDays": 58,
+   "sampled": 213
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Machine Learning Mastery",
+  "url": "https://machinelearningmastery.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 45,
+   "latestDays": 1,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Gradient",
+  "url": "https://thegradient.pub/rss",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 20085,
+   "latestDays": 180,
+   "sampled": 23
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Last Week in AI",
+  "url": "https://lastweekin.ai/podcast/rss",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Google DeepMind（需代理）",
+  "url": "https://deepmind.google/blog/rss.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Azure AI Blog",
+  "url": "https://devblogs.microsoft.com/azureai/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Import AI（需代理）",
+  "url": "https://importai.substack.com/feed",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Batch · 吴恩达（需代理）",
+  "url": "https://www.deeplearning.ai/the-batch/feed/",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "IEEE Spectrum AI",
+  "url": "https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss",
+  "outcome": {
+   "ok": true,
+   "items": 30,
+   "avgBody": 7706,
+   "latestDays": 1,
+   "sampled": 31
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Anthropic News（需代理）",
+  "url": "https://www.anthropic.com/rss.xml",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "SemiAnalysis（需代理）",
+  "url": "https://www.semianalysis.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 9,
+   "avgBody": 26517,
+   "latestDays": 336,
+   "sampled": 9
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Andrej Karpathy",
+  "url": "https://karpathy.bearblog.dev/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 6901,
+   "latestDays": 0,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Pete Warden",
+  "url": "https://petewarden.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 3172,
+   "latestDays": 3,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Drew DeVault",
+  "url": "https://drewdevault.com/feed.xml",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "gwern.net",
+  "url": "https://gwern.net/feed",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "The Old New Thing",
+  "url": "https://devblogs.microsoft.com/oldnewthing/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "timeout"
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Eric Lippert",
+  "url": "https://ericlippert.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 1498,
+   "latestDays": 208,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Coding Horror",
+  "url": "https://blog.codinghorror.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 4579,
+   "latestDays": 56,
+   "sampled": 28
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Paul Graham（需代理）",
+  "url": "https://www.aaronsw.com/2002/feeds/pgessays.rss",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "Phodal",
+  "url": "https://www.phodal.com/blog/atom.xml",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Spotify Engineering",
+  "url": "https://engineering.atspotify.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 5,
+   "avgBody": 193,
+   "latestDays": 5,
+   "sampled": 6
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Shopify Engineering",
+  "url": "https://shopify.engineering/blogs/engineering.atom",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Slack Engineering",
+  "url": "https://slack.engineering/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 8,
+   "avgBody": 14581,
+   "latestDays": 35,
+   "sampled": 9
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "DoorDash Engineering",
+  "url": "https://doordash.engineering/feed/",
+  "outcome": {
+   "kind": "http",
+   "status": 403
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Dropbox Tech",
+  "url": "https://dropbox.tech/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 13585,
+   "latestDays": 29,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "V8 Dev Blog",
+  "url": "https://v8.dev/feed.xml",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Microsoft DevBlogs",
+  "url": "https://devblogs.microsoft.com/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Chromium Blog",
+  "url": "https://blog.chromium.org/feeds/posts/default?alt=rss",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Chrome Developers",
+  "url": "https://developer.chrome.com/rss/feed.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Discord Engineering",
+  "url": "https://discord.com/blog/rss.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "OSS Insight Blog",
+  "url": "https://blog.ossinsight.io/feed",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Cal Newport",
+  "url": "https://www.calnewport.com/feed/",
+  "outcome": {
+   "kind": "http",
+   "status": 403
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Raptitude",
+  "url": "https://www.raptitude.com/feed/",
+  "outcome": {
+   "kind": "http",
+   "status": 403
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Barking Up the Wrong Tree",
+  "url": "https://www.bakadesuyo.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 5,
+   "avgBody": 6645,
+   "latestDays": 1,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "The Marginalian",
+  "url": "https://www.themarginalian.org/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 5275,
+   "latestDays": 1,
+   "sampled": 32
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "James Clear",
+  "url": "https://jamesclear.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 8472,
+   "latestDays": 2416,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "AutoGen Blog",
+  "url": "https://microsoft.github.io/autogen/blog/rss.xml",
+  "outcome": {
+   "kind": "http",
+   "status": 404
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "Hugging Face Blog（需代理）",
+  "url": "https://huggingface.co/blog/feed.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "美团技术团队",
+  "url": "https://tech.meituan.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 1790,
+   "latestDays": 1,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "36氪",
+  "url": "https://36kr.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "爱范儿",
+  "url": "https://www.ifanr.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 2412,
+   "latestDays": 0,
+   "sampled": 41
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Solidot",
+  "url": "https://www.solidot.org/index.rss",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 3,
+   "latestDays": 0,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "知乎每日精选",
+  "url": "https://www.zhihu.com/rss",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "唐巧的技术博客",
+  "url": "https://blog.devtang.com/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 1986,
+   "latestDays": 10,
+   "sampled": 40
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "极客公园",
+  "url": "https://www.geekpark.net/rss",
+  "outcome": {
+   "ok": true,
+   "items": 30,
+   "avgBody": 4757,
+   "latestDays": 0,
+   "sampled": 31
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "BMPI",
+  "url": "https://www.bmpi.dev/index.xml",
+  "outcome": {
+   "ok": true,
+   "items": 141,
+   "avgBody": 44,
+   "latestDays": 65,
+   "sampled": 142
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Linux 中国",
+  "url": "https://linux.cn/rss.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "开源中国资讯",
+  "url": "https://www.oschina.net/news/rss",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 20,
+   "latestDays": 0,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Google AI Blog",
+  "url": "https://blog.google/technology/ai/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 200,
+   "latestDays": 1,
+   "sampled": 38
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Google Research Blog",
+  "url": "https://research.google/blog/rss/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — AI",
+  "url": "https://rss.arxiv.org/rss/cs.AI",
+  "outcome": {
+   "ok": true,
+   "items": 367,
+   "avgBody": 1531,
+   "latestDays": 0,
+   "sampled": 367
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — Machine Learning",
+  "url": "https://rss.arxiv.org/rss/cs.LG",
+  "outcome": {
+   "ok": true,
+   "items": 366,
+   "avgBody": 1530,
+   "latestDays": 0,
+   "sampled": 367
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — NLP",
+  "url": "https://rss.arxiv.org/rss/cs.CL",
+  "outcome": {
+   "ok": true,
+   "items": 101,
+   "avgBody": 1435,
+   "latestDays": 0,
+   "sampled": 102
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "arXiv — Computer Vision",
+  "url": "https://rss.arxiv.org/rss/cs.CV",
+  "outcome": {
+   "ok": true,
+   "items": 370,
+   "avgBody": 1503,
+   "latestDays": 0,
+   "sampled": 370
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Stability AI News",
+  "url": "https://stability.ai/news?format=rss",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "中",
+  "name": "机器之心 Synced",
+  "url": "https://www.jiqizhixin.com/rss",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "MIT Technology Review",
+  "url": "https://www.technologyreview.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 7921,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Nature",
+  "url": "https://www.nature.com/nature.rss",
+  "outcome": {
+   "ok": true,
+   "items": 75,
+   "avgBody": 233,
+   "latestDays": null,
+   "sampled": 76
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker News — AI",
+  "url": "https://hnrss.org/newest?q=AI",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 186,
+   "latestDays": 0,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Hacker News — LLM",
+  "url": "https://hnrss.org/newest?q=LLM",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 139,
+   "latestDays": 0,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "React Blog",
+  "url": "https://react.dev/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 23,
+   "avgBody": 0,
+   "latestDays": 1,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Vue.js Blog",
+  "url": "https://blog.vuejs.org/feed.rss",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 3351,
+   "latestDays": 716,
+   "sampled": 31
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Rust Blog",
+  "url": "https://blog.rust-lang.org/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 12480,
+   "latestDays": 1,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Go Blog",
+  "url": "https://go.dev/blog/feed.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 15654,
+   "latestDays": 89,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Python Insider",
+  "url": "https://blog.python.org/feeds/posts/default",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 125,
+   "latestDays": 5,
+   "sampled": 51
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Node.js Blog",
+  "url": "https://nodejs.org/en/feed/blog.xml",
+  "outcome": {
+   "ok": true,
+   "items": 1049,
+   "avgBody": 0,
+   "latestDays": 4,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Deno Blog",
+  "url": "https://deno.com/blog/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 0,
+   "avgBody": 0,
+   "latestDays": null,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "TypeScript Blog",
+  "url": "https://devblogs.microsoft.com/typescript/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "timeout"
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Swift Blog",
+  "url": "https://www.swift.org/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 33762,
+   "latestDays": 2,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Kotlin Blog",
+  "url": "https://blog.jetbrains.com/kotlin/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 12,
+   "avgBody": 8542,
+   "latestDays": 1,
+   "sampled": 13
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Smashing Magazine",
+  "url": "https://www.smashingmagazine.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 21,
+   "avgBody": 13415,
+   "latestDays": 5,
+   "sampled": 24
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "A List Apart",
+  "url": "https://alistapart.com/main/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 12520,
+   "latestDays": null,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "CSS-Tricks",
+  "url": "https://css-tricks.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 325,
+   "latestDays": 1,
+   "sampled": 16
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Codrops",
+  "url": "https://tympanus.net/codrops/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 33,
+   "latestDays": 1,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Astro Blog",
+  "url": "https://astro.build/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 184,
+   "avgBody": 127,
+   "latestDays": 12,
+   "sampled": 185
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Svelte Blog",
+  "url": "https://svelte.dev/blog/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 14682,
+   "latestDays": 5,
+   "sampled": 50
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Next.js Blog",
+  "url": "https://nextjs.org/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 71,
+   "avgBody": 0,
+   "latestDays": 12,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Nuxt Blog",
+  "url": "https://nuxt.com/blog/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 51,
+   "avgBody": 28,
+   "latestDays": 22,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Tailwind CSS Blog",
+  "url": "https://tailwindcss.com/feeds/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 62,
+   "avgBody": 56,
+   "latestDays": 102,
+   "sampled": 2
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Chrome Developers",
+  "url": "https://developer.chrome.com/blog/feed.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "fe",
+  "lang": "EN",
+  "name": "Product Hunt",
+  "url": "https://www.producthunt.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 375,
+   "latestDays": 0,
+   "sampled": 50
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "AWS News Blog",
+  "url": "https://aws.amazon.com/blogs/aws/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 5911,
+   "latestDays": 1,
+   "sampled": 41
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Google Developers",
+  "url": "https://developers.googleblog.com/feeds/posts/default/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Mozilla Hacks",
+  "url": "https://hacks.mozilla.org/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 4918,
+   "latestDays": 56,
+   "sampled": 41
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Vercel Blog",
+  "url": "https://vercel.com/atom",
+  "outcome": {
+   "ok": true,
+   "items": 249,
+   "avgBody": 1901,
+   "latestDays": 1,
+   "sampled": 248
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Supabase Blog",
+  "url": "https://supabase.com/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 419,
+   "avgBody": 85,
+   "latestDays": 11,
+   "sampled": 420
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Stripe Blog",
+  "url": "https://stripe.com/blog/feed.rss",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 190,
+   "latestDays": 1,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "JavaScript Weekly",
+  "url": "https://javascriptweekly.com/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 4,
+   "avgBody": 20976,
+   "latestDays": 7,
+   "sampled": 5
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "This Week in Rust",
+  "url": "https://this-week-in-rust.org/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 4,
+   "avgBody": 26538,
+   "latestDays": 6,
+   "sampled": 8
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Golang Weekly",
+  "url": "https://golangweekly.com/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 4,
+   "avgBody": 12909,
+   "latestDays": 4,
+   "sampled": 5
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "ByteByteGo",
+  "url": "https://blog.bytebytego.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 12090,
+   "latestDays": 1,
+   "sampled": 14
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Software Engineering Radio",
+  "url": "https://feeds.feedburner.com/se-radio",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Real Python",
+  "url": "https://realpython.com/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 50,
+   "avgBody": 2524,
+   "latestDays": 1,
+   "sampled": 100
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "freeCodeCamp News",
+  "url": "https://www.freecodecamp.org/news/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 29397,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Scott Hanselman",
+  "url": "https://www.hanselman.com/blog/feed/rss",
+  "outcome": {
+   "ok": true,
+   "items": 11,
+   "avgBody": 6996,
+   "latestDays": 190,
+   "sampled": 12
+  }
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "Krebs on Security",
+  "url": "https://krebsonsecurity.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 6670,
+   "latestDays": 4,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "Schneier on Security",
+  "url": "https://www.schneier.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 1400,
+   "latestDays": 1,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "The Hacker News",
+  "url": "https://feeds.feedburner.com/TheHackersNews",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "sec",
+  "lang": "中",
+  "name": "FreeBuf",
+  "url": "https://www.freebuf.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 119,
+   "latestDays": 0,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "sec",
+  "lang": "中",
+  "name": "安全客 AnQuanKe",
+  "url": "https://api.anquanke.com/data/v1/rss",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 0,
+   "latestDays": 0,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "sec",
+  "lang": "EN",
+  "name": "CISA News",
+  "url": "https://www.cisa.gov/news.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "Claude Code Releases",
+  "url": "https://github.com/anthropics/claude-code/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 4264,
+   "latestDays": 1,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "Gemini CLI Releases",
+  "url": "https://github.com/google-gemini/gemini-cli/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 11922,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "OpenAI Codex Releases",
+  "url": "https://github.com/openai/codex/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 44,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "MCP Specification",
+  "url": "https://github.com/modelcontextprotocol/specification/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 9,
+   "avgBody": 715,
+   "latestDays": 21,
+   "sampled": 9
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "MCP Servers Releases",
+  "url": "https://github.com/modelcontextprotocol/servers/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 254,
+   "latestDays": 39,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "agent",
+  "lang": "EN",
+  "name": "LangChain Releases",
+  "url": "https://github.com/langchain-ai/langchain/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 32875,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "uv Releases",
+  "url": "https://github.com/astral-sh/uv/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 18949,
+   "latestDays": 4,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Zed Releases",
+  "url": "https://github.com/zed-industries/zed/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 10366,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Bun Releases",
+  "url": "https://github.com/oven-sh/bun/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 1366,
+   "latestDays": 31,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Biome Releases",
+  "url": "https://github.com/biomejs/biome/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 73171,
+   "latestDays": 0,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Copilot Changelog",
+  "url": "https://github.blog/changelog/label/copilot/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 1098,
+   "latestDays": 4,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "GitHub Blog",
+  "url": "https://github.blog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 4616,
+   "latestDays": 1,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "Fluent Reader Releases",
+  "url": "https://github.com/yang991178/fluent-reader/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 2087,
+   "latestDays": 114,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "github",
+  "lang": "EN",
+  "name": "FreshRSS Releases",
+  "url": "https://github.com/FreshRSS/FreshRSS/releases.atom",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 24042,
+   "latestDays": 90,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "V2EX — 最热",
+  "url": "https://www.v2ex.com/feed/tab/hot.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "V2EX — 技术",
+  "url": "https://www.v2ex.com/feed/tab/tech.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "Linux.do",
+  "url": "https://linux.do/latest.rss",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "NodeSeek",
+  "url": "https://rss.nodeseek.com/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "IT之家",
+  "url": "https://www.ithome.com/rss/",
+  "outcome": {
+   "ok": true,
+   "items": 60,
+   "avgBody": 2064,
+   "latestDays": 0,
+   "sampled": 61
+  }
+ },
+ {
+  "cat": "cn",
+  "lang": "中",
+  "name": "掘金",
+  "url": "https://juejin.cn/rss",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 0,
+   "latestDays": 0,
+   "sampled": 0
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Hillel Wayne",
+  "url": "https://www.hillelwayne.com/post/index.xml",
+  "outcome": {
+   "ok": true,
+   "items": 126,
+   "avgBody": 495,
+   "latestDays": 20,
+   "sampled": 126
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "Overreacted (Dan Abramov)",
+  "url": "https://overreacted.io/rss.xml",
+  "outcome": {
+   "ok": true,
+   "items": 58,
+   "avgBody": 21,
+   "latestDays": 60,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "rachelbythebay",
+  "url": "https://rachelbythebay.com/w/atom.xml",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "张鑫旭",
+  "url": "https://www.zhangxinxu.com/wordpress/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 5,
+   "avgBody": 2241,
+   "latestDays": 4,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "中",
+  "name": "代码家",
+  "url": "https://daimajia.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 716,
+   "latestDays": 243,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Wait But Why",
+  "url": "https://waitbutwhy.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 9394,
+   "latestDays": 266,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Scott Young",
+  "url": "https://www.scotthyoung.com/blog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 4536,
+   "latestDays": 11,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Ness Labs",
+  "url": "https://nesslabs.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 4756,
+   "latestDays": 68,
+   "sampled": 21
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "Derek Sivers",
+  "url": "https://sive.rs/en.atom",
+  "outcome": {
+   "ok": true,
+   "items": 100,
+   "avgBody": 1579,
+   "latestDays": 22,
+   "sampled": 200
+  }
+ },
+ {
+  "cat": "matlab",
+  "lang": "EN",
+  "name": "MathWorks — Deep Learning",
+  "url": "https://blogs.mathworks.com/deep-learning/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "matlab",
+  "lang": "EN",
+  "name": "MathWorks — MATLAB Community",
+  "url": "https://blogs.mathworks.com/community/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "timeout"
+  }
+ },
+ {
+  "cat": "matlab",
+  "lang": "EN",
+  "name": "MathWorks — Engineering",
+  "url": "https://blogs.mathworks.com/engineering/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "timeout"
+  }
+ },
+ {
+  "cat": "matlab",
+  "lang": "EN",
+  "name": "MathWorks — Developer Zone",
+  "url": "https://blogs.mathworks.com/developer/feed/",
+  "outcome": {
+   "kind": "net",
+   "reason": "timeout"
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "The Decoder",
+  "url": "https://the-decoder.com/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 353,
+   "latestDays": 0,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Import AI",
+  "url": "https://importai.substack.com/feed",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Airbnb Tech Blog",
+  "url": "https://medium.com/airbnb-engineering/feed",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Pinterest Engineering",
+  "url": "https://medium.com/pinterest-engineering/feed",
+  "outcome": {
+   "kind": "net",
+   "reason": "fetch failed"
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Databricks Blog",
+  "url": "https://www.databricks.com/blog/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 85,
+   "latestDays": 0,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "Stack Overflow Blog",
+  "url": "https://stackoverflow.blog/feed/",
+  "outcome": {
+   "ok": true,
+   "items": 40,
+   "avgBody": 84,
+   "latestDays": 0,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "method",
+  "lang": "EN",
+  "name": "The Pragmatic Engineer",
+  "url": "https://newsletter.pragmaticengineer.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 20,
+   "avgBody": 13311,
+   "latestDays": 4,
+   "sampled": 20
+  }
+ },
+ {
+  "cat": "guru",
+  "lang": "EN",
+  "name": "All Things Distributed",
+  "url": "https://www.allthingsdistributed.com/atom.xml",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 246,
+   "latestDays": 14,
+   "sampled": 11
+  }
+ },
+ {
+  "cat": "eng",
+  "lang": "EN",
+  "name": "LWN.net",
+  "url": "https://lwn.net/headlines/rss",
+  "outcome": {
+   "ok": true,
+   "items": 15,
+   "avgBody": 1076,
+   "latestDays": 0,
+   "sampled": 16
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Rust Blog",
+  "url": "https://blog.rust-lang.org/feed.xml",
+  "outcome": {
+   "ok": true,
+   "items": 10,
+   "avgBody": 12480,
+   "latestDays": 1,
+   "sampled": 10
+  }
+ },
+ {
+  "cat": "lang",
+  "lang": "EN",
+  "name": "Zig News",
+  "url": "https://ziglang.org/news/index.xml",
+  "outcome": {
+   "ok": true,
+   "items": 29,
+   "avgBody": 11,
+   "latestDays": 63,
+   "sampled": 1
+  }
+ },
+ {
+  "cat": "ai",
+  "lang": "EN",
+  "name": "Ahead of AI (Sebastian Raschka)",
+  "url": "https://magazine.sebastianraschka.com/feed",
+  "outcome": {
+   "ok": true,
+   "items": 8,
+   "avgBody": 22142,
+   "latestDays": 3,
+   "sampled": 7
+  }
+ }
+]

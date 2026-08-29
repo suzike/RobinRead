@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知更 RobinRead — 本地优先、AI 增强的纸感 RSS 阅读器（Windows）</title>
+  <meta name="description" content="知更 RobinRead：本地优先、AI 增强的纸感三栏 RSS 阅读器。AI 精读与逐句对照翻译、多色高亮批注、知识中心与间隔复习、阅读进化引擎、今日 AI 简报、FreshRSS 同步、170+ 精选订阅源。数据全部保存在本机。">
+  <meta name="keywords" content="RSS阅读器,RSS,知更,RobinRead,Windows,RSS客户端,AI阅读,FreshRSS,离线阅读,订阅,高亮批注,知识管理,间隔复习,RSS翻译">
+  <meta name="author" content="RobinRead">
+  <link rel="canonical" href="https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="知更 RobinRead">
+  <meta property="og:title" content="知更 RobinRead — 让阅读回归纯粹与沉浸">
+  <meta property="og:description" content="本地优先、AI 增强的纸感三栏 RSS 阅读器。双语流转，克制智能化。数据全部保存在本机。">
+  <meta property="og:url" content="https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/">
+  <meta property="og:image" content="https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/shots/home.jpg">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="知更 RobinRead — 纸感三栏 RSS 阅读器">
+  <meta name="twitter:description" content="本地优先、AI 增强。双语流转，克制智能化。">
+  <meta name="twitter:image" content="https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/shots/home.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "知更 RobinRead",
+    "alternateName": "RobinRead",
+    "operatingSystem": "Windows 10, Windows 11",
+    "applicationCategory": "NewsApplication",
+    "softwareVersion": "2.2.0",
+    "description": "本地优先、AI 增强的纸感三栏 RSS 阅读器：AI 精读与逐句对照翻译、多色高亮批注、知识中心与间隔复习、阅读进化引擎、今日 AI 简报、FreshRSS 多账户同步、170+ 精选订阅源，数据全部保存在本机。",
+    "inLanguage": "zh-CN",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
+    "featureList": "纸感三栏界面,AI 精读与流式摘要,逐句对照翻译,划词翻译/解释/提问,全文翻译与任意目标语言,多色高亮与段落笔记,批注面板,知识中心与间隔复习,收藏集与智能文件夹,阅读进化引擎与个性化推荐,主题设计器与中国传统色,今日 AI 简报,AIHOT 热点与模型榜,FreshRSS 多账户同步,订阅商店 170+ 源,OPML 导入导出,ETag 条件刷新,网页正文提取与消毒,SQLite 本地存储,DPAPI 凭据加密,OKLCH 明暗双主题,中英双语界面,账号登录与会员订阅,激活码兑换,键盘快捷键",
+    "screenshot": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/shots/home.jpg"
+  }
+  </script>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ============ 顶部导航 ============ -->
+  <header class="nav" id="top">
+    <div class="nav-inner">
+      <a class="brand" href="#top">
+        <img class="brand-logo" src="assets/logo.svg" alt="知更 RobinRead 图标" width="34" height="34">
+        <span class="brand-name">知更 <em>RobinRead</em></span>
+      </a>
+      <nav class="nav-links" aria-label="页面导航">
+        <a href="#features">功能</a>
+        <a href="#gallery">一览</a>
+        <a href="#evolution">进化</a>
+        <a href="#shortcuts">快捷键</a>
+        <a href="#privacy">隐私</a>
+        <a href="#download">下载</a>
+        <a href="#faq">常见问题</a>
+      </nav>
+      <a class="nav-cta" href="#download">免费下载</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ 首屏 · 报头 ============ -->
+    <section class="hero">
+      <div class="hero-vert hero-vert-left" aria-hidden="true">双 语 流 转</div>
+      <div class="hero-vert hero-vert-right" aria-hidden="true">克 制 智 能 化</div>
+      <div class="hero-inner">
+        <div class="hero-mast anim d1">
+          <span class="mast-line"></span>
+          <img class="hero-logo" src="assets/logo.svg" alt="知更 RobinRead 折纸知更鸟标志" width="104" height="104">
+          <span class="mast-line"></span>
+        </div>
+        <h1 class="hero-title anim d2">让阅读回归<span class="accent">纯粹与沉浸</span><span class="seal" aria-hidden="true">知更</span></h1>
+        <p class="hero-slogan anim d3">Reading First, AI Second</p>
+        <p class="hero-desc anim d4">
+          知更（RobinRead）把散落的订阅还原为安静、清晰的纸感三栏阅读空间，
+          并只在真正有帮助的地方提供 AI 能力。所有数据保存在本机，不经过任何第三方服务器。
+        </p>
+        <div class="hero-actions anim d5">
+          <a class="btn btn-primary" href="download/RobinRead-2.2.0-setup.exe" download>
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 2.5v10m0 0l-3.75-3.75M10 12.5l3.75-3.75M3.5 15.5h13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            下载 Windows 安装包
+          </a>
+          <a class="btn btn-ghost" href="download/RobinRead-2.2.0-portable.exe" download>便携版</a>
+        </div>
+        <p class="hero-meta anim d6">v2.2.0 · Windows 10 及以上 · 约 90 MB · 免费</p>
+        <figure class="hero-shot anim d7">
+          <div class="win-frame win-frame-plain">
+            <img src="shots/home.jpg" alt="知更 RobinRead 纸感三栏主界面：左侧订阅栏、中间文章列表、右侧衬线排版阅读区" width="1600" height="944" loading="eager">
+          </div>
+          <figcaption>三栏纸感主界面 · 衬线排版 · 纸纹噪点</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ 特性条 ============ -->
+    <section class="strip" aria-label="产品特性概览">
+      <ul class="strip-inner">
+        <li><strong>本地优先</strong><span>SQLite 存储 · 数据不出本机</span></li>
+        <li><strong>AI 克制</strong><span>按需精读 · 流式摘要</span></li>
+        <li><strong>双语流转</strong><span>逐句对照 · 划词翻译</span></li>
+        <li><strong>开箱即用</strong><span>170+ 精选订阅源</span></li>
+      </ul>
+    </section>
+
+    <!-- ============ 核心功能 ============ -->
+    <section class="section" id="features">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">壹</span>功能</p>
+        <h2>阅读为先，智能其次</h2>
+        <p class="section-desc">Reading First, AI Second —— 先把阅读本身做到安静舒适，再在真正需要的地方引入 AI。</p>
+      </header>
+
+      <div class="feature-grid stagger">
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">01</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <h3>纸感三栏阅读</h3>
+          <p>米白纸底、衬线排版、章节导航轨道与浮动滚动条。空格翻篇、禅模式专注阅读，烂排版一键重排。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">02</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.4L12 15l-1.9-4.6L5.5 9l4.6-1.4zM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>AI 精读</h3>
+          <p>一键精读与高质量摘要流式生成，研读面板常驻可折叠、缓存秒开；支持 DeepSeek 与任意 OpenAI 兼容 API。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">03</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 6h7v12H4zM13 6h7v12h-7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13 9.5h7M13 14.5h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+          </div>
+          <h3>逐句对照翻译</h3>
+          <p>视口内按需逐段对照、滚动即译，译文高亮跟随原文；任意目标语言，全文翻译一键完成。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">04</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 18c2-8 6-12 8-12s2 4 4 4 3-2 4-4M4 18h4m4-9v9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>划词 AI 助手</h3>
+          <p>选中任意文字即出浮窗：翻译、直接解释、向 AI 多轮追问，三个按钮按需开启，不打扰不弹窗。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">05</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 19V9l7-5 7 5v10zM9 19v-6h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="10" r="1.3" fill="currentColor"/></svg>
+          </div>
+          <h3>今日 AI 简报</h3>
+          <p>每天的第一屏：自动汇总全部订阅生成晨间简报，按主题分组、缓存秒开，像一份只属于你的晨报。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">06</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 17l5-5 3.5 3.5L15 12l6 5M4 20h16z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="9" cy="7" r="1.6" fill="currentColor"/></svg>
+          </div>
+          <h3>AIHOT 热点与模型榜</h3>
+          <p>内置 AIHOT 热点、日报与模型榜单，行业风向一屏尽览，感兴趣的内容可转存进你的订阅。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">07</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 15.5l4-4 3 3 6.5-6.5M4 15.5V20h4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.5h6v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>多色高亮批注</h3>
+          <p>选中即高亮，四色随选；段落末端挂便签卡写笔记，批注面板总览本篇所有标记，重开自动恢复现场。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">08</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 5c-4 0-7 3-7 7 0 4 3 7 7 7 1.5 0 2.5-1 2.5-2.2 0-.6-.2-1-.6-1.5-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h1.6c1.7 0 3-1.3 3-3C20 7.2 16.4 5 12 5z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="11" r="1.1" fill="currentColor"/><circle cx="12" cy="8.5" r="1.1" fill="currentColor"/><circle cx="15.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+          </div>
+          <h3>知识中心</h3>
+          <p>高亮与笔记沉淀为知识库：间隔复习按记忆曲线回流重点，收藏集与智能文件夹按主题归档，标签云纵览兴趣版图。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">09</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>阅读进化引擎</h3>
+          <p>从阅读行为学习兴趣画像，「你可能喜欢」「今日必读」越用越准；源健康监测自动标记死源，未读堆积提前预警。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">10</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3a9 9 0 1 0 9 9M12 3v9l7.8-4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>FreshRSS 多账户同步</h3>
+          <p>本地账户 + FreshRSS（Google Reader API）多账户，未读 / 星标双向同步，AI 结果一并同步，离线变更自动排队补传。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">11</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 12h3M8 15h8M8 9h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>
+          </div>
+          <h3>订阅商店</h3>
+          <p>内置 170+ 精选优质源分类陈列、一键订阅；支持 RSS / Atom / JSON Feed、OPML 导入导出与 ETag 条件刷新。</p>
+        </article>
+        <article class="feature-card reveal">
+          <span class="fc-no" aria-hidden="true">12</span>
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.4-3 8.4-7 10-4-1.6-7-5.6-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>本地优先与安全</h3>
+          <p>SQLite 存储全部数据，凭据经 Windows DPAPI 加密；中英双语界面，数据目录干净独立，卸载无残留。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ 场景截图 ============ -->
+    <section class="section section-alt" id="gallery">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">贰</span>一览</p>
+        <h2>安静的三栏，聪明的细节</h2>
+      </header>
+
+      <div class="shot-row">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">精读</span>
+          <p class="kicker">精读</p>
+          <h3>AI 原文精读</h3>
+          <p>对任意文章发起精读：流式全文摘要、要点提炼。研读面板常驻可折叠、记住你的偏好，生成过一次即缓存秒开。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — AI 精读</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/deepread.jpg" alt="AI 精读界面：右侧研读面板流式生成文章摘要" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>AI 精读 · 研读面板</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row reverse">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">双语</span>
+          <p class="kicker">双语</p>
+          <h3>逐句对照翻译</h3>
+          <p>外文文章按句对照呈现，只翻译视口内的段落、滚动即续译；译文高亮跟随原文，目标语言随你指定。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — 逐句对照</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/bilingual.jpg" alt="逐句对照翻译：英文原文与中文译文并排显示" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>逐句对照 · 高亮跟随</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">批注</span>
+          <p class="kicker">批注</p>
+          <h3>高亮与便签批注</h3>
+          <p>选中文字即高亮，黄绿蓝紫四色随选；在段落末端挂一张便签卡写下想法，批注面板总览本篇所有标记与笔记。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — 批注面板</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/annotation.jpg" alt="批注面板：高亮与笔记总览，段落便签卡" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>批注面板 · 多色高亮 · 段落便签</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row reverse">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">沉淀</span>
+          <p class="kicker">沉淀</p>
+          <h3>知识中心</h3>
+          <p>高亮与笔记自动沉淀为知识库：标签云纵览兴趣版图，重要段落加入间隔复习按记忆曲线回流，收藏集与智能文件夹按主题归档。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — 知识中心</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/knowledge.jpg" alt="知识中心：标签云、复习卡片与收藏集统计" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>知识中心 · 标签云 · 间隔复习</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">晨讯</span>
+          <p class="kicker">晨讯</p>
+          <h3>今日 AI 简报</h3>
+          <p>每天的第一屏：自动汇总全部订阅，生成一页可速览的晨间简报，像一份只属于你的晨报。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — 今日简报</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/digest.jpg" alt="今日 AI 简报视图：按主题分组汇总当日订阅更新" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>今日简报 · 晨间速览</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row reverse">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">发现</span>
+          <p class="kicker">发现</p>
+          <h3>订阅商店</h3>
+          <p>170+ 精选源分类陈列，一键订阅；支持 OPML 一键迁移旧阅读器的全部订阅。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — 订阅商店</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/store.jpg" alt="订阅商店：分类展示 170 多个精选 RSS 源" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>订阅商店 · 170+ 精选源</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">视野</span>
+          <p class="kicker">视野</p>
+          <h3>AIHOT 模型榜</h3>
+          <p>聚合每日热点与模型榜单，技术动态、行业风向一眼掌握，可直接转存到你的订阅。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — AIHOT</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/aihot-board.jpg" alt="AIHOT 模型榜单界面" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>AIHOT · 热点与模型榜</figcaption>
+        </figure>
+      </div>
+
+      <div class="shot-row reverse">
+        <div class="shot-text reveal">
+          <span class="shot-mark" aria-hidden="true">主题</span>
+          <p class="kicker">主题</p>
+          <h3>主题设计器</h3>
+          <p>OKLCH 三通道自由调色，中国传统色即点即用；明暗两套预览并排对照，色盲模拟与 WCAG 对比度实时检测——纸面由你定义。</p>
+        </div>
+        <figure class="shot-card reveal">
+          <div class="win-frame">
+            <div class="win-bar" aria-hidden="true"><span class="win-title">知更 RobinRead — 主题设计器</span><span class="win-ctrl">─&ensp;▢&ensp;✕</span></div>
+            <img src="shots/theme-designer.jpg" alt="主题设计器：OKLCH 调色、中国传统色、明暗并排预览" width="1600" height="944" loading="lazy">
+          </div>
+          <figcaption>主题设计器 · 传统色「天青」 · 明暗并排</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ 金句带 ============ -->
+    <section class="quote-band" aria-label="产品理念">
+      <div class="quote-frame reveal">
+        <p class="quote-en">Reading First, <em>AI Second.</em></p>
+        <p class="quote-zh">阅读为先，智能其次</p>
+        <p class="quote-sub">知更晨鸣，晓更迭 —— 每天清晨，把世界的更新读到你的纸上来。</p>
+      </div>
+    </section>
+
+    <!-- ============ 阅读进化 ============ -->
+    <section class="section" id="evolution">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">叁</span>进化</p>
+        <h2>它会学着越来越懂你</h2>
+        <p class="section-desc">阅读进化引擎把「静态订阅器」变成「会学习的阅读助手」—— 一切学习都发生在你的本机。</p>
+      </header>
+      <div class="evo-grid stagger">
+        <div class="evo-item reveal">
+          <span class="fc-no" aria-hidden="true">01</span>
+          <h3>源健康监测</h3>
+          <p>跟踪每个源的抓取成功率、连续失败与信息产出率，自动标记死源，订阅列表不再藏污纳垢。</p>
+        </div>
+        <div class="evo-item reveal">
+          <span class="fc-no" aria-hidden="true">02</span>
+          <h3>兴趣画像</h3>
+          <p>从阅读、星标、高亮、跳过等行为中学习标签权重与源偏好，含时间衰减——最近的兴趣说话更响。</p>
+        </div>
+        <div class="evo-item reveal">
+          <span class="fc-no" aria-hidden="true">03</span>
+          <h3>今日必读 · 你可能喜欢</h3>
+          <p>基于画像从未读中挑出值得先看的文章，越用越懂你，信息过载的第一道滤网。</p>
+        </div>
+        <div class="evo-item reveal">
+          <span class="fc-no" aria-hidden="true">04</span>
+          <h3>未读堆积预警</h3>
+          <p>信息密度统计与未读堆积提醒，订阅失控时及时告诉你，而不是让你淹没在 999+ 里。</p>
+        </div>
+        <div class="evo-item reveal">
+          <span class="fc-no" aria-hidden="true">05</span>
+          <h3>AI 反馈闭环</h3>
+          <p>对 AI 回答点赞 / 点踩，累积可信度与偏好，摘要与解释的质量随反馈持续校准。</p>
+        </div>
+        <div class="evo-item reveal">
+          <span class="fc-no" aria-hidden="true">06</span>
+          <h3>自诊断</h3>
+          <p>数据库完整性、死源、未读堆积、AI 配置健康度一键体检，问题在你发现之前先被发现。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 快捷键 ============ -->
+    <section class="section section-alt" id="shortcuts">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">肆</span>快捷键</p>
+        <h2>为键盘而生的阅读节奏</h2>
+        <p class="section-desc">双手不离键盘，从订阅到读完一篇，只需几次敲击。</p>
+      </header>
+      <div class="sc-grid stagger reveal-wrap">
+        <div class="sc-item reveal"><span class="sc-key"><kbd>C</kbd></span><span>开启 / 关闭逐句对照翻译</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>V</kbd></span><span>查看 / 生成 AI 摘要</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>B</kbd> <kbd>B</kbd></span><span>上一篇（再按一次确认，不循环）</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>N</kbd> <kbd>N</kbd></span><span>下一篇（再按一次确认，不循环）</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>M</kbd></span><span>收藏 / 取消收藏</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>Space</kbd></span><span>向下阅读；到底后切换下一篇</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>←</kbd> <kbd>→</kbd></span><span>三栏之间移动焦点</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></span><span>刷新全部订阅</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>Ctrl</kbd>+<kbd>/</kbd> <kbd>−</kbd> <kbd>0</kbd></span><span>正文字号放大 / 缩小 / 重置</span></div>
+        <div class="sc-item reveal"><span class="sc-key"><kbd>Ctrl</kbd>+<kbd>/</kbd></span><span>快捷键帮助</span></div>
+      </div>
+    </section>
+
+    <!-- ============ 细节清单 ============ -->
+    <section class="section" id="details">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">伍</span>细节</p>
+        <h2>还有这些，藏在使用里</h2>
+      </header>
+      <ul class="chips reveal">
+        <li>网页正文提取与消毒</li>
+        <li>烂排版一键重排</li>
+        <li>禅模式全屏阅读</li>
+        <li>章节导航轨道</li>
+        <li>浮动滚动条</li>
+        <li>空格翻篇</li>
+        <li>ETag 条件刷新</li>
+        <li>离线变更队列</li>
+        <li>OPML 导入导出</li>
+        <li>任意翻译目标语言</li>
+        <li>全文翻译</li>
+        <li>重开恢复阅读现场</li>
+        <li>中英双语界面</li>
+        <li>更新检查默认离线 · 可自建更新源</li>
+        <li>便携版数据随目录走</li>
+      </ul>
+    </section>
+
+    <!-- ============ 隐私 ============ -->
+    <section class="section section-alt" id="privacy">
+      <div class="privacy-wrap">
+        <div class="privacy-text reveal">
+          <p class="kicker"><span class="kicker-no">陆</span>隐私</p>
+          <h2>你的阅读，只属于你</h2>
+          <p>
+            知更是本地优先（Local-first）应用：订阅、文章、阅读状态、批注与 AI 配置全部保存在本机
+            <code>%APPDATA%\RobinRead</code>，凭据经 Windows DPAPI 加密。
+            没有强制云端账户，没有行为上报，没有第三方追踪 ——
+            AI 功能仅在你在「设置 → AI 功能」填入自己的 API Key 后，才会向你指定的服务发起请求。
+          </p>
+          <ul class="privacy-list">
+            <li>数据目录干净独立，卸载即可完全移除</li>
+            <li>从 NanJuPaper / PaperRss 旧版升级自动迁移，不覆盖新数据</li>
+            <li>基础阅读无需登录，全部核心功能离线可用</li>
+          </ul>
+        </div>
+        <figure class="privacy-figure reveal" aria-hidden="true">
+          <img src="assets/logo.svg" alt="" width="200" height="200">
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ 免费与会员 ============ -->
+    <section class="section" id="plans">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">柒</span>版本</p>
+        <h2>免费开始，按需升级</h2>
+        <p class="section-desc">下载即用，免费版已是一款完整的 RSS 阅读器；会员解锁全部高级能力。注册账号即可开通会员。</p>
+      </header>
+      <div class="plan-grid stagger">
+        <article class="plan-card reveal">
+          <h3>免费版</h3>
+          <p class="plan-price">¥ 0</p>
+          <ul>
+            <li>完整纸感三栏阅读与主题</li>
+            <li>30 个订阅源 + FreshRSS 同步</li>
+            <li>每日 3 次 AI 精读 / 摘要 / 翻译 / 简报</li>
+            <li>高亮批注 · OPML · 订阅商店</li>
+          </ul>
+        </article>
+        <article class="plan-card plan-member reveal">
+          <h3>月卡<span class="dl-tag">高级</span></h3>
+          <p class="plan-price">¥ 10 <em>/ 30 天</em></p>
+          <ul>
+            <li>无限订阅源</li>
+            <li>AI 精读 / 摘要 / 翻译 / 简报不限量</li>
+            <li>全文抓取 · 智能过滤 · 进化引擎 · 知识库</li>
+            <li>时长可叠加，到期前 3 天提醒</li>
+          </ul>
+        </article>
+        <article class="plan-card plan-member reveal">
+          <h3>终身<span class="dl-tag">一次买断</span></h3>
+          <p class="plan-price">¥ 88 <em>/ 永久</em></p>
+          <ul>
+            <li>月卡全部权益</li>
+            <li>永久解锁，无需续费</li>
+            <li>后续新增会员功能自动解锁</li>
+          </ul>
+        </article>
+      </div>
+      <p class="dl-note reveal">会员通过激活码兑换开通：购买兑换码后回到客户端「兑换会员」输码激活，月卡与终身走同一套权益。基础阅读与本地数据永不付费墙。</p>
+    </section>
+
+    <!-- ============ 下载 · 仪式区 ============ -->
+    <section class="download-band" id="download">
+      <div class="download-inner">
+        <header class="section-head">
+          <p class="kicker"><span class="kicker-no">捌</span>下载</p>
+          <h2>开始你的晨间阅读</h2>
+          <p class="section-desc">v2.2.0 · Windows 10 及以上 · 免费使用</p>
+        </header>
+
+        <div class="dl-grid stagger">
+          <article class="dl-card reveal">
+            <div class="dl-head">
+              <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 5l9-2 9 2v7c0 5-3.8 8.4-9 9-5.2-.6-9-4-9-9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+              <h3>安装版<span class="dl-tag">推荐</span></h3>
+            </div>
+            <p class="dl-desc">标准 NSIS 安装程序，支持自定义安装路径、开始菜单与桌面快捷方式，适合日常使用。</p>
+            <a class="btn btn-primary btn-block" href="download/RobinRead-2.2.0-setup.exe" download>
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 2.5v10m0 0l-3.75-3.75M10 12.5l3.75-3.75M3.5 15.5h13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              下载 RobinRead-2.2.0-setup.exe
+            </a>
+            <p class="dl-meta">约 90 MB · exe · SHA-256 见页脚</p>
+          </article>
+
+          <article class="dl-card reveal">
+            <div class="dl-head">
+              <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+              <h3>便携版</h3>
+            </div>
+            <p class="dl-desc">单文件绿色版，无需安装、不写注册表，放入 U 盘即可在任何 Windows 上随身携带。</p>
+            <a class="btn btn-ghost btn-block" href="download/RobinRead-2.2.0-portable.exe" download>
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 2.5v10m0 0l-3.75-3.75M10 12.5l3.75-3.75M3.5 15.5h13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              下载 RobinRead-2.2.0-portable.exe
+            </a>
+            <p class="dl-meta">约 90 MB · exe · 数据存于同目录</p>
+          </article>
+        </div>
+
+        <p class="dl-note reveal">
+          首次运行自动创建本地账户；在「设置 → 账号」添加 FreshRSS，或用工具栏「+」添加 RSS 订阅 / 导入 OPML。
+          AI 功能在「设置 → AI 功能」配置 API Key 后可用。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="section" id="faq">
+      <header class="section-head">
+        <p class="kicker"><span class="kicker-no">玖</span>常见问题</p>
+        <h2>你可能想知道</h2>
+      </header>
+      <div class="faq-list reveal">
+        <details>
+          <summary>知更是免费的吗？AI 有次数限制吗？</summary>
+          <p>下载使用完全免费：免费版包含完整阅读体验、30 个订阅源与每日 3 次 AI 功能。会员分为月卡（10 元 / 30 天，可叠加）与终身（88 元一次买断），解锁无限订阅源、AI 不限量，以及全文抓取、智能过滤、进化引擎与知识库全部能力，可在应用内开通。</p>
+        </details>
+        <details>
+          <summary>如何登录与开通会员？</summary>
+          <p>账号支持用户名密码注册登录，基础阅读无需登录。会员通过激活码兑换开通：购买兑换码后回到客户端「兑换会员」输码激活，月卡（10 元 / 30 天）与终身（88 元一次买断）走同一套权益，时长可叠加。</p>
+        </details>
+        <details>
+          <summary>AI 功能支持哪些模型？怎么配置？</summary>
+          <p>开箱支持 DeepSeek，同时兼容任意 OpenAI 风格 API（地址 + Key 自填），也支持可信局域网 HTTP 服务。在「设置 → AI 功能」里配置即可；不配置时，知更就是一款纯粹的本地 RSS 阅读器。</p>
+        </details>
+        <details>
+          <summary>我的数据保存在哪里？会被上传吗？</summary>
+          <p>全部保存在本机 <code>%APPDATA%\RobinRead</code>（便携版在程序同目录）。知更不做行为上报；只有订阅抓取和你主动配置的 AI 请求会访问网络。兴趣画像等学习结果也全部在本机计算。</p>
+        </details>
+        <details>
+          <summary>我从别的阅读器迁移，订阅要重新添加吗？</summary>
+          <p>不需要。知更支持 OPML 导入导出，一键迁移订阅；从 NanJuPaper / PaperRss 旧版本升级时，数据会在首次启动时自动迁移。</p>
+        </details>
+        <details>
+          <summary>高亮和笔记会跟随文章一起保存吗？</summary>
+          <p>会。高亮（含颜色）、段落便签与文章笔记都锚定在正文上，重开自动恢复；它们还会沉淀进知识中心，可加入间隔复习、归入收藏集或打上标签。</p>
+        </details>
+        <details>
+          <summary>安装版和便携版有什么区别？</summary>
+          <p>功能完全一致。安装版提供标准安装向导与快捷方式；便携版为单个 exe，免安装、不写注册表，适合随身携带或公用电脑。</p>
+        </details>
+        <details>
+          <summary>支持 macOS 或 Linux 吗？</summary>
+          <p>目前仅提供 Windows 版本。其他平台欢迎关注后续更新。</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ 页脚 · 刊尾 ============ -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-mast reveal">
+        <span class="footer-rule"></span>
+        <div class="footer-brand-block">
+          <div class="footer-brand">
+            <img src="assets/logo.svg" alt="知更 RobinRead" width="30" height="30">
+            <span class="footer-brand-name">知更 RobinRead</span>
+          </div>
+          <p class="footer-vol">第贰卷 · 第〇〇二号 · 丙午年 · 晨刊</p>
+        </div>
+        <span class="footer-rule"></span>
+      </div>
+      <p class="footer-slogan">Reading First, AI Second · 双语流转，克制智能化</p>
+      <div class="footer-checksums">
+        <p>SHA-256 校验值</p>
+        <code>setup.exe &nbsp;0a4bbf7318181ee9702ec01f60879741f062fa2175a50ff3ff698034266e0821</code>
+        <code>portable.exe 6154ae6694a418176fd5d80c531cf8eaea09741ad6adc7b72f2f7b1c6bd0a0a8</code>
+      </div>
+      <p class="footer-copy">© 2026 RobinRead · 知更 —— 知晓更迭，晨讯报信</p>
+    </div>
+  </footer>
+
+  <script src="assets/site.js" defer></script>
+</body>
+</html>

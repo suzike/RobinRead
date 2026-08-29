@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>RobinRead Panorama</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #f6f2e7; }
+  body {
+    width: 2240px;
+    font-family: Georgia, "Times New Roman", "Songti SC", "SimSun", serif;
+    color: #2b2723;
+    background:
+      radial-gradient(1200px 600px at 15% -5%, rgba(111,138,90,0.10), transparent 60%),
+      radial-gradient(1400px 700px at 90% 0%, rgba(228,96,11,0.08), transparent 55%),
+      #f6f2e7;
+    padding: 84px 72px 72px;
+  }
+  /* ---------- header ---------- */
+  .head { text-align: center; }
+  .brandrow { display: flex; align-items: center; justify-content: center; gap: 34px; }
+  .logo { width: 128px; height: 128px; }
+  h1 { font-size: 88px; letter-spacing: 6px; font-weight: 700; color: #26221d; }
+  h1 .en { font-size: 54px; letter-spacing: 1px; color: #a3573d; font-style: italic; font-family: Georgia, serif; }
+  .tagline { margin-top: 26px; font-size: 32px; letter-spacing: 10px; color: #617357; }
+  .tagline-en { margin-top: 12px; font-size: 22px; letter-spacing: 3px; color: #8a8072; font-style: italic; }
+  .rule { width: 560px; height: 1px; background: linear-gradient(90deg, transparent, #c9bfa8, transparent); margin: 34px auto 0; }
+  /* ---------- chips ---------- */
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 36px; }
+  .chip {
+    font-size: 24px; letter-spacing: 2px; color: #4a5a41;
+    border: 1.5px solid rgba(97,115,87,0.55); border-radius: 999px;
+    padding: 10px 26px; background: rgba(255,255,255,0.55); white-space: nowrap;
+  }
+  .chip b { color: #a3573d; font-weight: 700; }
+  /* ---------- hero shot ---------- */
+  .hero { margin-top: 52px; }
+  .frame {
+    border: 1px solid rgba(60,50,35,0.22); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 24px 60px rgba(50,40,25,0.18), 0 4px 14px rgba(50,40,25,0.10);
+    background: #fff;
+  }
+  .frame img { display: block; width: 100%; height: auto; }
+  /* ---------- grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 34px 30px; margin-top: 54px; }
+  .cell .frame { border-radius: 10px; box-shadow: 0 10px 26px rgba(50,40,25,0.14), 0 2px 8px rgba(50,40,25,0.08); }
+  .cap {
+    display: flex; align-items: baseline; justify-content: center; gap: 12px;
+    margin-top: 16px; font-size: 26px; letter-spacing: 2px; color: #3a342c;
+  }
+  .cap .no { font-size: 19px; color: #b0764f; }
+  .cap .dot { color: #a3573d; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="brandrow">
+      <img class="logo" src="../docs/images/logo.svg" alt="">
+      <h1>知更 <span class="en">RobinRead</span></h1>
+    </div>
+    <div class="tagline">双语流转 · 克制智能化</div>
+    <div class="tagline-en">Reading First, AI Second — 本地优先的纸感三栏 RSS 阅读器</div>
+    <div class="rule"></div>
+    <div class="chips">
+      <span class="chip">本地优先 <b>SQLite</b></span>
+      <span class="chip">RSS / FreshRSS <b>双向同步</b></span>
+      <span class="chip"><b>AI 精读</b> 摘要</span>
+      <span class="chip">逐句<b>对照翻译</b></span>
+      <span class="chip">划词解释 · 多轮提问</span>
+      <span class="chip"><b>批注</b> 高亮笔记</span>
+      <span class="chip">知识中心</span>
+      <span class="chip">今日 <b>AI 简报</b></span>
+      <span class="chip">AIHOT 热点榜</span>
+      <span class="chip">OKLCH <b>主题设计器</b></span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="frame"><img src="../docs/images/home.jpg" alt="主界面"></div>
+  </div>
+
+  <div class="grid">
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/deepread.jpg" alt=""></div>
+      <div class="cap"><span class="no">壹</span>AI 精读研读面板</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/bilingual.jpg" alt=""></div>
+      <div class="cap"><span class="no">贰</span>逐句对照翻译</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/annotation.jpg" alt=""></div>
+      <div class="cap"><span class="no">叁</span>批注高亮与笔记</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/digest.jpg" alt=""></div>
+      <div class="cap"><span class="no">肆</span>今日 AI 简报</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/knowledge.jpg" alt=""></div>
+      <div class="cap"><span class="no">伍</span>知识中心</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/store.jpg" alt=""></div>
+      <div class="cap"><span class="no">陆</span>订阅商店 · 190+ 精选源</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/aihot-board.jpg" alt=""></div>
+      <div class="cap"><span class="no">柒</span>AIHOT 热点与模型榜</div>
+    </div>
+    <div class="cell">
+      <div class="frame"><img src="../docs/images/theme-designer.jpg" alt=""></div>
+      <div class="cap"><span class="no">捌</span>OKLCH 主题设计器</div>
+    </div>
+  </div>
+</body>
+</html>

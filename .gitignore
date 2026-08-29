@@ -1,0 +1,11 @@
+node_modules/
+dist/
+_reference/
+*.log
+redeem-codes-*.txt
+.playwright-mcp/
+.spec-workflow/
+shots/
+paperrss.tar.gz
+.DS_Store
+Thumbs.db

@@ -1,0 +1,626 @@
+'use strict';
+/**
+ * RobinRead（知更）— 网页正文提取与 HTML 消毒
+ *
+ * - 噪音块剥离（作者卡/评论区/分享栏…）
+ * - 容器启发式（article-body/post-content/entry-content/… > article > main > body）
+ * - 白名单标签重建式消毒（不允许任何事件属性/可执行 URL 进入渲染器）
+ * - readerParagraphs / insertingInlineTranslations（翻译轨道的稳定段落 ID）
+ */
+const { plainText } = require('./Models');
+
+const NOISE_KEYWORDS = [
+  'author-popover', 'author-item', 'author__info', 'author__bio',
+  'article__header__author', 'article-header-author', 'author-card', 'author-box', 'user-card',
+  'article__charge', 'post__comments', 'comment-box', 'comment-list',
+  'share-bar', 'social-share', 'action-bar', 'phoneBindDialog', 'dialog-title',
+  'comp__Directory', 'directory__overlay',
+];
+
+function stripNoiseBlocks(html) {
+  let current = html;
+  const keywordPattern = NOISE_KEYWORDS.join('|');
+  const pattern = new RegExp(
+    `<(div|section|aside|form|ul|ol|blockquote|button)\\b[^>]*?\\b(?:class|id|data-[a-z-]+)\\s*=\\s*["'][^"']*?\\b(?:${keywordPattern})\\b[^"']*?["'][^>]*?>[\\s\\S]*?<\\/\\1>`,
+    'gi'
+  );
+  for (let i = 0; i < 3; i += 1) {
+    const updated = current.replace(pattern, '');
+    if (updated.length === current.length) break;
+    current = updated;
+  }
+  return current;
+}
+
+function stripExecutableBlocks(html) {
+  return html
+    .replace(/<(script|style|noscript|svg|canvas|iframe|form|object|embed|meta|link|base|template|nav|footer|aside)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<(script|style|noscript|svg|canvas|iframe|form|object|embed|meta|link|base|template|nav|footer|aside)\b[^>]*>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+}
+
+const CONTAINER_PATTERNS = [
+  /<(div|article|section)\b[^>]*?\bclass\s*=\s*["'][^"']*?\b(?:article-body|post-content|entry-content|article-content|ss-article-content|markdown-body|content)\b[^"']*?["'][^>]*?>([\s\S]*?)<\/\1>/gi,
+  /<article[^>]*>([\s\S]*?)<\/article>/gi,
+  /<main[^>]*>([\s\S]*?)<\/main>/gi,
+  /<body[^>]*>([\s\S]*?)<\/body>/gi,
+];
+
+function imageURLsFrom(html, baseURL) {
+  const pattern = /<img\b[^>]*?\b(?:src|data-src|data-original|data-lazy-src)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/gi;
+  const seen = new Set();
+  const result = [];
+  let match;
+  while ((match = pattern.exec(html)) !== null) {
+    const source = (match[1] ?? match[2] ?? match[3] ?? '').replace(/&amp;/g, '&');
+    const url = safeRemoteURL(source, baseURL);
+    if (!url) continue;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    result.push(url);
+  }
+  return result;
+}
+
+function content(html, baseURL) {
+  const cleaned = stripNoiseBlocks(stripExecutableBlocks(html));
+
+  for (const pattern of CONTAINER_PATTERNS) {
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(cleaned)) !== null) {
+      const fragment = match[0];
+      const safeHTML = sanitizedHTML(fragment, baseURL);
+      const text = plainText(safeHTML);
+      if (text.length >= 120) {
+        return { text, html: safeHTML, imageURLs: imageURLsFrom(safeHTML, baseURL) };
+      }
+    }
+  }
+  const safeHTML = sanitizedHTML(cleaned, baseURL);
+  return { text: plainText(safeHTML), html: safeHTML, imageURLs: imageURLsFrom(safeHTML, baseURL) };
+}
+
+// Mozilla Readability 懒加载（重依赖 jsdom，仅在抓取网页时 require，避免拖慢启动）
+let _readability = null;
+function getReadability() {
+  if (_readability) return _readability;
+  const { Readability } = require('@mozilla/readability');
+  const { JSDOM } = require('jsdom');
+  _readability = { Readability, JSDOM };
+  return _readability;
+}
+
+/**
+ * Readability 通用正文提取：Firefox 阅读模式的核心算法，基于文本密度/链接密度启发式，
+ * 从任意完整网页提取正文，剥离导航、广告、页眉页脚、元信息——不依赖站点特判。
+ * 这是对「容器启发式只认 article-body/post-content 等 class」的通用化补充。
+ */
+function readabilityContent(html, baseURL = null) {
+  try {
+    const { Readability, JSDOM } = getReadability();
+    const doc = new JSDOM(String(html || ''), { url: baseURL || 'https://example.com' });
+    const article = new Readability(doc.window.document).parse();
+    if (!article || !article.content) return { text: '', html: '', imageURLs: [] };
+    // Readability 已剥离 script/style 等，再过一遍白名单消毒保证绝对安全
+    const safeHTML = sanitizedHTML(article.content, baseURL);
+    return {
+      text: plainText(safeHTML),
+      html: safeHTML,
+      imageURLs: imageURLsFrom(safeHTML, baseURL),
+      title: article.title || '',
+    };
+  } catch (_) {
+    return { text: '', html: '', imageURLs: [] };
+  }
+}
+
+const ALLOWED_TAGS = new Set([
+  'p', 'br', 'hr', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'strong', 'b', 'em', 'i', 'u', 's', 'del', 'mark', 'small', 'sub', 'sup',
+  'blockquote', 'pre', 'code', 'kbd', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+  'figure', 'figcaption', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+  'img', 'a', 'video', 'source', 'audio', 'picture',
+]);
+const VOID_TAGS = new Set(['br', 'hr', 'img', 'source']);
+
+function sanitizedHTML(html, baseURL = null) {
+  const stripped = stripNoiseBlocks(html);
+  const withoutExecutable = stripExecutableBlocks(stripped)
+    .replace(/<!--[\s\S]*?-->/g, '');
+
+  const tagPattern = /<\/?([a-z][a-z0-9]*)\b([^>]*)>/gis;
+  let result = '';
+  let cursor = 0;
+  let imageIndex = 0;
+  let match;
+
+  while ((match = tagPattern.exec(withoutExecutable)) !== null) {
+    const [fullTag, rawName, rawAttributes] = match;
+    result += withoutExecutable.slice(cursor, match.index);
+    cursor = match.index + fullTag.length;
+
+    const name = rawName.toLowerCase();
+    if (!ALLOWED_TAGS.has(name)) continue;
+    const isClosingTag = fullTag.slice(1).trim().startsWith('/');
+    if (isClosingTag) {
+      if (!VOID_TAGS.has(name)) result += `</${name}>`;
+    } else {
+      const eagerImage = name === 'img' && imageIndex < 8;
+      if (name === 'img') imageIndex += 1;
+      result += `<${name}${sanitizedAttributes(rawAttributes, name, baseURL, eagerImage)}>`;
+    }
+  }
+  result += withoutExecutable.slice(cursor);
+  return wrappingTopLevelTextRuns(result.trim());
+}
+
+const BLOCK_TAGS = new Set([
+  'p', 'div', 'li', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'figcaption', 'dt', 'dd', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'ul', 'ol', 'hr',
+]);
+
+/** 将顶层裸文本包裹进 <p>（RSSHub Twitter 正文等场景。 */
+function wrappingTopLevelTextRuns(html) {
+  const tagPattern = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gis;
+  let output = '';
+  const stack = [];
+  let loose = '';
+  let cursor = 0;
+  let match;
+
+  function flush() {
+    const trimmed = loose.trim();
+    if (!trimmed || !plainText(trimmed)) {
+      output += loose;
+    } else {
+      output += `<p>${trimmed}</p>`;
+    }
+    loose = '';
+  }
+
+  while ((match = tagPattern.exec(html)) !== null) {
+    const [tag, rawName] = match;
+    const name = rawName.toLowerCase();
+    const segment = html.slice(cursor, match.index);
+    if (stack.length === 0) loose += segment;
+    else output += segment;
+    cursor = match.index + tag.length;
+
+    const isClosing = tag.slice(1).trim().startsWith('/');
+    if (isClosing) {
+      if (stack.length === 0 && !VOID_TAGS.has(name)) {
+        loose += tag;
+      } else {
+        output += tag;
+      }
+      if (stack.length > 0 && stack[stack.length - 1] === name) {
+        stack.pop();
+        flush();
+      }
+    } else if (BLOCK_TAGS.has(name)) {
+      flush();
+      output += tag;
+      if (!VOID_TAGS.has(name)) stack.push(name);
+    } else if (stack.length === 0) {
+      loose += tag;
+    } else {
+      output += tag;
+    }
+  }
+  if (stack.length === 0) loose += html.slice(cursor);
+  else output += html.slice(cursor);
+  flush();
+  return output;
+}
+
+const ATTRIBUTES_FOR_TAG = {
+  a: new Set(['href', 'title']),
+  img: new Set(['src', 'alt', 'title', 'width', 'height', 'srcset']),
+  video: new Set(['src', 'poster', 'controls', 'autoplay', 'loop', 'muted', 'playsinline', 'webkit-playsinline', 'allowfullscreen', 'preload', 'width', 'height']),
+  source: new Set(['src', 'type', 'srcset', 'media']),
+  audio: new Set(['src', 'controls', 'autoplay', 'loop', 'muted', 'preload']),
+  th: new Set(['colspan', 'rowspan']),
+  td: new Set(['colspan', 'rowspan']),
+};
+
+/** 懒加载真图属性（现代博客 src 常是 1x1 占位，真实地址在 data-* 上）。 */
+const LAZY_SRC_ATTRS = ['data-src', 'data-original', 'data-lazy-src', 'data-lazyload', 'data-actualsrc'];
+
+/** srcset 逐候选 URL 解析为绝对地址；全部解析失败返回 null。 */
+function sanitizeSrcset(value, baseURL) {
+  const parts = String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const out = [];
+  for (const part of parts) {
+    const seg = part.split(/\s+/);
+    const resolved = safeRemoteURL(seg[0], baseURL);
+    if (!resolved) continue;
+    out.push([resolved, ...seg.slice(1)].join(' '));
+  }
+  return out.length ? out.join(', ') : null;
+}
+
+function sanitizedAttributes(source, tag, baseURL, eagerImage = false) {
+  const allowed = ATTRIBUTES_FOR_TAG[tag];
+  if (!allowed) return '';
+  const pattern = /([a-z][a-z0-9:-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/gis;
+  const attributes = [];
+  const seenNames = new Set();
+  let match;
+  while ((match = pattern.exec(source)) !== null) {
+    const name = match[1].toLowerCase();
+    if (!allowed.has(name) || seenNames.has(name)) continue;
+    seenNames.add(name);
+    const value = match[2] ?? match[3] ?? match[4] ?? null;
+    if (value != null) {
+      let cleaned = value.trim();
+      if (name === 'href' || name === 'src' || name === 'poster') {
+        const resolved = safeRemoteURL(cleaned, baseURL);
+        if (!resolved) continue;
+        cleaned = resolved;
+      } else if (['width', 'height', 'colspan', 'rowspan'].includes(name)) {
+        const number = Number.parseInt(cleaned, 10);
+        if (!(number > 0 && number <= 10000)) continue;
+        cleaned = String(number);
+      }
+      attributes.push(` ${name}="${escapeAttribute(cleaned)}"`);
+    } else {
+      attributes.push(` ${name}`);
+    }
+  }
+  if (tag === 'img') {
+    // 懒加载治理：src 缺失或是占位时，用 data-* 真图地址替换
+    const srcAttr = attributes.find((a) => a.startsWith(' src="'));
+    const hasRealSrc = srcAttr && !/\/(pixel|spacer|blank)\b|1x1/i.test(srcAttr);
+    if (!hasRealSrc) {
+      for (const lazy of LAZY_SRC_ATTRS) {
+        const raw = /([a-z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(source);
+        void raw;
+        const m = new RegExp(lazy + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i').exec(source);
+        if (m) {
+          const resolved = safeRemoteURL(m[1] ?? m[2] ?? m[3] ?? '', baseURL);
+          if (resolved) {
+            if (srcAttr) attributes.splice(attributes.indexOf(srcAttr), 1, ` src="${escapeAttribute(resolved)}"`);
+            else attributes.push(` src="${escapeAttribute(resolved)}"`);
+            break;
+          }
+        }
+      }
+    }
+    attributes.push(` loading="${eagerImage ? 'eager' : 'lazy'}"`);
+    attributes.push(' decoding="async"');
+    attributes.push(' referrerpolicy="no-referrer"');
+  } else if (tag === 'video') {
+    if (!seenNames.has('controls')) attributes.push(' controls');
+    if (!seenNames.has('playsinline')) attributes.push(' playsinline');
+    if (!seenNames.has('webkit-playsinline')) attributes.push(' webkit-playsinline');
+    if (!seenNames.has('allowfullscreen')) attributes.push(' allowfullscreen');
+  }
+  return attributes.join('');
+}
+
+function safeRemoteURL(rawValue, baseURL) {
+  const normalized = htmlEntityDecoded(String(rawValue ?? '')).trim();
+  if (!normalized) return null;
+  for (const ch of normalized) {
+    const code = ch.charCodeAt(0);
+    if (code < 0x20 || code === 0x7f) return null;
+  }
+  let url;
+  try {
+    url = new URL(normalized, baseURL || undefined);
+  } catch (_) {
+    return null;
+  }
+  if (!['https:', 'http:'].includes(url.protocol.toLowerCase())) return null;
+  // Twitter/X 媒体 WebP 兼容性：转为 JPEG 表示
+  if (url.hostname.toLowerCase() === 'pbs.twimg.com' && url.pathname.includes('/media/')) {
+    const params = new URLSearchParams(url.search);
+    if ((params.get('format') || '').toLowerCase() === 'webp') {
+      params.set('format', 'jpg');
+      return `${url.origin}${url.pathname}?${params.toString()}`;
+    }
+  }
+  return url.toString();
+}
+
+function htmlEntityDecoded(value) {
+  let decoded = value;
+  for (let i = 0; i < 3; i += 1) {
+    const next = decoded
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&apos;/gi, "'")
+      .replace(/&#39;/gi, "'")
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&colon;/gi, ':')
+      .replace(/&tab;/gi, '\t')
+      .replace(/&newline;/gi, '\n')
+      .replace(/&#x3a;/gi, ':')
+      .replace(/&#58;/gi, ':');
+    if (next === decoded) break;
+    decoded = next;
+  }
+  return decoded;
+}
+
+function escapeAttribute(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeHTMLText(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// MARK: - 阅读器段落（翻译与 TOC 的稳定 ID）
+
+function splitBlockTextIntoParagraphs(text) {
+  const lines = text.split('\n');
+  const result = [];
+  let current = '';
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (current) {
+        result.push(current.trim());
+        current = '';
+      }
+    } else {
+      if (current) current += '\n';
+      current += line;
+    }
+  }
+  if (current) result.push(current.trim());
+  return result.filter(Boolean);
+}
+
+function readerParagraphs(html, title) {
+  const paragraphs = [];
+  const cleanTitle = (title || '').trim();
+  if (cleanTitle) paragraphs.push({ id: 'title', original: cleanTitle });
+
+  const expression = /<(p|div|li|blockquote|pre|h[1-6]|figcaption|dt|dd)\b[^>]*>[\s\S]*?<\/\1>/gis;
+  let paragraphIndex = 0;
+  let match;
+  while ((match = expression.exec(html)) !== null) {
+    const blockHTML = match[0];
+    const explicitID = (blockHTML.match(/data-nj-id="([^"]+)"/i) || [])[1];
+
+    // 逐句双语：渲染端已把句子包进 data-sent span —— 句子即翻译单元（ID 显式，两端一致）
+    const sentExpression = /<span[^>]*data-sent="([^"]+)"[^>]*>([\s\S]*?)<\/span>/gi;
+    let sentMatch;
+    let hasSentences = false;
+    while ((sentMatch = sentExpression.exec(blockHTML)) !== null) {
+      const original = plainText(sentMatch[2]);
+      if (!original) continue;
+      paragraphs.push({ id: sentMatch[1], parentId: explicitID || null, original });
+      hasSentences = true;
+    }
+    if (hasSentences) {
+      paragraphIndex += 1;
+      continue;
+    }
+
+    const original = plainText(blockHTML);
+    if (!original) continue;
+    if (explicitID) {
+      // 渲染端标注过的块：直接使用显式段落 ID（与 DOM 完全一致）
+      paragraphs.push({ id: explicitID, original });
+      paragraphIndex += 1;
+      continue;
+    }
+    // 原始 HTML（无标注）：沿用旧编号规则（含子段落拆分）
+    const subParagraphs = splitBlockTextIntoParagraphs(original);
+    if (subParagraphs.length > 1) {
+      subParagraphs.forEach((subText, subIdx) => {
+        paragraphs.push({ id: `p${paragraphIndex}_${subIdx}`, original: subText });
+      });
+    } else {
+      paragraphs.push({ id: `p${paragraphIndex}`, original });
+    }
+    paragraphIndex += 1;
+  }
+  return paragraphs;
+}
+
+function insertingInlineTranslations(html, segments, pendingIDs = []) {
+  const expression = /<(p|div|li|blockquote|pre|h[1-6]|figcaption|dt|dd)\b[^>]*>[\s\S]*?<\/\1>/gis;
+  const segmentsByID = new Map(segments.map((seg) => [seg.id, seg]));
+  const pendingSet = new Set(pendingIDs);
+  let rendered = '';
+  let cursor = 0;
+  let paragraphIndex = 0;
+  let match;
+
+  while ((match = expression.exec(html)) !== null) {
+    rendered += html.slice(cursor, match.index);
+    const block = match[0];
+    cursor = match.index + block.length;
+
+    const original = plainText(block);
+    if (!original) {
+      rendered += block;
+      continue;
+    }
+
+    const subParagraphs = splitBlockTextIntoParagraphs(original);
+    if (subParagraphs.length > 1) {
+      subParagraphs.forEach((subText, subIdx) => {
+        const subID = `p${paragraphIndex}_${subIdx}`;
+        const escaped = escapeHTMLText(subText).replace(/\n/g, '<br>');
+        rendered += `<p class="nj-subparagraph" data-nj-id="${subID}">${escaped}</p>`;
+        const segment = segmentsByID.get(subID);
+        if (segment && isSameReaderParagraph(subText, segment.original)) {
+          rendered += translationMarkup(segment.translation, subID);
+        } else if (pendingSet.has(subID)) {
+          rendered += pendingTranslationMarkup(subID);
+        }
+      });
+    } else {
+      const id = `p${paragraphIndex}`;
+      rendered += annotatedReaderBlock(block, id);
+      const segment = segmentsByID.get(id);
+      if (segment && isSameReaderParagraph(original, segment.original)) {
+        rendered += translationMarkup(segment.translation, id);
+      } else if (pendingSet.has(id)) {
+        rendered += pendingTranslationMarkup(id);
+      }
+    }
+    paragraphIndex += 1;
+  }
+  rendered += html.slice(cursor);
+  return rendered;
+}
+
+function annotatedReaderBlock(block, id) {
+  const closingBracket = block.indexOf('>');
+  if (closingBracket < 0) return block;
+  return `${block.slice(0, closingBracket)} data-nj-id="${id}"${block.slice(closingBracket)}`;
+}
+
+function translationMarkup(translation, id) {
+  return `<aside id="nj-translation-${id}" class="nj-translation" data-nj-translation-for="${id}" aria-label="翻译">
+  <p><span class="nj-translation-label" aria-label="译文">
+    <span class="nj-language-chip" aria-hidden="true">A</span>
+    <span class="nj-language-chip" aria-hidden="true">文</span>
+  </span><span class="nj-translation-text">${escapeHTMLText(translation).replace(/\n/g, '<br>')}</span></p>
+</aside>`;
+}
+
+function pendingTranslationMarkup(id) {
+  return `<aside id="nj-translation-${id}" class="nj-translation is-loading" data-nj-translation-for="${id}" aria-label="正在生成翻译" aria-live="polite">
+  <p><span class="nj-translation-label" aria-label="译文">
+    <span class="nj-language-chip" aria-hidden="true">A</span>
+    <span class="nj-language-chip" aria-hidden="true">文</span>
+  </span><span class="nj-translation-text">正在翻译…</span></p>
+</aside>`;
+}
+
+function isSameReaderParagraph(a, b) {
+  const normalize = (value) => String(value ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  return normalize(a) === normalize(b);
+}
+
+function removingDuplicateLeadingHeading(html, articleTitle) {
+  if (!html) return html;
+  const cleanTitle = normalizeHeadingText(articleTitle);
+  if (!cleanTitle) return html;
+
+  const pattern = /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i;
+  const match = html.match(pattern);
+  if (!match) return html;
+
+  const prefixHTML = html.slice(0, match.index);
+  if (/<p[^>]*>/i.test(prefixHTML)) return html;
+  const prefixPlainText = normalizeHeadingText(plainText(prefixHTML));
+
+  const headingText = normalizeHeadingText(plainText(match[1]));
+  if (headingText === cleanTitle && prefixPlainText.length <= 120) {
+    return html.slice(0, match.index) + html.slice(match.index + match[0].length);
+  }
+  return html;
+}
+
+function normalizeHeadingText(text) {
+  return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** 判断是否需要网页正文提取（feed 内容过短且存在链接）。 */
+function needsExtraction(entry) {
+  const sourceText = entry.contentHTML ? plainText(entry.contentHTML) : plainText(entry.summary || '');
+  return sourceText.length < 500 && entry.url != null;
+}
+
+/** 网页字节流按真实编码解码：BOM → Content-Type → meta charset → UTF-8（坏字符超阈值时启发式回退）。 */
+function decodeWebPage(buf, contentType) {
+  if (buf.length >= 3 && buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) {
+    return buf.subarray(3).toString('utf8');
+  }
+  if (buf.length >= 2 && buf[0] === 0xFF && buf[1] === 0xFE) {
+    try { return new TextDecoder('utf-16le').decode(buf.subarray(2)); } catch (_) { return buf.toString('utf8'); }
+  }
+  if (buf.length >= 2 && buf[0] === 0xFE && buf[1] === 0xFF) {
+    try { return new TextDecoder('utf-16be').decode(buf.subarray(2)); } catch (_) { return buf.toString('utf8'); }
+  }
+  let charset = null;
+  const ctMatch = String(contentType || '').match(/charset\s*=\s*"?([\w-]+)/i);
+  if (ctMatch) charset = ctMatch[1].toLowerCase();
+  if (!charset) {
+    const head = buf.subarray(0, 4096).toString('latin1');
+    const metaMatch = head.match(/<meta[^>]+charset\s*=\s*["']?([\w-]+)/i);
+    if (metaMatch) charset = metaMatch[1].toLowerCase();
+  }
+  if (charset && !['utf-8', 'utf8', 'us-ascii', 'ascii'].includes(charset)) {
+    try { return new TextDecoder(charset).decode(buf); } catch (_) { /* 未知编码，走默认 */ }
+  }
+  const utf8 = buf.toString('utf8');
+  const bad = (utf8.match(/\uFFFD/g) || []).length;
+  // UTF-8 解码大量坏字符 → 多半是 GBK/Big5/日韩编码页面，按序启发尝试
+  if (bad > utf8.length * 0.02 && utf8.length > 0) {
+    for (const guess of ['gbk', 'big5', 'shift_jis', 'euc-kr', 'windows-1252']) {
+      try { return new TextDecoder(guess).decode(buf); } catch (_) { /* 下一个 */ }
+    }
+  }
+  return utf8;
+}
+
+/** 抓取网页并提取正文（Windows 版：主进程 fetch）。 */
+async function extract(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'RobinRead/2.0 (+personal RSS reader)',
+        Accept: 'text/html,application/xhtml+xml',
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const sliced = buffer.subarray(0, 4_000_000);
+    const html = decodeWebPage(sliced, response.headers.get('content-type'));
+    const sourceURL = response.url || url;
+    // 双引擎：Readability 通用提取优先（质量更好、能绕开 SPA/壳），容器启发式 fallback（如 ithome 等反爬壳）
+    const heuristic = content(html, sourceURL);
+    const readability = readabilityContent(html, sourceURL);
+    const result = readability.text.length >= heuristic.text.length ? readability : heuristic;
+    if (result.text.length < 120) throw new Error('noReadableContent');
+    return {
+      entryID: '',
+      text: result.text,
+      html: result.html,
+      imageURLs: result.imageURLs,
+      fetchedAt: Date.now() / 1000,
+      sourceURL,
+      isSanitized: true,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = {
+  content,
+  readabilityContent,
+  sanitizedHTML,
+  imageURLsFrom,
+  readerParagraphs,
+  insertingInlineTranslations,
+  translationMarkup,
+  pendingTranslationMarkup,
+  removingDuplicateLeadingHeading,
+  needsExtraction,
+  extract,
+  plainText,
+  isSameReaderParagraph,
+};

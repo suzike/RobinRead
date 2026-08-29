@@ -1,0 +1,49 @@
+{
+  "name": "robinread",
+  "productName": "RobinRead",
+  "version": "2.2.0",
+  "description": "Reading First, AI Second — 知更 · 现代纸感 RSS 阅读器（Windows 版）",
+  "main": "src/main/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --win nsis portable",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.robinread.app",
+    "productName": "RobinRead",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "RobinRead-${version}-setup.exe"
+    },
+    "portable": {
+      "artifactName": "RobinRead-${version}-portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "jsdom": "^29.1.1"
+  }
+}

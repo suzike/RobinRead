@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src * data:; media-src *; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src *" />
+  <title>RobinRead</title>
+  <link rel="stylesheet" href="styles/robin.css" />
+  <link rel="stylesheet" href="styles/store.css" />
+  <link rel="stylesheet" href="styles/account.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 统一工具栏：三区跟随分割线（对应 NSToolbar + TrackingSeparator） -->
+    <div id="main-toolbar">
+      <div class="tb-zone tb-zone-sidebar">
+        <button class="btn icon-only" id="btn-toggle-sidebar" title="切换侧栏"></button>
+        <button class="btn icon-only" id="btn-refresh" title="刷新所有订阅"></button>
+        <button class="btn icon-only" id="btn-add" title="添加订阅或新建文件夹"></button>
+      </div>
+      <div class="tb-zone tb-zone-list" id="tb-zone-list">
+        <div class="tb-title" id="tb-list-title"></div>
+        <div class="tb-spring"></div>
+        <button class="btn icon-only" id="btn-mark-all" title="将当前列表全部标为已读"></button>
+      </div>
+      <div class="tb-zone tb-zone-reader">
+        <div class="tb-spring"></div>
+        <div class="reader-capsule" id="reader-capsule">
+          <button class="cap-btn" id="cap-translate" title="开启逐段翻译 (C)"></button>
+          <button class="cap-btn" id="cap-deepread" title="一键精读：论证/概念/证据/金句 (D)"></button>
+          <button class="cap-btn" id="cap-rsummary" title="高质量中文摘要 (S)"></button>
+          <button class="cap-btn" id="cap-read" title="标为已读"></button>
+          <button class="cap-btn" id="cap-star" title="收藏 (M)"></button>
+          <button class="cap-btn" id="cap-highlight" title="高亮：选中文字快速高亮（H）；无选区打开批注面板"></button>
+          <button class="cap-btn" id="cap-note" title="批注面板：本篇高亮与笔记"></button>
+          <button class="cap-btn" id="cap-review" title="加入复习"></button>
+          <button class="cap-btn" id="cap-browser" title="打开原网页"></button>
+          <button class="cap-btn" id="cap-zen" title="禅模式全屏阅读"></button>
+        </div>
+        <div class="tb-spring"></div>
+        <div class="window-controls" id="window-controls">
+          <button class="wc-btn" id="wc-min" title="最小化"></button>
+          <button class="wc-btn" id="wc-max" title="最大化"></button>
+          <button class="wc-btn wc-close" id="wc-close" title="关闭"></button>
+        </div>
+      </div>
+    </div>
+    <div id="split">
+      <aside class="column column-sidebar robin-surface" id="sidebar" tabindex="0">
+        <div class="sidebar-scroll" id="sidebar-scroll"></div>
+        <div class="sidebar-footer" id="sidebar-footer"></div>
+      </aside>
+      <div class="splitter" id="splitter-sidebar" title=""></div>
+      <section class="column column-list robin-surface" id="list" tabindex="0">
+        <div class="list-scroll" id="list-scroll"></div>
+      </section>
+      <div class="splitter" id="splitter-list"></div>
+      <section class="column column-reader robin-surface" id="reader" tabindex="0">
+        <div class="reading-progress" id="reading-progress"></div>
+        <div class="reader-scroll" id="reader-scroll"></div>
+        <div class="toc-rail" id="toc-rail">
+          <div class="toc-track" id="toc-track"></div>
+          <div class="toc-peak" id="toc-peak"></div>
+        </div>
+        <div class="floating-scrollbar" id="floating-scrollbar"><div class="thumb" id="floating-thumb"></div></div>
+      </section>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

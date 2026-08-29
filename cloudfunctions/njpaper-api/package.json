@@ -1,0 +1,7 @@
+{
+  "name": "njpaper-api",
+  "version": "1.1.0",
+  "description": "RobinRead 账号与会员服务（登录/JWT/订单/微信支付回调，PG HTTP API 数据层，零运行时依赖）",
+  "main": "index.js",
+  "dependencies": {}
+}

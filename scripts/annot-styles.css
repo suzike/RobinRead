@@ -1,0 +1,339 @@
+
+/* ==========================================================================
+   批注系统：荧光笔高亮 / 划词色条 / 高亮菜单 / 便签笔记 / 批注面板
+   ========================================================================== */
+
+/* —— 荧光笔（五色纸感，跨行断片克隆） —— */
+.reader-article mark.nj-hl {
+  background: transparent;
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.05em 0.12em;
+  margin: 0 -0.05em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  cursor: pointer;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease;
+}
+.reader-article mark.nj-hl[data-color="yellow"] { background: rgba(233, 196, 106, 0.42); }
+.reader-article mark.nj-hl[data-color="green"]  { background: rgba(163, 177, 138, 0.42); }
+.reader-article mark.nj-hl[data-color="blue"]   { background: rgba(141, 169, 196, 0.42); }
+.reader-article mark.nj-hl[data-color="pink"]   { background: rgba(216, 167, 177, 0.44); }
+.reader-article mark.nj-hl[data-color="purple"] { background: rgba(184, 169, 201, 0.44); }
+.reader-article mark.nj-hl:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+/* 带附注的高亮：波浪下划线提示「这里有人写想法」 */
+.reader-article mark.nj-hl.has-note {
+  text-decoration: underline wavy var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.28em;
+}
+/* 面板跳转定位闪烁 */
+.reader-article .nj-flash,
+.reader-article mark.nj-hl.nj-flash {
+  animation: annot-flash 1s ease-out 1;
+}
+@keyframes annot-flash {
+  0%, 60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 4px; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* 暗色模式：高亮降饱和，保持文字对比 */
+body.dark .reader-article mark.nj-hl[data-color="yellow"] { background: rgba(163, 132, 56, 0.42); }
+body.dark .reader-article mark.nj-hl[data-color="green"]  { background: rgba(96, 112, 78, 0.48); }
+body.dark .reader-article mark.nj-hl[data-color="blue"]   { background: rgba(78, 102, 128, 0.48); }
+body.dark .reader-article mark.nj-hl[data-color="pink"]   { background: rgba(140, 92, 104, 0.48); }
+body.dark .reader-article mark.nj-hl[data-color="purple"] { background: rgba(112, 98, 132, 0.48); }
+
+/* —— 划词胶囊：分组分隔线 —— */
+.nj-selection-divider {
+  flex: 0 0 auto;
+  width: 1px; height: 16px;
+  margin: 0 3px;
+  background: var(--separator);
+}
+
+/* —— 划词色选条 —— */
+.nj-hl-picker { gap: 2px; }
+.nj-hl-picker-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0 4px 0 6px;
+  white-space: nowrap;
+}
+.nj-hl-dot {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: transparent; cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.15s ease;
+}
+.nj-hl-dot:hover { background: var(--row-hover); transform: scale(1.08); }
+.nj-hl-dot-core {
+  display: block;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.nj-hl-dot.current {
+  background: var(--row-selected);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
+/* —— 高亮点击菜单（换色 / 附注 / 复制 / 删除） —— */
+.nj-hl-menu {
+  position: fixed;
+  z-index: 2147483646;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--page-background) 96%, #fff);
+  box-shadow: 0 8px 24px rgba(35, 31, 25, 0.16), 0 2px 6px rgba(35, 31, 25, 0.08);
+  backdrop-filter: blur(20px) saturate(1.2);
+  animation: materialize 0.15s ease-out both;
+}
+.nj-hl-menu-colors { display: flex; gap: 2px; }
+.nj-hl-menu-actions {
+  display: flex; gap: 2px;
+  border-top: 1px solid var(--separator);
+  padding-top: 5px;
+}
+.nj-hl-menu-actions button {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 26px; padding: 0;
+  border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+.nj-hl-menu-actions button:hover { background: var(--row-hover); color: var(--text-primary); }
+.nj-hl-menu-actions button svg { width: 14px; height: 14px; }
+
+/* —— 笔记编辑浮层（划词笔记 / 附注 / 文章笔记共用） —— */
+.nj-note-editor {
+  position: fixed;
+  z-index: 2147483647;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 64px));
+  border: 1px solid var(--note-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--page-background) 97%, #fff);
+  box-shadow: 0 18px 48px rgba(35, 31, 25, 0.24), 0 4px 10px rgba(35, 31, 25, 0.10);
+  backdrop-filter: blur(24px) saturate(1.2);
+  animation: materialize 0.18s ease-out both;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.nj-note-editor-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px 8px;
+}
+.nj-note-editor-quote {
+  flex: 1;
+  font-size: 12px; line-height: 1.5;
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nj-note-editor-close {
+  flex: 0 0 auto;
+  border: none; background: transparent;
+  color: var(--text-tertiary); width: 24px; height: 24px;
+  border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.nj-note-editor-close:hover { background: var(--row-hover); color: var(--text-primary); }
+.nj-note-editor-close svg { width: 12px; height: 12px; }
+.nj-note-editor-input {
+  margin: 0 14px;
+  min-height: 96px; max-height: 40vh;
+  resize: vertical;
+  border: 1px solid var(--note-border);
+  border-radius: 9px;
+  background: var(--page-background);
+  color: var(--text-primary);
+  font-family: inherit; font-size: 13px; line-height: 1.7;
+  padding: 9px 11px; outline: none;
+}
+.nj-note-editor-input:focus { border-color: var(--accent); }
+.nj-note-editor-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px 12px;
+}
+
+/* —— 段落便签图标（锚定笔记的正文插桩） —— */
+.nj-note-marker {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px;
+  margin: 0 0.14em;
+  vertical-align: -0.24em;
+  color: #b98a2f;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.nj-note-marker:hover { opacity: 1; transform: translateY(-1px) rotate(-4deg); }
+.nj-note-marker svg { width: 14px; height: 14px; }
+body.dark .nj-note-marker { color: #d3a952; }
+
+/* —— 便签卡（点图标展开） —— */
+.nj-note-card {
+  position: fixed;
+  z-index: 2147483646;
+  width: 300px;
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--page-background) 96%, #fff);
+  box-shadow: 0 10px 30px rgba(35, 31, 25, 0.18), 0 3px 8px rgba(35, 31, 25, 0.08);
+  backdrop-filter: blur(20px) saturate(1.2);
+  animation: materialize 0.16s ease-out both;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.nj-note-card-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 12px 6px;
+  color: #b98a2f;
+}
+.nj-note-card-icon { display: inline-flex; }
+.nj-note-card-icon svg { width: 14px; height: 14px; }
+.nj-note-card-quote {
+  flex: 1;
+  font-size: 11px; line-height: 1.4;
+  color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nj-note-card-close {
+  border: none; background: transparent;
+  color: var(--text-tertiary); width: 22px; height: 22px;
+  border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.nj-note-card-close:hover { background: var(--row-hover); color: var(--text-primary); }
+.nj-note-card-close svg { width: 12px; height: 12px; }
+.nj-note-card-content {
+  padding: 2px 14px 8px;
+  font-size: 13px; line-height: 1.75;
+  color: var(--text-primary);
+  max-height: 34vh; overflow-y: auto;
+  white-space: pre-wrap;
+  user-select: text;
+}
+.nj-note-card-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px 10px;
+}
+
+/* —— 批注面板（本篇高亮 + 笔记总览，paper 卡片风） —— */
+.annot-panel {
+  margin: 14px 0 18px;
+  padding: 14px 18px 12px;
+  border: 1px solid var(--note-border);
+  border-radius: 14px;
+  background:
+    radial-gradient(140% 120% at 0% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 55%),
+    var(--note-background);
+  animation: materialize 0.18s ease-out both;
+}
+.annot-panel-head {
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--separator);
+  margin-bottom: 8px;
+}
+.annot-panel-icon { display: inline-flex; color: var(--accent); }
+.annot-panel-icon svg { width: 15px; height: 15px; }
+.annot-panel-title { font-size: 14px; font-weight: 700; font-family: var(--font-serif); color: var(--text-primary); }
+.annot-panel-count { margin-left: auto; font-size: 10.5px; color: var(--text-tertiary); letter-spacing: 0.02em; }
+.annot-add-note { color: var(--accent); }
+.annot-panel-body { max-height: 46vh; overflow-y: auto; }
+.annot-section { padding: 4px 0; }
+.annot-section-title {
+  font-size: 10.5px; font-weight: 700;
+  color: var(--text-tertiary);
+  letter-spacing: 0.14em;
+  margin: 8px 0 6px;
+  text-transform: uppercase;
+}
+.annot-row {
+  display: flex; align-items: stretch; gap: 10px;
+  padding: 7px 6px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 0.14s ease;
+}
+.annot-row:hover { background: var(--row-hover); }
+.annot-color-bar {
+  flex: 0 0 auto;
+  width: 4px;
+  border-radius: 2px;
+}
+.annot-color-bar[data-color="yellow"] { background: #e9c46a; }
+.annot-color-bar[data-color="green"]  { background: #a3b18a; }
+.annot-color-bar[data-color="blue"]   { background: #8da9c4; }
+.annot-color-bar[data-color="pink"]   { background: #d8a7b1; }
+.annot-color-bar[data-color="purple"] { background: #b8a9c9; }
+.annot-color-bar.note { background: #d3a952; }
+.annot-row-main { flex: 1; min-width: 0; }
+.annot-row-text {
+  font-size: 13px; line-height: 1.6;
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.annot-row-note {
+  margin-top: 3px;
+  font-size: 11.5px; line-height: 1.5;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.annot-row-note.quote { font-style: italic; opacity: 0.85; }
+.annot-row-del {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-tertiary);
+  cursor: pointer; display: none;
+  align-items: center; justify-content: center;
+}
+.annot-row:hover .annot-row-del { display: flex; }
+.annot-row-del:hover { background: rgba(201, 59, 59, 0.12); color: #c93b3b; }
+.annot-row-del svg { width: 12px; height: 12px; }
+.annot-panel-empty {
+  padding: 22px 10px 18px;
+  text-align: center;
+}
+.annot-panel-empty-icon { color: var(--text-tertiary); opacity: 0.6; }
+.annot-panel-empty-icon svg { width: 26px; height: 26px; }
+.annot-panel-empty p { margin: 10px 0 0; font-size: 13px; color: var(--text-secondary); }
+.annot-panel-empty p.hint { font-size: 11.5px; color: var(--text-tertiary); margin-top: 6px; }
+
+/* —— Toast 动作按钮（收藏 → 查看收藏） —— */
+.toast-capsule .toast-action {
+  margin-left: 10px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+.toast-capsule .toast-action:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }

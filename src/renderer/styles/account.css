@@ -1,0 +1,244 @@
+/* NanJuPaper — 账号与会员（侧栏账号按钮 / 会员中心 / 支付弹窗 / 升级引导） */
+
+/* ---- 侧栏底栏账号按钮（融入 footer-nav 网格的第 6 个图标按钮，不额外占位）---- */
+.footer-account-btn { position: relative; }
+.footer-account-btn .acct-mini-avatar {
+  display: inline-flex;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(97, 115, 87, 0.16);
+}
+.footer-account-btn .acct-mini-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.footer-account-btn svg { width: 18px; height: 18px; }
+/* 会员：头像/图标外圈金色描边 */
+.footer-account-btn.is-member::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.6px solid #e0bd63;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ---- 会员中心 ---- */
+.acct-modal { max-width: 460px; }
+.acct-body {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+}
+.acct-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--hairline, rgba(41, 38, 32, 0.08));
+  border-radius: 12px;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.55));
+}
+.acct-identity-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+.acct-identity-ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(97, 115, 87, 0.14);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 19px;
+}
+.acct-identity-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.acct-identity-name {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct-identity-status { font-size: 11.5px; color: var(--text-secondary); }
+.acct-grace { font-size: 10.5px; color: var(--text-secondary); opacity: 0.85; }
+
+/* ---- 账号密码登录/注册表单（会员中心未登录态 + 设置→账号 共用）---- */
+.acct-auth {
+  padding: 14px;
+  border: 1px solid var(--hairline, rgba(41, 38, 32, 0.08));
+  border-radius: 12px;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.55));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acct-auth-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--hairline, rgba(41, 38, 32, 0.08));
+}
+.acct-auth-tab {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.acct-auth-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.acct-auth-fields { display: flex; flex-direction: column; gap: 8px; }
+.acct-auth-error { font-size: 11.5px; color: #c93b3b; }
+
+
+.acct-usage {
+  border: 1px solid var(--hairline, rgba(41, 38, 32, 0.08));
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.acct-usage-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.acct-usage-row b { color: var(--text-primary, inherit); font-weight: 700; }
+
+.acct-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+.acct-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.acct-plan {
+  border: 1.5px solid var(--hairline, rgba(41, 38, 32, 0.1));
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  align-items: flex-start;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.5));
+}
+.acct-plan.is-lifetime {
+  border-color: rgba(97, 115, 87, 0.55);
+  background: linear-gradient(180deg, rgba(97, 115, 87, 0.07), rgba(255, 255, 255, 0.4));
+}
+.acct-plan-name { font-size: 12.5px; font-weight: 700; }
+.acct-plan-price { display: flex; align-items: baseline; gap: 1px; }
+.acct-plan-price .yen { font-size: 13px; font-weight: 700; }
+.acct-plan-price .num { font-size: 26px; font-weight: 800; font-family: var(--font-serif, inherit); letter-spacing: -0.02em; }
+.acct-plan-price .per { font-size: 11px; color: var(--text-secondary); margin-left: 3px; }
+.acct-plan-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+.acct-plan button { margin-top: 4px; width: 100%; }
+
+.acct-rights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* ---- 支付弹窗 ---- */
+.acct-pay { max-width: 360px; }
+.acct-pay-body { align-items: center; text-align: center; }
+.acct-pay-amount { display: flex; align-items: baseline; gap: 2px; }
+.acct-pay-amount .yen { font-size: 18px; font-weight: 800; }
+.acct-pay-amount .num { font-size: 40px; font-weight: 800; font-family: var(--font-serif, inherit); letter-spacing: -0.03em; }
+.acct-pay-qrbox {
+  position: relative;
+  padding: 10px;
+  border: 1px solid var(--hairline, rgba(41, 38, 32, 0.1));
+  border-radius: 12px;
+  background: #fff;
+}
+.acct-pay-qrbox canvas { display: block; image-rendering: pixelated; }
+.acct-pay-qrbox.is-paid::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  font-weight: 800;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 12px;
+}
+.acct-pay-mocktag {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a6d1f;
+  background: rgba(255, 251, 235, 0.82);
+  border-radius: 12px;
+  padding: 10px;
+  line-height: 1.7;
+  pointer-events: none;
+}
+.acct-pay-status { font-size: 13px; font-weight: 600; }
+.acct-pay-countdown { font-size: 11.5px; color: var(--text-secondary); }
+
+/* ---- 升级引导 ---- */
+.acct-gate { max-width: 380px; }
+.acct-gate-msg { font-size: 13.5px; line-height: 1.65; }
+.acct-gate-quota { margin-top: 4px; font-size: 11.5px; color: var(--text-secondary); }
+.acct-gate-price {
+  font-size: 19px;
+  font-weight: 800;
+  font-family: var(--font-serif, inherit);
+}
+.acct-gate-price span { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.acct-gate-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ── 设置 → 账号：行内头像（小尺寸 + 可点击更换）── */
+.acct-avatar-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+  background: rgba(97, 115, 87, 0.14);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.acct-avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+.acct-avatar-clickable { cursor: pointer; }
+.acct-avatar-clickable:hover {
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ---- 激活码兑换 ---- */
+.acct-redeem { display: flex; flex-direction: column; gap: 8px; }
+.acct-redeem-row { display: flex; gap: 8px; }
+.acct-redeem-row input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 0.04em; }
+.acct-redeem-row .btn-text { flex: none; }

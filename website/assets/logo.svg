@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- RobinRead 知更 · App Icon 1024
+       折纸知更鸟：炭色头背 + 橘色胸羽 + 青绿翅/枝，米白纸底带折角 -->
+  <defs>
+    <linearGradient id="breast" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2913D"/>
+      <stop offset="1" stop-color="#E4600B"/>
+    </linearGradient>
+    <clipPath id="bg">
+      <rect x="16" y="16" width="992" height="992" rx="224"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#bg)">
+    <rect x="16" y="16" width="992" height="992" fill="#F6F0E2"/>
+    <polygon points="16,300 300,16 392,16 16,392" fill="#FFFDF4" opacity="0.55"/>
+    <polygon points="1008,742 742,1008 650,1008 1008,650" fill="#E7DCC4" opacity="0.4"/>
+    <polygon points="16,392 392,16 408,16 16,408" fill="#FFFFFF" opacity="0.4"/>
+  </g>
+
+  <!-- 地面投影 -->
+  <ellipse cx="512" cy="816" rx="252" ry="26" fill="#2B2A26" opacity="0.08"/>
+
+  <!-- 尾羽（炭） -->
+  <polygon points="668,470 856,338 880,462 740,556" fill="#3A3833"/>
+  <polygon points="668,470 740,556 700,540 640,490" fill="#2E2C28"/>
+
+  <!-- 头（炭） -->
+  <polygon points="282,470 344,352 508,352 540,470" fill="#33312C"/>
+  <!-- 喙 -->
+  <polygon points="286,434 196,466 286,498" fill="#A99F92"/>
+  <!-- 眼 -->
+  <circle cx="352" cy="424" r="11" fill="#F6F0E2"/>
+  <circle cx="352" cy="424" r="4.5" fill="#1B1917"/>
+
+  <!-- 橘色胸羽主体 -->
+  <polygon points="282,470 636,470 716,596 552,748 372,700 282,580" fill="url(#breast)"/>
+  <!-- 胸羽折面：亮 -->
+  <polygon points="282,470 448,506 408,648 316,596" fill="#F7A85C" opacity="0.92"/>
+  <!-- 胸羽折面：暗 -->
+  <polygon points="636,470 700,570 572,596 528,496" fill="#D4570A" opacity="0.95"/>
+  <!-- 腹部纸白折面 -->
+  <polygon points="552,748 716,596 676,700 588,760" fill="#FBF7EC"/>
+
+  <!-- 青绿折翅 -->
+  <polygon points="508,352 668,436 636,470 470,470 440,392" fill="#6F8A5A"/>
+  <polygon points="508,352 576,384 520,432 470,470 440,392" fill="#7C9A63"/>
+
+  <!-- 枝头嫩枝 -->
+  <path d="M236,556 q-22,42 4,88" fill="none" stroke="#6F8A5A" stroke-width="11" stroke-linecap="round"/>
+  <polygon points="224,596 262,582 256,624" fill="#7C9A63"/>
+  <polygon points="240,650 276,642 264,678" fill="#7C9A63"/>
+</svg>
