@@ -16,6 +16,7 @@ const {
 } = require('./Persistence/Repositories');
 const { LibraryDatabase, PreferenceStore, PreferenceKey } = require('./Persistence/LibraryDatabase');
 const { TimelineQueryService } = require('./Persistence/TimelineQueryService');
+const SearchIndex = require('./Persistence/SearchIndex');
 const { CredentialStore } = require('./Account/CredentialStore');
 const { fetchFeed } = require('./FeedService');
 const OPMLService = require('./OPMLService');
@@ -70,6 +71,15 @@ class AppStore extends EventEmitter {
     this._retainedUnreadIDs = new Set(); // 未读会话保留
     this._retainedStarredIDs = new Set();
 
+    // 状态推送瘦身：数据修订号 + 缓存 + 条目增量（避免每次已读触发全量重算与重拉）
+    this._dataRev = 0;            // 影响侧栏计数的变更（计数缓存失效依据）
+    this._entryStateRev = 0;      // 条目读/星状态变更
+    this._listSetRev = 0;         // 行集变更（新增/删除文章、订阅结构）
+    this._countsCache = null;     // { rev, counts }
+    this._entryChanges = new Map(); // entryID -> {id, isRead, isStarred}（上限 400）
+    this._lastEmitAt = 0;
+    this._emitTimer = null;
+
     // 本机账户始终存在
     this.accounts.ensureLocalAccount();
 
@@ -83,6 +93,8 @@ class AppStore extends EventEmitter {
     this._repairAihotArticles();
     this._cleanupDuplicates();
     this._repairAggregatorMeta();
+    // 全文索引回填（存量文章一次性，分批让出事件循环；FTS 不可用时内部自动跳过）
+    setTimeout(() => { this._ftsBackfill().catch(() => {}); }, 8000);
   }
 
   /**
@@ -184,24 +196,68 @@ class AppStore extends EventEmitter {
 
   // MARK: - 事件
 
+  /**
+   * 状态推送节流（80ms 合并）：连读时每个 markRead 都会 emit，原文静态推送
+   * 一次已读 = 5×N 聚合查询 + 全量 snapshot IPC；合并后一波操作至多两次推送。
+   */
   _emitState() {
-    this.emit('state:changed', this.snapshot());
+    const now = Date.now();
+    if (now - this._lastEmitAt >= 80) {
+      if (this._emitTimer) { clearTimeout(this._emitTimer); this._emitTimer = null; }
+      this._lastEmitAt = now;
+      this.emit('state:changed', this.snapshot());
+      return;
+    }
+    if (this._emitTimer) return;
+    this._emitTimer = setTimeout(() => {
+      this._emitTimer = null;
+      this._lastEmitAt = Date.now();
+      this.emit('state:changed', this.snapshot());
+    }, 80);
+  }
+
+  /** 条目读/星变更：失效计数缓存 + 记录增量（渲染层免重拉、只打补丁）。 */
+  _noteEntryChange(entryID, isRead, isStarred) {
+    this._dataRev += 1;
+    this._entryStateRev += 1;
+    if (!entryID) return;
+    this._entryChanges.set(entryID, { id: entryID, isRead: isRead === 1 || isRead === true, isStarred: isStarred === 1 || isStarred === true });
+    if (this._entryChanges.size > 400) {
+      const oldest = this._entryChanges.keys().next().value;
+      this._entryChanges.delete(oldest);
+    }
+  }
+
+  /** 行集/结构变更（新增/删除文章、订阅与文件夹结构、账户开关）。 */
+  _bumpListSet() {
+    this._dataRev += 1;
+    this._listSetRev += 1;
   }
 
   snapshot() {
     const startOfDay = this._startOfDayTimestamp();
     const enabledAccounts = this.accounts.enabledAccounts();
     const accountIDs = enabledAccounts.map((a) => a.id);
-    let sidebarCounts = { allUnread: 0, todayUnread: 0, starred: 0, unreadByFeed: {}, unreadByFolder: {} };
-    for (const id of accountIDs) {
-      const counts = this.timeline.fetchSidebarCounts(id, startOfDay);
-      sidebarCounts = mergeCounts(sidebarCounts, counts);
+    let sidebarCounts;
+    if (this._countsCache && this._countsCache.rev === this._dataRev) {
+      sidebarCounts = this._countsCache.counts;
+    } else {
+      sidebarCounts = { allUnread: 0, todayUnread: 0, starred: 0, unreadByFeed: {}, unreadByFolder: {} };
+      for (const id of accountIDs) {
+        const counts = this.timeline.fetchSidebarCounts(id, startOfDay);
+        sidebarCounts = mergeCounts(sidebarCounts, counts);
+      }
+      this._countsCache = { rev: this._dataRev, counts: sidebarCounts };
     }
 
     return {
       accounts: enabledAccounts,
       allAccounts: this.accounts.listAccounts(),
       sidebarCounts,
+      sidebarSignature: stableDigest(JSON.stringify(this.sidebarStructure())),
+      entryStateRev: this._entryStateRev,
+      listSetRev: this._listSetRev,
+      entryChanges: [...this._entryChanges.values()],
       refreshStatus: this.refreshStatus,
       syncStatus: Object.fromEntries(this.syncStatus),
       lastRefreshOutcome: this.lastRefreshOutcome,
@@ -375,22 +431,25 @@ class AppStore extends EventEmitter {
     return scope;
   }
 
-  listItems(scope, { limit = DEFAULT_TIMELINE_LIMIT, offset = 0, retainingIDs = [] } = {}) {
+  listItems(scope, { limit = DEFAULT_TIMELINE_LIMIT, offset = 0, retainingIDs = [], sort = 'time' } = {}) {
     scope = this._normalizedScope(scope);
     const enabledAccounts = this.accounts.enabledAccounts();
     if (enabledAccounts.length === 0) return [];
     if (enabledAccounts.length === 1) {
       return this._applyScoring(this.timeline.fetchListItems({
         accountID: enabledAccounts[0].id,
-        scope, limit, offset, retainingIDs,
+        scope, limit, offset, retainingIDs, sort,
       }));
     }
     // 多账户：先按账户分别取再合并排序
     const merged = [];
     for (const account of enabledAccounts) {
-      merged.push(...this.timeline.fetchListItems({ accountID: account.id, scope, limit, offset: 0, retainingIDs }));
+      merged.push(...this.timeline.fetchListItems({ accountID: account.id, scope, limit, offset: 0, retainingIDs, sort }));
     }
-    merged.sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
+    merged.sort((a, b) => {
+      if (sort === 'unreadFirst' && a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+      return (b.publishedAt ?? 0) - (a.publishedAt ?? 0);
+    });
     return this._applyScoring(merged.slice(offset, offset + limit));
   }
 
@@ -496,6 +555,7 @@ class AppStore extends EventEmitter {
       }
     }
     if (newUnread.length > 200) newUnread = newUnread.slice(0, 200);
+    if (newUnread.length) this._bumpListSet();
     // 后台预抓 AIHOT item 页（异步串行，不阻塞刷新；失败静默）
     if (toPrefetch.length) this._prefetchArticles(toPrefetch);
     return newUnread;
@@ -509,7 +569,7 @@ class AppStore extends EventEmitter {
       while (cursor < entryIDs.length) {
         const id = entryIDs[cursor++];
         if (this.cachesRepo.cache(id)) continue; // 已有缓存跳过
-        try { await this.extractArticle(id); } catch (_) { /* 单篇失败不影响其余 */ }
+        try { await this.extractArticle(id, { priority: 'prefetch' }); } catch (_) { /* 单篇失败不影响其余 */ }
       }
     };
     const workers = Array.from({ length: Math.min(concurrency, entryIDs.length) }, () => worker());
@@ -620,8 +680,16 @@ class AppStore extends EventEmitter {
       this.statesRepo.enqueueOutbox(entry.accountID, entryID, 'read', read);
       this._scheduleOutboxDrain(1500);
     }
-    if (read) this._retainedUnreadIDs.add(entryID);
+    if (read) {
+      this._retainedUnreadIDs.add(entryID);
+      // 会话上限：几百篇后 unread 过滤 SQL 的 IN 参数会拖垮查询计划
+      if (this._retainedUnreadIDs.size > 500) {
+        const oldest = this._retainedUnreadIDs.values().next().value;
+        this._retainedUnreadIDs.delete(oldest);
+      }
+    }
     if (entry) this.evolution.recordBehavior({ itemID: entryID, feedID: entry.feedID, action: read ? 'read' : 'skip' });
+    this._noteEntryChange(entryID, read, entry ? entry.isStarred : false);
     this._emitState();
   }
 
@@ -636,6 +704,7 @@ class AppStore extends EventEmitter {
       this._scheduleOutboxDrain(1500);
     }
     this.evolution.recordBehavior({ itemID: entryID, feedID: entry.feedID, action: next ? 'star' : 'skip' });
+    this._noteEntryChange(entryID, entry.isRead, next);
     this._emitState();
     return next;
   }
@@ -652,6 +721,11 @@ class AppStore extends EventEmitter {
       byAccount.get(item.accountID).push(item.id);
     }
     for (const entryID of entryIDs) this.statesRepo.setRead(entryID, true);
+    if (entryIDs.length) {
+      this._noteEntryChange(null, true, false); // 失效计数缓存
+      this._bumpListSet(); // 未读/今日等视图的行集随批量已读变化
+      for (const entryID of entryIDs) this._noteEntryChange(entryID, true, false);
+    }
     for (const [accountID, ids] of byAccount) {
       if (accountID === LOCAL_ACCOUNT_ID) continue;
       for (const id of ids) this.statesRepo.enqueueOutbox(accountID, id, 'read', true);
@@ -696,10 +770,10 @@ class AppStore extends EventEmitter {
     };
   }
 
-  async extractArticle(entryID) {
+  async extractArticle(entryID, { priority = 'user' } = {}) {
     const entry = this.articlesRepo.entry(entryID);
     if (!entry || !entry.url) return null;
-    const cache = await ArticleExtractor.extract(entry.url);
+    const cache = await ArticleExtractor.extract(entry.url, { priority });
     cache.entryID = entryID;
     // 抓取质量守门：抓回正文明显短于现有正文（多为站点拦截壳/登录页）时不落库——
     // 壳一旦写进 article_caches 会无条件覆盖，之后每次打开都拿到壳，正文不可恢复
@@ -712,7 +786,7 @@ class AppStore extends EventEmitter {
     const isShell = existingLen > 400 && gotLen > 0 && gotLen < existingLen * 0.4;
     if (!isShell) {
       this.cachesRepo.saveCache(cache);
-      this._emitState();
+      // 不推送 state：正文缓存对侧栏/列表无影响，预抓批量完成时推送只会造成状态风暴
     }
     return cache;
   }
@@ -745,10 +819,62 @@ class AppStore extends EventEmitter {
     return { newEntries: newIDs.length };
   }
 
-  /** 全文搜索：标题/摘要/作者 + 正文内容（article_caches.text）。 */
+  /** 全文搜索：标题/摘要/作者 + 正文内容。FTS5(trigram) 即时路径 + LIKE 回退。 */
   fullTextSearch(query, { limit = 60 } = {}) {
     const trimmed = String(query || '').trim();
     if (!trimmed) return [];
+    // trigram 最小词元 3 字符：更短的查询（常见中文双字词）与 MATCH 异常都回退 LIKE
+    if (trimmed.length >= 3 && this._ftsEnabled()) {
+      try {
+        return this._ftsSearch(trimmed, limit);
+      } catch (_) { /* MATCH 语法/引擎异常 → LIKE */ }
+    }
+    return this._likeSearch(trimmed, limit);
+  }
+
+  _ftsEnabled() {
+    if (this._ftsAvailable === undefined) {
+      this._ftsAvailable = SearchIndex.ftsAvailable(this.database);
+    }
+    return this._ftsAvailable;
+  }
+
+  /** FTS5 路径：按相关度排序，snippet 免去整篇正文的读取与传输。 */
+  _ftsSearch(trimmed, limit) {
+    const phrase = `"${trimmed.replace(/"/g, '""')}"`;
+    const rows = this.database.prepare(`
+      SELECT
+          i.id AS entry_id, i.feed_id AS feed_id, i.account_id AS account_id,
+          COALESCE(acc.type, 'local') AS account_type,
+          COALESCE(acc.display_name, 'Local') AS account_display_name,
+          COALESCE(a.title, '') AS title, a.url AS url,
+          COALESCE(a.summary, '') AS summary,
+          f.title AS feed_title, f.stored_icon_url AS stored_icon_url,
+          f.site_url AS site_url, f.feed_url AS feed_url,
+          a.published_at AS published_at,
+          COALESCE(s.is_read, 0) AS is_read, COALESCE(s.is_starred, 0) AS is_starred,
+          snippet(articles_fts, 4, '', '', '…', 24) AS fts_snip
+      FROM articles_fts
+      INNER JOIN items i ON i.id = articles_fts.item_id
+      INNER JOIN feeds f ON f.id = i.feed_id
+      LEFT JOIN accounts acc ON acc.id = i.account_id
+      LEFT JOIN articles a ON a.item_id = i.id
+      LEFT JOIN article_states s ON s.item_id = i.id
+      WHERE articles_fts MATCH ? AND f.is_deleted = 0
+      ORDER BY rank
+      LIMIT ?
+    `).all(phrase, limit);
+    const { rowToListItem } = require('./Persistence/TimelineQueryService');
+    return rows.map((row) => {
+      const item = rowToListItem(row);
+      const snippetText = row.fts_snip || '';
+      if (snippetText && !item.summaryPreview) item.summaryPreview = snippetText;
+      return { ...item, snippet: snippetText };
+    });
+  }
+
+  /** LIKE 回退路径（FTS 不可用 / 短查询）：与 FTS 路径同构的返回结构。 */
+  _likeSearch(trimmed, limit) {
     const pattern = `%${trimmed.replace(/[%_]/g, (c) => '\\' + c)}%`;
     const rows = this.database.prepare(`
       SELECT
@@ -781,6 +907,52 @@ class AppStore extends EventEmitter {
       if (snippet && !item.summaryPreview) item.summaryPreview = snippet;
       return { ...item, snippet };
     });
+  }
+
+  /**
+   * 存量文章一次性回填全文索引（分批 + 让出事件循环，不阻塞启动与交互）。
+   * 新入库文章由 Repositories 写入点实时索引，回填只补历史数据。
+   */
+  async _ftsBackfill() {
+    if (!this._ftsEnabled()) return;
+    if (this.preferences.get('RobinRead.fts.backfilled', false)) return;
+    const batchSize = 400;
+    let lastRowid = 0;
+    let total = 0;
+    try {
+      for (;;) {
+        const batch = this.database.prepare(`
+          SELECT a.rowid AS rid, a.item_id, COALESCE(a.title, '') AS title,
+                 COALESCE(a.author, '') AS author, COALESCE(a.summary, '') AS summary,
+                 CASE WHEN COALESCE(c.text, '') != '' THEN c.text ELSE COALESCE(a.content_html, '') END AS body_source
+          FROM articles a LEFT JOIN article_caches c ON c.item_id = a.item_id
+          WHERE a.rowid > ? ORDER BY a.rowid LIMIT ?
+        `).all(lastRowid, batchSize);
+        if (!batch.length) break;
+        lastRowid = batch[batch.length - 1].rid;
+        this.database.transaction(() => {
+          // 幂等：回填期间实时索引可能已写入同一行，先清后插
+          const placeholders = batch.map(() => '?').join(',');
+          this.database.prepare(
+            `DELETE FROM articles_fts WHERE item_id IN (${placeholders})`
+          ).run(...batch.map((r) => r.item_id));
+          const insert = this.database.prepare(
+            'INSERT INTO articles_fts (item_id, title, author, summary, body) VALUES (?, ?, ?, ?, ?)'
+          );
+          for (const r of batch) {
+            // 无提取缓存时索引 RSS 正文（去标签纯文本），正文搜索才有完整覆盖
+            const body = r.body_source.startsWith('<') ? plainText(r.body_source) : r.body_source;
+            insert.run(r.item_id, r.title, r.author, r.summary, body);
+          }
+        });
+        total += batch.length;
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      }
+      this.preferences.set('RobinRead.fts.backfilled', true);
+      if (total > 0) console.log(`[RobinRead] 全文索引回填完成：${total} 篇`);
+    } catch (err) {
+      console.warn('[RobinRead] 全文索引回填中断（下次启动重试）：', err.message);
+    }
   }
 
   _snippet(text, query) {
@@ -913,6 +1085,7 @@ class AppStore extends EventEmitter {
           SELECT id FROM reading_behavior ORDER BY created_at DESC LIMIT -1 OFFSET 5000
         );
       `);
+      SearchIndex.sweepOrphans(this.database); // 全文索引孤儿行（条目级联删除路径分散，每日兜底）
       const after = {
         artifacts: this.database.prepare('SELECT COUNT(*) c FROM ai_artifacts').get().c,
         caches: this.database.prepare('SELECT COUNT(*) c FROM article_caches').get().c,
@@ -2049,6 +2222,7 @@ class AppStore extends EventEmitter {
       pageWidth: this.preferences.get('RobinRead.readerPageWidth', 'standard'),
       lineHeight: this.preferences.get('RobinRead.readerLineHeight', 'standard'),
       listDensity: this.preferences.get('RobinRead.listDensity', 'comfortable'),
+      listSort: this.preferences.get('RobinRead.listSort', 'time'),
       translateMode: this.preferences.get('RobinRead.translateMode', 'off'),
       // 默认关闭：文章打开不自动翻译，由用户手动触发（设置里可开启自动精读）
       autoTranslateEnglish: this.preferences.get('RobinRead.autoTranslateEnglish', false) === true,
@@ -2061,6 +2235,7 @@ class AppStore extends EventEmitter {
       pageWidth: ['narrow', 'standard', 'wide'],
       lineHeight: ['compact', 'standard', 'loose'],
       listDensity: ['compact', 'comfortable'],
+      listSort: ['time', 'unreadFirst'],
       translateMode: ['off', 'bilingual', 'zh'],
       autoTranslateEnglish: [true, false],
     };

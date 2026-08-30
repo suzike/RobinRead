@@ -281,6 +281,27 @@ const MIGRATIONS = [
       `);
     },
   },
+
+  {
+    id: 'v4-articles-fts',
+    up: (db) => {
+      // FTS5 trigram 全文索引（即时全文搜索）。trigram 最小词元 3 字符，
+      // 更短查询由搜索层回退 LIKE。FTS5/trigram 不可用的环境静默跳过建表，
+      // SearchIndex.ftsAvailable 探测不到表即全程走 LIKE 路径。
+      try {
+        db.exec(`
+          CREATE VIRTUAL TABLE articles_fts USING fts5(
+              item_id UNINDEXED,
+              title,
+              author,
+              summary,
+              body,
+              tokenize='trigram'
+          );
+        `);
+      } catch (_) { /* FTS5 不可用：搜索保持 LIKE */ }
+    },
+  },
 ];
 
 /** 应用所有未执行的迁移（等价 GRDB DatabaseMigrator.migrate）。 */

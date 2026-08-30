@@ -29,6 +29,7 @@ export class ListView {
     this.topInset.innerHTML = `
       <div class="list-top-title"></div>
       <div class="tb-spring"></div>
+      <button class="digest-btn" id="list-sort-btn" title="${escapeHTML(t('切换排序方式'))}"><span></span></button>
       <button class="digest-btn" id="digest-btn" title="${escapeHTML(t('AI 汇总今日全部文章'))}">${icon('spark')}<span></span></button>
       <div class="list-search" id="list-search">
         ${icon('search')}
@@ -36,6 +37,8 @@ export class ListView {
         <button class="clear" id="list-search-clear">${icon('close')}</button>
       </div>`;
     this.topInset.querySelector('#digest-btn span').textContent = t('今日简报');
+    this.sortBtn = this.topInset.querySelector('#list-sort-btn');
+    this.sortBtn.addEventListener('click', () => this.handlers.onToggleSort?.());
     this.searchInput = this.topInset.querySelector('#list-search-input');
     this.searchHost = this.topInset.querySelector('#list-search');
     let searchTimer = null;
@@ -58,6 +61,13 @@ export class ListView {
     this.scrollEl.appendChild(this.rowsHost);
 
     this.scrollEl.addEventListener('scroll', () => this._onScroll(), { passive: true });
+  }
+
+  /** 排序切换按钮文案（时间序 ↔ 未读优先）。 */
+  setSortButton(listSort) {
+    const unreadFirst = listSort === 'unreadFirst';
+    this.sortBtn.innerHTML = `<span>${escapeHTML(unreadFirst ? t('未读优先') : t('时间序'))}</span>`;
+    this.sortBtn.classList.toggle('active', unreadFirst);
   }
 
   render(items, scope, selectedID, hasUnread) {
@@ -132,10 +142,6 @@ export class ListView {
       : `<span class="entry-favicon"></span>`;
     const badge = accountBadge(item);
 
-    const totalChars = (item.title || '').length + (item.summaryPreview || '').length;
-    const readMinutes = Math.max(1, Math.round(totalChars / 300));
-    const score = Math.max(1, Math.min(5, item.score ?? 3));
-    const dots = Array.from({ length: 5 }, (_, i) => `<i class="${i < score ? 'on' : ''}"></i>`).join('');
     row.innerHTML = `
       <span class="entry-unread-dot" title="${attr(t(item.isRead ? '已读' : '未读'))}"></span>
       <div class="entry-body">
@@ -146,8 +152,6 @@ export class ListView {
           <span class="entry-source"></span>
           ${badge ? `<span class="entry-account-badge"></span>` : ''}
           ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
-          <span class="quality-dots" data-score="${score}" title="${attr(t('信噪评分'))} ${score}/5">${dots}</span>
-          <span class="read-time">${readMinutes} min</span>
           <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
         </div>
       </div>
@@ -242,6 +246,29 @@ export class ListView {
   /** 状态变更：仅打补丁（读/星），不重建（对应 patchEntryState）。 */
   updateItems(items, selectedID) {
     const byID = new Map(items.map((item) => [item.id, item]));
+    for (const row of this.rowsHost.querySelectorAll('.entry-row')) {
+      const next = byID.get(row.dataset.entryId);
+      if (!next) continue;
+      row.classList.toggle('read', next.isRead);
+      row.classList.toggle('unread', !next.isRead);
+      row.classList.toggle('starred', next.isStarred);
+      const star = row.querySelector('.star-mini');
+      if (next.isStarred && !star) {
+        const meta = row.querySelector('.entry-meta');
+        const el = document.createElement('span');
+        el.className = 'star-mini';
+        el.innerHTML = icon('starFilled');
+        meta.insertBefore(el, meta.querySelector('.entry-time'));
+      } else if (!next.isStarred && star) {
+        star.remove();
+      }
+    }
+    if (selectedID) this.markSelected(selectedID);
+  }
+
+  /** 状态推送增量补丁：只更新变更的条目（{id,isRead,isStarred}[]），不做任何重拉。 */
+  patchEntries(changes, selectedID) {
+    const byID = new Map(changes.map((item) => [item.id, item]));
     for (const row of this.rowsHost.querySelectorAll('.entry-row')) {
       const next = byID.get(row.dataset.entryId);
       if (!next) continue;

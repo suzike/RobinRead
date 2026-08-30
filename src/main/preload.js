@@ -194,6 +194,8 @@ contextBridge.exposeInMainWorld('robin', {
   aihotSetKeywords: (kw) => invoke('aihot:setKeywords', kw),
   aihotDeepRead: (payload) => invoke('aihot:deepRead', payload),
   copyText: (text) => invoke('app:copyText', text),
+  pickSavePath: (defaultName) => invoke('app:pickSavePath', { defaultName }),
+  writeTextFile: (filePath, content) => invoke('app:writeTextFile', { filePath, content }),
 
   // 无边框窗口控制
   winMinimize: () => ipcRenderer.send('window:minimize'),

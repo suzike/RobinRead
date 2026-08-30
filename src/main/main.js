@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const { app, BrowserWindow, Menu, nativeTheme, shell, dialog, ipcMain } = require('electron');
 const { AppStore } = require('./AppStore');
 const { i18n } = require('./I18N');
+const ArticleExtractor = require('./ArticleExtractor');
 const { registerIPCHandlers, createMainWindow } = require('./ipc');
 
 /** 历史数据目录（按新→旧排序），迁移时取第一个含 library.db 的。 */
@@ -109,6 +110,9 @@ app.whenReady().then(() => {
       store.refresh('launch').catch(() => { /* 状态已在内部记录 */ });
     }, 800);
   }
+
+  // 预热正文提取 worker：消除首次「阅读原文/正文补全」的进程冷启动延迟
+  setTimeout(() => { try { ArticleExtractor.prewarm(); } catch (_) { /* 静默 */ } }, 2500);
 
   buildMenu();
 

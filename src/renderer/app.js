@@ -42,6 +42,10 @@ const state = {
   sidebarCollapsed: false,
   activeColumn: 1,              // 0=sidebar 1=list 2=reader
   updateInfo: null,
+  // 状态推送瘦身：主进程修订号与结构签名（增量补丁，免全量重拉）
+  entryStateRev: 0,
+  listSetRev: 0,
+  sidebarSignature: null,
 };
 
 const views = {};
@@ -107,6 +111,10 @@ async function bootstrap() {
     onLoadMore: loadMoreEntries,
     onSearch: runSearch,
     onDigest: showTodayDigest,
+    onToggleSort: () => {
+      const next = currentListSort() === 'unreadFirst' ? 'time' : 'unreadFirst';
+      window.robin.setReaderLayout({ listSort: next });
+    },
   });
   views.reader = new ReaderView(
     document.getElementById('reader-scroll'),
@@ -164,6 +172,14 @@ function applyReaderLayout(layout) {
   root.style.setProperty('--reader-line-height', heightMap[layout?.lineHeight] || heightMap.standard);
   document.body.dataset.listDensity = layout?.listDensity || 'comfortable';
   window.__robinReaderLayout = layout || {};
+  // 列表排序：状态变化时更新按钮并重拉列表（排序影响行序）
+  const listSort = layout?.listSort === 'unreadFirst' ? 'unreadFirst' : 'time';
+  if (views.list?.setSortButton) views.list.setSortButton(listSort);
+  if (listSort !== applyReaderLayout._lastSort) {
+    const changed = applyReaderLayout._lastSort !== undefined;
+    applyReaderLayout._lastSort = listSort;
+    if (changed && views.list) reloadList({ resetScroll: true }).catch(() => {});
+  }
   // 注意：translateMode 是「打开文章时的默认模式」，由 reader.open 自行读取；
   // 不在这里强制应用——否则每次 state 推送都会把用户会话内选择的模式重置掉。
 }
@@ -526,7 +542,7 @@ async function reloadSidebar() {
 }
 
 async function reloadList({ resetScroll = false } = {}) {
-  const result = await window.robin.getList(state.scope, { limit: 100, retainingIDs: [...state.retainedIDs] });
+  const result = await window.robin.getList(state.scope, { limit: 100, retainingIDs: [...state.retainedIDs], sort: currentListSort() });
   if (!result.ok) return;
   state.listItems = result.data;
   views.list.render(state.listItems, state.scope, state.selectedEntryID, currentHasUnread());
@@ -764,7 +780,7 @@ function escapeHTMLInline(value) {
 async function loadMoreEntries() {
   if (state.listItems.length === 0 || state.listItems.length % 100 !== 0) return;
   const result = await window.robin.getList(state.scope, {
-    limit: 100, offset: state.listItems.length,
+    limit: 100, offset: state.listItems.length, sort: currentListSort(),
   });
   if (!result.ok || result.data.length === 0) return;
   const existing = new Set(state.listItems.map((entry) => entry.id));
@@ -791,10 +807,23 @@ function sameScope(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+/** 当前列表排序（主进程 listItems sort 参数）。 */
+function currentListSort() {
+  return window.__robinReaderLayout?.listSort === 'unreadFirst' ? 'unreadFirst' : 'time';
+}
+
 async function handleEntrySelect(entryID, item) {
   state.selectedEntryID = entryID;
-  if (state.scope.kind === 'unread') state.retainedIDs.add(entryID);
-  else state.retainedIDs.clear();
+  if (state.scope.kind === 'unread') {
+    state.retainedIDs.add(entryID);
+    // 保留集无界增长会让 unread 过滤 SQL 恶化（IN 参数膨胀），封顶 500
+    if (state.retainedIDs.size > 500) {
+      const oldest = state.retainedIDs.values().next().value;
+      state.retainedIDs.delete(oldest);
+    }
+  } else {
+    state.retainedIDs.clear();
+  }
   views.list.markSelected(entryID);
   updateToolbarState();
   await views.reader.open(entryID);
@@ -1377,9 +1406,29 @@ function bindEvents() {
       views.sidebar.rerender?.();
     }
     views.sidebar.updateCounts(snapshot.sidebarCounts, state.updateInfo);
-    await reloadSidebar();
+    // 侧栏结构（订阅/文件夹/账户）未变化时跳过整栏重建——updateCounts 已更新数字
+    if (snapshot.sidebarSignature && snapshot.sidebarSignature !== state.sidebarSignature) {
+      state.sidebarSignature = snapshot.sidebarSignature;
+      await reloadSidebar();
+    }
+    // 条目状态增量：仅读/星变化且当前视图行集不受影响时，打补丁即可，免去全量重拉
+    const entryStateRev = Number(snapshot.entryStateRev) || 0;
+    const listSetRev = Number(snapshot.listSetRev) || 0;
+    const deltaChanged = entryStateRev !== state.entryStateRev;
+    const setChanged = listSetRev !== state.listSetRev;
+    const scopeSetAffecting = deltaChanged && scopeSetAffectedByEntryState(state.scope, snapshot.entryChanges || []);
+    state.entryStateRev = entryStateRev;
+    state.listSetRev = listSetRev;
+    updateToolbarState();
+    applyFontSize(snapshot.preferences.articleFontSize);
+    if (deltaChanged && !setChanged && !scopeSetAffecting && state.listItems.length) {
+      views.list.patchEntries(snapshot.entryChanges || [], state.selectedEntryID);
+      const delta = (snapshot.entryChanges || []).find((c) => c.id === state.selectedEntryID);
+      if (delta) views.reader.updateEntryState({ isRead: delta.isRead, isStarred: delta.isStarred });
+      return;
+    }
     // 静默刷新行状态（不整体重建，避免打断滚动与选择）
-    const result = await window.robin.getList(state.scope, { limit: Math.max(100, state.listItems.length), retainingIDs: [...state.retainedIDs] });
+    const result = await window.robin.getList(state.scope, { limit: Math.max(100, state.listItems.length), retainingIDs: [...state.retainedIDs], sort: currentListSort() });
     if (result.ok) {
       const beforeIDs = new Set(state.listItems.map((entry) => entry.id));
       const afterIDs = new Set(result.data.map((entry) => entry.id));
@@ -1397,11 +1446,17 @@ function bindEvents() {
         if (scroller) scroller.scrollTop = scrollTop;
       }
     }
-    updateToolbarState();
-    applyFontSize(snapshot.preferences.articleFontSize);
     const item = state.listItems.find((entry) => entry.id === state.selectedEntryID);
     if (item) views.reader.updateEntryState({ isRead: item.isRead, isStarred: item.isStarred });
   });
+
+  /** 当前视图的行集是否会随条目读/星状态变化（决定增量补丁后是否需要重拉）。 */
+  function scopeSetAffectedByEntryState(scope, changes) {
+    if (!scope || !changes.length) return false;
+    if (scope.kind === 'unread') return changes.some((c) => c.isRead);
+    if (scope.kind === 'starred') return changes.some((c) => c.isStarred);
+    return false; // 全部/今日/源/文件夹视图：读/星不影响行集
+  }
 
   window.robin.onAIDelta((payload) => {
     if (payload.entryID !== state.selectedEntryID) return;

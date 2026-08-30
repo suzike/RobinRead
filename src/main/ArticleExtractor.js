@@ -1,626 +1,281 @@
 'use strict';
 /**
- * RobinRead（知更）— 网页正文提取与 HTML 消毒
+ * RobinRead（知更）— 网页正文提取与 HTML 消毒（主进程门面 + utilityProcess 工作进程池）
  *
- * - 噪音块剥离（作者卡/评论区/分享栏…）
- * - 容器启发式（article-body/post-content/entry-content/… > article > main > body）
- * - 白名单标签重建式消毒（不允许任何事件属性/可执行 URL 进入渲染器）
- * - readerParagraphs / insertingInlineTranslations（翻译轨道的稳定段落 ID）
+ * 职责拆分（性能重构）：
+ * - 纯逻辑（噪音剥离/容器启发式/Readability/白名单消毒/段落 ID/编码探测）在
+ *   ./ArticleExtractCore —— 主进程与工作进程共享的纯 Node 模块。
+ * - sanitizedHTML / readerParagraphs 等导出仍是主进程内同步函数（RSS 正文、翻译轨道
+ *   路径不经过 worker，行为与重构前完全一致）。
+ * - extract() 把「30s fetch → 4MB 截断 → 多编码探测 → jsdom+Readability 双引擎 → 消毒」
+ *   投给常驻 utilityProcess 工作进程（./workers/extractor-worker.js）执行：
+ *   后台预抓（并发 3）+ 用户打开文章叠加时，jsdom 的 CPU 峰值不再占住主进程事件循环，
+ *   ipcMain.handle 不再排队（消除 UI 间歇性僵住）。
+ *
+ * 工作进程生命周期与回退：
+ * - 懒启动：首个任务时才 fork；一次只派发一个任务（worker 内串行，单任务延迟可控）。
+ * - 优先级队列：priority='user'（默认）恒在 'prefetch' 之前；队列上限 QUEUE_CAP，
+ *   满了丢 prefetch（立即失败）不丢 user。
+ * - 总超时：主进程侧每个任务 ≤45s（WORKER_TASK_TIMEOUT_MS），超时判定该次 worker 尝试
+ *   失败 → 杀掉卡死的 worker（jsdom 同步解析卡死时 worker 无法再收消息，只能杀）并回退。
+ * - 回退：worker 启动失败 / spawn 超时 / 任务出错 / 异常退出 / 超时 → 主进程内直接执行
+ *   原逻辑（Core.extractInProcess，即重构前的 extract 实现）——保证打包环境（asar）或
+ *   utilityProcess 不可用时功能不劣化。
+ * - 自动重启：worker 异常退出后进入短暂冷却（防 crash 循环高频 fork），冷却结束后的
+ *   下一个任务懒重启新 worker；冷却期 prefetch 在队列等待，user 立即回退执行。
  */
-const { plainText } = require('./Models');
+const path = require('node:path');
+const Core = require('./ArticleExtractCore');
 
-const NOISE_KEYWORDS = [
-  'author-popover', 'author-item', 'author__info', 'author__bio',
-  'article__header__author', 'article-header-author', 'author-card', 'author-box', 'user-card',
-  'article__charge', 'post__comments', 'comment-box', 'comment-list',
-  'share-bar', 'social-share', 'action-bar', 'phoneBindDialog', 'dialog-title',
-  'comp__Directory', 'directory__overlay',
-];
-
-function stripNoiseBlocks(html) {
-  let current = html;
-  const keywordPattern = NOISE_KEYWORDS.join('|');
-  const pattern = new RegExp(
-    `<(div|section|aside|form|ul|ol|blockquote|button)\\b[^>]*?\\b(?:class|id|data-[a-z-]+)\\s*=\\s*["'][^"']*?\\b(?:${keywordPattern})\\b[^"']*?["'][^>]*?>[\\s\\S]*?<\\/\\1>`,
-    'gi'
-  );
-  for (let i = 0; i < 3; i += 1) {
-    const updated = current.replace(pattern, '');
-    if (updated.length === current.length) break;
-    current = updated;
+// utilityProcess 仅在 Electron 主进程可用；普通 node 环境下 require('electron')
+// 返回的是可执行文件路径字符串，此处安全降级为 null → 全部任务走主进程回退。
+let utilityProcess = null;
+try {
+  const electron = require('electron');
+  if (electron && typeof electron === 'object' && electron.utilityProcess && typeof electron.utilityProcess.fork === 'function') {
+    utilityProcess = electron.utilityProcess;
   }
-  return current;
-}
+} catch (_) { /* ignore */ }
 
-function stripExecutableBlocks(html) {
-  return html
-    .replace(/<(script|style|noscript|svg|canvas|iframe|form|object|embed|meta|link|base|template|nav|footer|aside)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<(script|style|noscript|svg|canvas|iframe|form|object|embed|meta|link|base|template|nav|footer|aside)\b[^>]*>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ');
-}
+// MARK: - 工作进程池
 
-const CONTAINER_PATTERNS = [
-  /<(div|article|section)\b[^>]*?\bclass\s*=\s*["'][^"']*?\b(?:article-body|post-content|entry-content|article-content|ss-article-content|markdown-body|content)\b[^"']*?["'][^>]*?>([\s\S]*?)<\/\1>/gi,
-  /<article[^>]*>([\s\S]*?)<\/article>/gi,
-  /<main[^>]*>([\s\S]*?)<\/main>/gi,
-  /<body[^>]*>([\s\S]*?)<\/body>/gi,
-];
+// packaged（asar）：electron-builder files 已含 src/**/*，fork 路径直接指向 asar 内文件。
+// Electron 的 utilityProcess.fork 支持加载 asar 内的 JS；若个别环境不支持（fork 抛错或
+// 子进程秒退），下方回退路径会自动接管，功能不劣化——无需为此改打包配置。
+const WORKER_PATH = path.join(__dirname, 'workers', 'extractor-worker.js');
+const WORKER_TASK_TIMEOUT_MS = 45_000;   // 单任务总超时（≤45s，超时算 worker 尝试失败并回退）
+const WORKER_SPAWN_TIMEOUT_MS = 15_000;  // fork 后迟迟不 spawn（如 asar 加载挂起）→ 回退
+const WORKER_RESTART_COOLDOWN_MS = 1_000; // 异常退出后的重启冷却（防 crash 循环）
+// 队列上限：满了丢 prefetch 不丢 user。诊断脚本可用 ROBIN_EXTRACT_QUEUE_CAP 覆盖。
+const QUEUE_CAP = (() => {
+  const parsed = Number.parseInt(process.env.ROBIN_EXTRACT_QUEUE_CAP || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+})();
 
-function imageURLsFrom(html, baseURL) {
-  const pattern = /<img\b[^>]*?\b(?:src|data-src|data-original|data-lazy-src)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/gi;
-  const seen = new Set();
-  const result = [];
-  let match;
-  while ((match = pattern.exec(html)) !== null) {
-    const source = (match[1] ?? match[2] ?? match[3] ?? '').replace(/&amp;/g, '&');
-    const url = safeRemoteURL(source, baseURL);
-    if (!url) continue;
-    if (seen.has(url)) continue;
-    seen.add(url);
-    result.push(url);
-  }
-  return result;
-}
-
-function content(html, baseURL) {
-  const cleaned = stripNoiseBlocks(stripExecutableBlocks(html));
-
-  for (const pattern of CONTAINER_PATTERNS) {
-    pattern.lastIndex = 0;
-    let match;
-    while ((match = pattern.exec(cleaned)) !== null) {
-      const fragment = match[0];
-      const safeHTML = sanitizedHTML(fragment, baseURL);
-      const text = plainText(safeHTML);
-      if (text.length >= 120) {
-        return { text, html: safeHTML, imageURLs: imageURLsFrom(safeHTML, baseURL) };
-      }
-    }
-  }
-  const safeHTML = sanitizedHTML(cleaned, baseURL);
-  return { text: plainText(safeHTML), html: safeHTML, imageURLs: imageURLsFrom(safeHTML, baseURL) };
-}
-
-// Mozilla Readability 懒加载（重依赖 jsdom，仅在抓取网页时 require，避免拖慢启动）
-let _readability = null;
-function getReadability() {
-  if (_readability) return _readability;
-  const { Readability } = require('@mozilla/readability');
-  const { JSDOM } = require('jsdom');
-  _readability = { Readability, JSDOM };
-  return _readability;
-}
-
-/**
- * Readability 通用正文提取：Firefox 阅读模式的核心算法，基于文本密度/链接密度启发式，
- * 从任意完整网页提取正文，剥离导航、广告、页眉页脚、元信息——不依赖站点特判。
- * 这是对「容器启发式只认 article-body/post-content 等 class」的通用化补充。
- */
-function readabilityContent(html, baseURL = null) {
-  try {
-    const { Readability, JSDOM } = getReadability();
-    const doc = new JSDOM(String(html || ''), { url: baseURL || 'https://example.com' });
-    const article = new Readability(doc.window.document).parse();
-    if (!article || !article.content) return { text: '', html: '', imageURLs: [] };
-    // Readability 已剥离 script/style 等，再过一遍白名单消毒保证绝对安全
-    const safeHTML = sanitizedHTML(article.content, baseURL);
-    return {
-      text: plainText(safeHTML),
-      html: safeHTML,
-      imageURLs: imageURLsFrom(safeHTML, baseURL),
-      title: article.title || '',
-    };
-  } catch (_) {
-    return { text: '', html: '', imageURLs: [] };
-  }
-}
-
-const ALLOWED_TAGS = new Set([
-  'p', 'br', 'hr', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'strong', 'b', 'em', 'i', 'u', 's', 'del', 'mark', 'small', 'sub', 'sup',
-  'blockquote', 'pre', 'code', 'kbd', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-  'figure', 'figcaption', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
-  'img', 'a', 'video', 'source', 'audio', 'picture',
-]);
-const VOID_TAGS = new Set(['br', 'hr', 'img', 'source']);
-
-function sanitizedHTML(html, baseURL = null) {
-  const stripped = stripNoiseBlocks(html);
-  const withoutExecutable = stripExecutableBlocks(stripped)
-    .replace(/<!--[\s\S]*?-->/g, '');
-
-  const tagPattern = /<\/?([a-z][a-z0-9]*)\b([^>]*)>/gis;
-  let result = '';
-  let cursor = 0;
-  let imageIndex = 0;
-  let match;
-
-  while ((match = tagPattern.exec(withoutExecutable)) !== null) {
-    const [fullTag, rawName, rawAttributes] = match;
-    result += withoutExecutable.slice(cursor, match.index);
-    cursor = match.index + fullTag.length;
-
-    const name = rawName.toLowerCase();
-    if (!ALLOWED_TAGS.has(name)) continue;
-    const isClosingTag = fullTag.slice(1).trim().startsWith('/');
-    if (isClosingTag) {
-      if (!VOID_TAGS.has(name)) result += `</${name}>`;
-    } else {
-      const eagerImage = name === 'img' && imageIndex < 8;
-      if (name === 'img') imageIndex += 1;
-      result += `<${name}${sanitizedAttributes(rawAttributes, name, baseURL, eagerImage)}>`;
-    }
-  }
-  result += withoutExecutable.slice(cursor);
-  return wrappingTopLevelTextRuns(result.trim());
-}
-
-const BLOCK_TAGS = new Set([
-  'p', 'div', 'li', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'figcaption', 'dt', 'dd', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'ul', 'ol', 'hr',
-]);
-
-/** 将顶层裸文本包裹进 <p>（RSSHub Twitter 正文等场景。 */
-function wrappingTopLevelTextRuns(html) {
-  const tagPattern = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gis;
-  let output = '';
-  const stack = [];
-  let loose = '';
-  let cursor = 0;
-  let match;
-
-  function flush() {
-    const trimmed = loose.trim();
-    if (!trimmed || !plainText(trimmed)) {
-      output += loose;
-    } else {
-      output += `<p>${trimmed}</p>`;
-    }
-    loose = '';
-  }
-
-  while ((match = tagPattern.exec(html)) !== null) {
-    const [tag, rawName] = match;
-    const name = rawName.toLowerCase();
-    const segment = html.slice(cursor, match.index);
-    if (stack.length === 0) loose += segment;
-    else output += segment;
-    cursor = match.index + tag.length;
-
-    const isClosing = tag.slice(1).trim().startsWith('/');
-    if (isClosing) {
-      if (stack.length === 0 && !VOID_TAGS.has(name)) {
-        loose += tag;
-      } else {
-        output += tag;
-      }
-      if (stack.length > 0 && stack[stack.length - 1] === name) {
-        stack.pop();
-        flush();
-      }
-    } else if (BLOCK_TAGS.has(name)) {
-      flush();
-      output += tag;
-      if (!VOID_TAGS.has(name)) stack.push(name);
-    } else if (stack.length === 0) {
-      loose += tag;
-    } else {
-      output += tag;
-    }
-  }
-  if (stack.length === 0) loose += html.slice(cursor);
-  else output += html.slice(cursor);
-  flush();
-  return output;
-}
-
-const ATTRIBUTES_FOR_TAG = {
-  a: new Set(['href', 'title']),
-  img: new Set(['src', 'alt', 'title', 'width', 'height', 'srcset']),
-  video: new Set(['src', 'poster', 'controls', 'autoplay', 'loop', 'muted', 'playsinline', 'webkit-playsinline', 'allowfullscreen', 'preload', 'width', 'height']),
-  source: new Set(['src', 'type', 'srcset', 'media']),
-  audio: new Set(['src', 'controls', 'autoplay', 'loop', 'muted', 'preload']),
-  th: new Set(['colspan', 'rowspan']),
-  td: new Set(['colspan', 'rowspan']),
+const pool = {
+  worker: null,            // 当前 utilityProcess 子进程
+  spawnTimer: null,        // spawn 看门狗
+  restartCooldownUntil: 0, // 异常退出后的冷却截止时刻
+  cooldownTimer: null,
+  queue: [],               // { id, url, priority, resolve, reject, timer, settled }
+  current: null,           // 已派发给 worker 的任务（串行：同一时刻最多一个）
+  nextID: 1,
+  stats: { worker: 0, fallback: 0, timeout: 0, queueFullDropped: 0, restarts: 0 },
 };
 
-/** 懒加载真图属性（现代博客 src 常是 1x1 占位，真实地址在 data-* 上）。 */
-const LAZY_SRC_ATTRS = ['data-src', 'data-original', 'data-lazy-src', 'data-lazyload', 'data-actualsrc'];
-
-/** srcset 逐候选 URL 解析为绝对地址；全部解析失败返回 null。 */
-function sanitizeSrcset(value, baseURL) {
-  const parts = String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const out = [];
-  for (const part of parts) {
-    const seg = part.split(/\s+/);
-    const resolved = safeRemoteURL(seg[0], baseURL);
-    if (!resolved) continue;
-    out.push([resolved, ...seg.slice(1)].join(' '));
+/**
+ * 网页正文提取。对外行为与重构前一致（Promise → { entryID, text, html, imageURLs, fetchedAt, sourceURL, isSanitized }）。
+ * @param {string} url
+ * @param {{priority?: 'user'|'prefetch'}} [options] priority='prefetch' 的任务排在 'user' 之后；
+ *   队列满（≥QUEUE_CAP）时 prefetch 立即失败（'extract-queue-full'），user 不受影响。
+ */
+function extract(url, options = {}) {
+  const priority = options && options.priority === 'prefetch' ? 'prefetch' : 'user';
+  if (!utilityProcess) return Core.extractInProcess(url); // utilityProcess 不可用：主进程原逻辑
+  if (priority === 'prefetch' && pool.queue.length >= QUEUE_CAP) {
+    pool.stats.queueFullDropped += 1;
+    return Promise.reject(new Error('extract-queue-full'));
   }
-  return out.length ? out.join(', ') : null;
+  return new Promise((resolve, reject) => {
+    pool.queue.push({ id: pool.nextID++, url, priority, resolve, reject, timer: null, settled: false });
+    pump();
+  });
 }
 
-function sanitizedAttributes(source, tag, baseURL, eagerImage = false) {
-  const allowed = ATTRIBUTES_FOR_TAG[tag];
-  if (!allowed) return '';
-  const pattern = /([a-z][a-z0-9:-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/gis;
-  const attributes = [];
-  const seenNames = new Set();
-  let match;
-  while ((match = pattern.exec(source)) !== null) {
-    const name = match[1].toLowerCase();
-    if (!allowed.has(name) || seenNames.has(name)) continue;
-    seenNames.add(name);
-    const value = match[2] ?? match[3] ?? match[4] ?? null;
-    if (value != null) {
-      let cleaned = value.trim();
-      if (name === 'href' || name === 'src' || name === 'poster') {
-        const resolved = safeRemoteURL(cleaned, baseURL);
-        if (!resolved) continue;
-        cleaned = resolved;
-      } else if (['width', 'height', 'colspan', 'rowspan'].includes(name)) {
-        const number = Number.parseInt(cleaned, 10);
-        if (!(number > 0 && number <= 10000)) continue;
-        cleaned = String(number);
-      }
-      attributes.push(` ${name}="${escapeAttribute(cleaned)}"`);
-    } else {
-      attributes.push(` ${name}`);
+/** 派发队列：user 恒先于 prefetch（同类 FIFO）；冷却期只回退 user，prefetch 等重启后的 worker。 */
+function pump() {
+  while (!pool.current && pool.queue.length > 0) {
+    const cooling = Date.now() < pool.restartCooldownUntil;
+    let index = pool.queue.findIndex((task) => task.priority === 'user');
+    if (index < 0) {
+      if (cooling) { scheduleCooldownPump(); return; }
+      index = 0;
     }
-  }
-  if (tag === 'img') {
-    // 懒加载治理：src 缺失或是占位时，用 data-* 真图地址替换
-    const srcAttr = attributes.find((a) => a.startsWith(' src="'));
-    const hasRealSrc = srcAttr && !/\/(pixel|spacer|blank)\b|1x1/i.test(srcAttr);
-    if (!hasRealSrc) {
-      for (const lazy of LAZY_SRC_ATTRS) {
-        const raw = /([a-z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(source);
-        void raw;
-        const m = new RegExp(lazy + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i').exec(source);
-        if (m) {
-          const resolved = safeRemoteURL(m[1] ?? m[2] ?? m[3] ?? '', baseURL);
-          if (resolved) {
-            if (srcAttr) attributes.splice(attributes.indexOf(srcAttr), 1, ` src="${escapeAttribute(resolved)}"`);
-            else attributes.push(` src="${escapeAttribute(resolved)}"`);
-            break;
-          }
-        }
-      }
+    const task = pool.queue.splice(index, 1)[0];
+    const worker = cooling ? null : ensureWorker();
+    if (!worker) {
+      runFallback(task, cooling ? 'restart-cooldown' : 'worker-unavailable');
+      return;
     }
-    attributes.push(` loading="${eagerImage ? 'eager' : 'lazy'}"`);
-    attributes.push(' decoding="async"');
-    attributes.push(' referrerpolicy="no-referrer"');
-  } else if (tag === 'video') {
-    if (!seenNames.has('controls')) attributes.push(' controls');
-    if (!seenNames.has('playsinline')) attributes.push(' playsinline');
-    if (!seenNames.has('webkit-playsinline')) attributes.push(' webkit-playsinline');
-    if (!seenNames.has('allowfullscreen')) attributes.push(' allowfullscreen');
+    dispatch(worker, task);
   }
-  return attributes.join('');
 }
 
-function safeRemoteURL(rawValue, baseURL) {
-  const normalized = htmlEntityDecoded(String(rawValue ?? '')).trim();
-  if (!normalized) return null;
-  for (const ch of normalized) {
-    const code = ch.charCodeAt(0);
-    if (code < 0x20 || code === 0x7f) return null;
-  }
-  let url;
+function dispatch(worker, task) {
+  pool.current = task;
+  task.sent = false;
+  task.timer = setTimeout(() => onTaskTimeout(task), WORKER_TASK_TIMEOUT_MS);
+  // spawn 前不投递消息：冷启动的首个 fork 在个别环境下会丢失/迟滞 spawn 前的消息，
+  // 等 'spawn' 事件后再发（ensureWorker 里注册的回调负责 flush）。
+  if (worker.__njSpawned) sendTask(worker, task);
+}
+
+function sendTask(worker, task) {
   try {
-    url = new URL(normalized, baseURL || undefined);
+    worker.postMessage({ type: 'extract', id: task.id, url: task.url });
+    task.sent = true;
+  } catch (error) {
+    clearTaskTimer(task);
+    pool.current = null;
+    runFallback(task, 'postMessage-failed: ' + String((error && error.message) || error));
+  }
+}
+
+/** 懒启动 / 复用 worker。返回 null 表示本轮不可用（调用方走回退）。 */
+function ensureWorker() {
+  if (pool.worker) return pool.worker;
+  if (!utilityProcess) return null;
+  if (Date.now() < pool.restartCooldownUntil) return null;
+  let child;
+  try {
+    child = utilityProcess.fork(WORKER_PATH);
   } catch (_) {
+    // fork 不可用（如个别 asar 环境）：冷却后重试，期间全部回退主进程
+    pool.restartCooldownUntil = Date.now() + WORKER_RESTART_COOLDOWN_MS;
     return null;
   }
-  if (!['https:', 'http:'].includes(url.protocol.toLowerCase())) return null;
-  // Twitter/X 媒体 WebP 兼容性：转为 JPEG 表示
-  if (url.hostname.toLowerCase() === 'pbs.twimg.com' && url.pathname.includes('/media/')) {
-    const params = new URLSearchParams(url.search);
-    if ((params.get('format') || '').toLowerCase() === 'webp') {
-      params.set('format', 'jpg');
-      return `${url.origin}${url.pathname}?${params.toString()}`;
+  pool.stats.restarts += 1;
+  pool.worker = child;
+  let spawned = false;
+  child.__njSpawned = false;
+  pool.spawnTimer = setTimeout(() => {
+    if (pool.worker === child && !spawned) {
+      killWorker('spawn-timeout');
+      failWorkerAttempt('spawn-timeout');
+      pump();
     }
+  }, WORKER_SPAWN_TIMEOUT_MS);
+  child.on('spawn', () => {
+    spawned = true;
+    child.__njSpawned = true;
+    if (pool.spawnTimer) { clearTimeout(pool.spawnTimer); pool.spawnTimer = null; }
+    if (pool.worker === child && pool.current && !pool.current.sent) sendTask(child, pool.current);
+  });
+  child.on('message', onWorkerMessage);
+  child.on('exit', () => onWorkerExit(child));
+  return child;
+}
+
+function onWorkerMessage(message) {
+  if (!message || typeof message !== 'object') return;
+  if (message.type === 'fatal') {
+    // worker 不可恢复异常：杀掉重启，in-flight 任务回退（worker 已报告任务 ID 但进程将死）
+    killWorker('worker-fatal');
+    failWorkerAttempt('worker-fatal');
+    pump();
+    return;
   }
-  return url.toString();
-}
-
-function htmlEntityDecoded(value) {
-  let decoded = value;
-  for (let i = 0; i < 3; i += 1) {
-    const next = decoded
-      .replace(/&amp;/gi, '&')
-      .replace(/&quot;/gi, '"')
-      .replace(/&apos;/gi, "'")
-      .replace(/&#39;/gi, "'")
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&colon;/gi, ':')
-      .replace(/&tab;/gi, '\t')
-      .replace(/&newline;/gi, '\n')
-      .replace(/&#x3a;/gi, ':')
-      .replace(/&#58;/gi, ':');
-    if (next === decoded) break;
-    decoded = next;
+  if (message.type !== 'result' || !pool.current || message.id !== pool.current.id) return;
+  const task = pool.current;
+  clearTaskTimer(task);
+  pool.current = null;
+  if (message.ok) {
+    task.settled = true;
+    pool.stats.worker += 1;
+    task.resolve(message.result);
+  } else {
+    runFallback(task, 'worker-error: ' + String(message.error || ''));
   }
-  return decoded;
+  pump();
 }
 
-function escapeAttribute(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+function onWorkerExit(child) {
+  if (pool.worker !== child) return; // 主动 kill 的旧进程：超时/异常路径已接管
+  pool.worker = null;
+  if (pool.spawnTimer) { clearTimeout(pool.spawnTimer); pool.spawnTimer = null; }
+  pool.restartCooldownUntil = Date.now() + WORKER_RESTART_COOLDOWN_MS;
+  failWorkerAttempt('worker-exited');
+  pump(); // 队列剩余任务在冷却结束后懒重启新 worker（异常退出自动重启=下次任务重试）
 }
 
-function escapeHTMLText(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+/** 当前 in-flight 任务的一次 worker 尝试失败 → 回退主进程原逻辑。 */
+function failWorkerAttempt(reason) {
+  const task = pool.current;
+  if (!task) return;
+  clearTaskTimer(task);
+  pool.current = null;
+  runFallback(task, reason);
 }
 
-// MARK: - 阅读器段落（翻译与 TOC 的稳定 ID）
-
-function splitBlockTextIntoParagraphs(text) {
-  const lines = text.split('\n');
-  const result = [];
-  let current = '';
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      if (current) {
-        result.push(current.trim());
-        current = '';
-      }
-    } else {
-      if (current) current += '\n';
-      current += line;
-    }
-  }
-  if (current) result.push(current.trim());
-  return result.filter(Boolean);
+function onTaskTimeout(task) {
+  if (pool.current !== task) return;
+  pool.stats.timeout += 1;
+  // worker 侧 45s 无响应：jsdom 同步解析卡死时 worker 事件循环被占住、无法再收消息，
+  // 只能杀掉（下次任务懒重启）；本任务按规格回退主进程执行原逻辑（原逻辑自带 30s fetch 超时）。
+  killWorker('task-timeout');
+  failWorkerAttempt('task-timeout');
+  pump();
 }
 
-function readerParagraphs(html, title) {
-  const paragraphs = [];
-  const cleanTitle = (title || '').trim();
-  if (cleanTitle) paragraphs.push({ id: 'title', original: cleanTitle });
-
-  const expression = /<(p|div|li|blockquote|pre|h[1-6]|figcaption|dt|dd)\b[^>]*>[\s\S]*?<\/\1>/gis;
-  let paragraphIndex = 0;
-  let match;
-  while ((match = expression.exec(html)) !== null) {
-    const blockHTML = match[0];
-    const explicitID = (blockHTML.match(/data-nj-id="([^"]+)"/i) || [])[1];
-
-    // 逐句双语：渲染端已把句子包进 data-sent span —— 句子即翻译单元（ID 显式，两端一致）
-    const sentExpression = /<span[^>]*data-sent="([^"]+)"[^>]*>([\s\S]*?)<\/span>/gi;
-    let sentMatch;
-    let hasSentences = false;
-    while ((sentMatch = sentExpression.exec(blockHTML)) !== null) {
-      const original = plainText(sentMatch[2]);
-      if (!original) continue;
-      paragraphs.push({ id: sentMatch[1], parentId: explicitID || null, original });
-      hasSentences = true;
-    }
-    if (hasSentences) {
-      paragraphIndex += 1;
-      continue;
-    }
-
-    const original = plainText(blockHTML);
-    if (!original) continue;
-    if (explicitID) {
-      // 渲染端标注过的块：直接使用显式段落 ID（与 DOM 完全一致）
-      paragraphs.push({ id: explicitID, original });
-      paragraphIndex += 1;
-      continue;
-    }
-    // 原始 HTML（无标注）：沿用旧编号规则（含子段落拆分）
-    const subParagraphs = splitBlockTextIntoParagraphs(original);
-    if (subParagraphs.length > 1) {
-      subParagraphs.forEach((subText, subIdx) => {
-        paragraphs.push({ id: `p${paragraphIndex}_${subIdx}`, original: subText });
-      });
-    } else {
-      paragraphs.push({ id: `p${paragraphIndex}`, original });
-    }
-    paragraphIndex += 1;
-  }
-  return paragraphs;
+/** worker 尝试失败的任务回退：主进程内直接执行原逻辑（与重构前 extract 完全相同的实现）。 */
+function runFallback(task, reason) {
+  if (task.settled) return;
+  task.settled = true;
+  pool.stats.fallback += 1;
+  void reason; // 保留参数便于排查（可用 console.debug 打开）
+  Core.extractInProcess(task.url).then(
+    (result) => { task.resolve(result); pump(); },
+    (error) => { task.reject(error); pump(); },
+  );
 }
 
-function insertingInlineTranslations(html, segments, pendingIDs = []) {
-  const expression = /<(p|div|li|blockquote|pre|h[1-6]|figcaption|dt|dd)\b[^>]*>[\s\S]*?<\/\1>/gis;
-  const segmentsByID = new Map(segments.map((seg) => [seg.id, seg]));
-  const pendingSet = new Set(pendingIDs);
-  let rendered = '';
-  let cursor = 0;
-  let paragraphIndex = 0;
-  let match;
-
-  while ((match = expression.exec(html)) !== null) {
-    rendered += html.slice(cursor, match.index);
-    const block = match[0];
-    cursor = match.index + block.length;
-
-    const original = plainText(block);
-    if (!original) {
-      rendered += block;
-      continue;
-    }
-
-    const subParagraphs = splitBlockTextIntoParagraphs(original);
-    if (subParagraphs.length > 1) {
-      subParagraphs.forEach((subText, subIdx) => {
-        const subID = `p${paragraphIndex}_${subIdx}`;
-        const escaped = escapeHTMLText(subText).replace(/\n/g, '<br>');
-        rendered += `<p class="nj-subparagraph" data-nj-id="${subID}">${escaped}</p>`;
-        const segment = segmentsByID.get(subID);
-        if (segment && isSameReaderParagraph(subText, segment.original)) {
-          rendered += translationMarkup(segment.translation, subID);
-        } else if (pendingSet.has(subID)) {
-          rendered += pendingTranslationMarkup(subID);
-        }
-      });
-    } else {
-      const id = `p${paragraphIndex}`;
-      rendered += annotatedReaderBlock(block, id);
-      const segment = segmentsByID.get(id);
-      if (segment && isSameReaderParagraph(original, segment.original)) {
-        rendered += translationMarkup(segment.translation, id);
-      } else if (pendingSet.has(id)) {
-        rendered += pendingTranslationMarkup(id);
-      }
-    }
-    paragraphIndex += 1;
-  }
-  rendered += html.slice(cursor);
-  return rendered;
+function killWorker(reason) {
+  const child = pool.worker;
+  pool.worker = null;
+  if (pool.spawnTimer) { clearTimeout(pool.spawnTimer); pool.spawnTimer = null; }
+  pool.restartCooldownUntil = Date.now() + WORKER_RESTART_COOLDOWN_MS;
+  if (!child) return;
+  void reason;
+  try { child.removeAllListeners('message'); child.removeAllListeners('exit'); child.removeAllListeners('spawn'); } catch (_) { /* ignore */ }
+  try { child.kill(); } catch (_) { /* ignore */ }
 }
 
-function annotatedReaderBlock(block, id) {
-  const closingBracket = block.indexOf('>');
-  if (closingBracket < 0) return block;
-  return `${block.slice(0, closingBracket)} data-nj-id="${id}"${block.slice(closingBracket)}`;
+function scheduleCooldownPump() {
+  if (pool.cooldownTimer || pool.queue.length === 0) return;
+  const wait = Math.max(10, pool.restartCooldownUntil - Date.now() + 10);
+  pool.cooldownTimer = setTimeout(() => { pool.cooldownTimer = null; pump(); }, wait);
 }
 
-function translationMarkup(translation, id) {
-  return `<aside id="nj-translation-${id}" class="nj-translation" data-nj-translation-for="${id}" aria-label="翻译">
-  <p><span class="nj-translation-label" aria-label="译文">
-    <span class="nj-language-chip" aria-hidden="true">A</span>
-    <span class="nj-language-chip" aria-hidden="true">文</span>
-  </span><span class="nj-translation-text">${escapeHTMLText(translation).replace(/\n/g, '<br>')}</span></p>
-</aside>`;
+function clearTaskTimer(task) {
+  if (task.timer) { clearTimeout(task.timer); task.timer = null; }
 }
 
-function pendingTranslationMarkup(id) {
-  return `<aside id="nj-translation-${id}" class="nj-translation is-loading" data-nj-translation-for="${id}" aria-label="正在生成翻译" aria-live="polite">
-  <p><span class="nj-translation-label" aria-label="译文">
-    <span class="nj-language-chip" aria-hidden="true">A</span>
-    <span class="nj-language-chip" aria-hidden="true">文</span>
-  </span><span class="nj-translation-text">正在翻译…</span></p>
-</aside>`;
-}
+// MARK: - 同步导出（全部直接委托 Core，主进程内同步执行，不经过 worker）
 
-function isSameReaderParagraph(a, b) {
-  const normalize = (value) => String(value ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
-  return normalize(a) === normalize(b);
-}
+/** 内部诊断接口（scripts/diag-extract-worker.js 用；非对外 API，结构可能变化）。 */
+const _extractorWorker = {
+  stats: () => ({ ...pool.stats, queued: pool.queue.length, inFlight: pool.current ? 1 : 0, workerAlive: !!pool.worker }),
+  killWorker: () => killWorker('diagnostics'),
+};
 
-function removingDuplicateLeadingHeading(html, articleTitle) {
-  if (!html) return html;
-  const cleanTitle = normalizeHeadingText(articleTitle);
-  if (!cleanTitle) return html;
-
-  const pattern = /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i;
-  const match = html.match(pattern);
-  if (!match) return html;
-
-  const prefixHTML = html.slice(0, match.index);
-  if (/<p[^>]*>/i.test(prefixHTML)) return html;
-  const prefixPlainText = normalizeHeadingText(plainText(prefixHTML));
-
-  const headingText = normalizeHeadingText(plainText(match[1]));
-  if (headingText === cleanTitle && prefixPlainText.length <= 120) {
-    return html.slice(0, match.index) + html.slice(match.index + match[0].length);
-  }
-  return html;
-}
-
-function normalizeHeadingText(text) {
-  return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-/** 判断是否需要网页正文提取（feed 内容过短且存在链接）。 */
-function needsExtraction(entry) {
-  const sourceText = entry.contentHTML ? plainText(entry.contentHTML) : plainText(entry.summary || '');
-  return sourceText.length < 500 && entry.url != null;
-}
-
-/** 网页字节流按真实编码解码：BOM → Content-Type → meta charset → UTF-8（坏字符超阈值时启发式回退）。 */
-function decodeWebPage(buf, contentType) {
-  if (buf.length >= 3 && buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) {
-    return buf.subarray(3).toString('utf8');
-  }
-  if (buf.length >= 2 && buf[0] === 0xFF && buf[1] === 0xFE) {
-    try { return new TextDecoder('utf-16le').decode(buf.subarray(2)); } catch (_) { return buf.toString('utf8'); }
-  }
-  if (buf.length >= 2 && buf[0] === 0xFE && buf[1] === 0xFF) {
-    try { return new TextDecoder('utf-16be').decode(buf.subarray(2)); } catch (_) { return buf.toString('utf8'); }
-  }
-  let charset = null;
-  const ctMatch = String(contentType || '').match(/charset\s*=\s*"?([\w-]+)/i);
-  if (ctMatch) charset = ctMatch[1].toLowerCase();
-  if (!charset) {
-    const head = buf.subarray(0, 4096).toString('latin1');
-    const metaMatch = head.match(/<meta[^>]+charset\s*=\s*["']?([\w-]+)/i);
-    if (metaMatch) charset = metaMatch[1].toLowerCase();
-  }
-  if (charset && !['utf-8', 'utf8', 'us-ascii', 'ascii'].includes(charset)) {
-    try { return new TextDecoder(charset).decode(buf); } catch (_) { /* 未知编码，走默认 */ }
-  }
-  const utf8 = buf.toString('utf8');
-  const bad = (utf8.match(/\uFFFD/g) || []).length;
-  // UTF-8 解码大量坏字符 → 多半是 GBK/Big5/日韩编码页面，按序启发尝试
-  if (bad > utf8.length * 0.02 && utf8.length > 0) {
-    for (const guess of ['gbk', 'big5', 'shift_jis', 'euc-kr', 'windows-1252']) {
-      try { return new TextDecoder(guess).decode(buf); } catch (_) { /* 下一个 */ }
-    }
-  }
-  return utf8;
-}
-
-/** 抓取网页并提取正文（Windows 版：主进程 fetch）。 */
-async function extract(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'RobinRead/2.0 (+personal RSS reader)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const sliced = buffer.subarray(0, 4_000_000);
-    const html = decodeWebPage(sliced, response.headers.get('content-type'));
-    const sourceURL = response.url || url;
-    // 双引擎：Readability 通用提取优先（质量更好、能绕开 SPA/壳），容器启发式 fallback（如 ithome 等反爬壳）
-    const heuristic = content(html, sourceURL);
-    const readability = readabilityContent(html, sourceURL);
-    const result = readability.text.length >= heuristic.text.length ? readability : heuristic;
-    if (result.text.length < 120) throw new Error('noReadableContent');
-    return {
-      entryID: '',
-      text: result.text,
-      html: result.html,
-      imageURLs: result.imageURLs,
-      fetchedAt: Date.now() / 1000,
-      sourceURL,
-      isSanitized: true,
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+/**
+ * 预热：app 启动后空闲时提前 fork worker，消除首次「阅读原文/正文补全」的
+ * 冷启动延迟（spawn 可达秒级，期间首篇提取会退化到主进程回退路径）。
+ */
+function prewarm() {
+  if (!utilityProcess || pool.worker) return;
+  try { ensureWorker(); } catch (_) { /* 预热失败静默，懒启动兜底 */ }
 }
 
 module.exports = {
-  content,
-  readabilityContent,
-  sanitizedHTML,
-  imageURLsFrom,
-  readerParagraphs,
-  insertingInlineTranslations,
-  translationMarkup,
-  pendingTranslationMarkup,
-  removingDuplicateLeadingHeading,
-  needsExtraction,
+  // —— 同步纯逻辑（RSS 正文消毒、翻译轨道等；行为与重构前逐字节一致）——
+  content: Core.content,
+  readabilityContent: Core.readabilityContent,
+  sanitizedHTML: Core.sanitizedHTML,
+  imageURLsFrom: Core.imageURLsFrom,
+  readerParagraphs: Core.readerParagraphs,
+  insertingInlineTranslations: Core.insertingInlineTranslations,
+  translationMarkup: Core.translationMarkup,
+  pendingTranslationMarkup: Core.pendingTranslationMarkup,
+  removingDuplicateLeadingHeading: Core.removingDuplicateLeadingHeading,
+  needsExtraction: Core.needsExtraction,
+  plainText: Core.plainText,
+  isSameReaderParagraph: Core.isSameReaderParagraph,
+
+  // —— 异步全流程（worker 优先，主进程回退）——
   extract,
-  plainText,
-  isSameReaderParagraph,
+  prewarm,
+
+  // —— 诊断（附加导出，原有导出不受影响）——
+  _extractorWorker,
 };

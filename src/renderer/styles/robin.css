@@ -2565,3 +2565,99 @@ body.dark .reader-article img.nj-img-loading {
   background: linear-gradient(100deg, #2a2d26 30%, #34382f 50%, #2a2d26 70%);
   background-size: 220% 100%;
 }
+
+/* ==========================================================================
+   打印 / 存为 PDF（阅读器「导出 → 打印」）：仅保留正文
+   隐藏三栏 UI 其余部分（侧栏/列表/工具栏/摘要卡/TOC 轨道/浮动滚动条/进度线），
+   正文白底黑字、纸纹（::before/::after 渐变）关闭、解除滚动容器裁剪以完整分页。
+   ========================================================================== */
+@media print {
+  #sidebar,
+  #list,
+  #main-toolbar,
+  .splitter,
+  .reading-progress,
+  .toc-rail,
+  .floating-scrollbar,
+  .robin-summary-card,
+  .reader-loading,
+  .reader-capsule,
+  .window-controls,
+  .nj-selection-actions,
+  .nj-selection-popover,
+  .nj-lightbox,
+  .nj-annot-panel,
+  .nj-study-panel,
+  .nj-note-editor,
+  .nj-note-card,
+  .nj-note-marker,
+  .nj-annotation-icon,
+  .nj-translate-progress,
+  .translate-progress {
+    display: none !important;
+  }
+
+  /* 纸纹 / 装饰性渐变全部关闭 */
+  .robin-surface::before,
+  .robin-surface::after,
+  #main-toolbar::after,
+  .splitter::after {
+    display: none !important;
+  }
+
+  /* 布局解框：纵向铺满、取消内部滚动裁剪，交给打印分页 */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  #app, #split {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  #reader {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .reader-scroll {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    background: #fff !important;
+  }
+
+  /* 正文：白底黑字 */
+  .reader-article {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+  .reader-article * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .reader-article a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+  .reader-article img, .reader-article video, .reader-article figure {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+  .reader-article h1, .reader-article h2, .reader-article h3,
+  .reader-article h4, .reader-article h5, .reader-article h6 {
+    page-break-after: avoid;
+  }
+  .nj-translation {
+    color: #333 !important;
+    border-left: 2px solid #999 !important;
+  }
+}

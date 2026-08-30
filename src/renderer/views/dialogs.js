@@ -265,7 +265,7 @@ export class SettingsView {
         (value) => window.robin.setFilterRules({ blockKeywords: value })),
       inputRow(t('加权词'), t('命中即加分置前。逗号或换行分隔。'), t('例如：LLM, Rust, Simulink'), (rules.boostKeywords || []).join(', '),
         (value) => window.robin.setFilterRules({ boostKeywords: value })),
-      row(t('个性化强度'), t('越强，命中你兴趣标签的文章越靠前；关闭则完全按时间/信噪排序。'), selectControl(
+      row(t('个性化强度'), t('越高，命中你兴趣标签或屏蔽词的文章被过滤得越严格（只影响过滤，不改变排序）。'), selectControl(
         [['0', t('关闭')], ['1', t('轻度')], ['2', t('标准（推荐）')], ['3', t('强')]],
         String(rules.personalization ?? 2),
         async (value) => { await window.robin.setFilterRules({ personalization: Number(value) }); this.handlers.onReload?.(); },

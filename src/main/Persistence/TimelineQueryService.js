@@ -192,10 +192,11 @@ class TimelineQueryService {
     return { where, params };
   }
 
-  fetchListItems({ accountID = null, scope, retainingIDs = [], limit = null, offset = 0 }) {
+  fetchListItems({ accountID = null, scope, retainingIDs = [], limit = null, offset = 0, sort = 'time' }) {
     const { where, params } = this._scopeClauses(accountID, scope, retainingIDs);
+    const orderPrefix = sort === 'unreadFirst' ? 's.is_read ASC, ' : '';
     let sql = `${LIST_SELECT} WHERE ${where.join(' AND ')}
-      ORDER BY COALESCE(a.published_at, i.created_at) DESC, i.id DESC`;
+      ORDER BY ${orderPrefix}COALESCE(a.published_at, i.created_at) DESC, i.id DESC`;
     if (limit != null) {
       sql += ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
     }

@@ -480,6 +480,22 @@ function registerIPCHandlers(store, window) {
 
   // 剪贴板兜底：页面侧 navigator.clipboard 在窗口失焦/隐藏时会失败，走主进程必成
   handle('app:copyText', (text) => { clipboard.writeText(String(text ?? '')); return true; });
+
+  // MARK: 导出（另存为对话框 + 同步写文本文件；canceled / 异常由 handle 统一包装）
+  handle('app:pickSavePath', async ({ defaultName } = {}) => {
+    const result = await dialog.showSaveDialog(window, {
+      title: '导出文章',
+      defaultPath: defaultName || 'export.md',
+      filters: [{ name: 'Markdown', extensions: ['md'] }, { name: 'All Files', extensions: ['*'] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    return result.filePath;
+  });
+  handle('app:writeTextFile', ({ filePath, content } = {}) => {
+    if (!filePath || typeof filePath !== 'string') throw new Error('缺少有效的文件路径');
+    fs.writeFileSync(filePath, String(content ?? ''), 'utf8');
+    return true;
+  });
 }
 
 module.exports = { registerIPCHandlers, createMainWindow, registerNetworkInterceptors };

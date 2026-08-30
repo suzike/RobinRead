@@ -5,7 +5,8 @@
  * AccountRepository / FeedRepository / ArticleRepository /
  * ArticleStateRepository / CacheRepository / AIArtifactRepository
  */
-const { uuid, nowSeconds } = require('../Models');
+const { uuid, nowSeconds, plainText } = require('../Models');
+const SearchIndex = require('./SearchIndex');
 
 function feedRowToFeed(row) {
   if (!row) return null;
@@ -339,6 +340,10 @@ class ArticleRepository {
         ON CONFLICT(item_id) DO NOTHING
       `).run(entry.id, entry.dateArrived ?? now, now);
 
+      SearchIndex.syncEntry(
+        this.db, entry.id, entry.title, entry.author, entry.summary,
+        entry.contentHTML ? plainText(entry.contentHTML) : ''
+      );
       return entry.id;
     });
   }
@@ -514,10 +519,14 @@ class CacheRepository {
       JSON.stringify(cache.imageURLs || []), cache.fetchedAt ?? nowSeconds(),
       cache.sourceURL ?? null, cache.isSanitized ? 1 : 0
     );
+    SearchIndex.syncCacheText(this.db, cache.entryID, cache.text);
   }
 
   deleteCache(itemID) {
     this.db.prepare('DELETE FROM article_caches WHERE item_id = ?').run(itemID);
+    // 索引行保留：正文回退到 RSS content_html 纯文本（标题/摘要仍可搜）
+    const row = this.db.prepare('SELECT content_html FROM articles WHERE item_id = ?').get(itemID);
+    SearchIndex.syncCacheText(this.db, itemID, row?.content_html ? plainText(row.content_html) : '');
   }
 }
 

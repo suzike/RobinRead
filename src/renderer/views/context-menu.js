@@ -3,11 +3,22 @@
  * RobinRead（知更）— 右键菜单（支持子菜单 / 勾选态)）
  */
 import { icon } from '../icons.js';
+import { t } from '../i18n.js';
+
+// 最近一次右键命中的列表行（list.js 行元素带 data-entry-id）。
+// capture 监听先于行级 contextmenu 处理器执行，同步链路内 show() 可安全读取；
+// show() 消费后立即清空，避免残留上下文误注入后续程序化打开的菜单。
+let _lastEntryRow = null;
+document.addEventListener('contextmenu', (event) => {
+  _lastEntryRow = event.target?.closest?.('[data-entry-id]') || null;
+}, { capture: true });
 
 export class ContextMenu {
   static show(x, y, items) {
     ContextMenu.dismissAll();
-    const menu = ContextMenu._build(items, 0);
+    const injected = ContextMenu._injectEntryIDItem(items);
+    _lastEntryRow = null; // 一次性消费
+    const menu = ContextMenu._build(injected, 0);
     document.body.appendChild(menu);
     ContextMenu._place(menu, x, y);
     setTimeout(() => {
@@ -15,6 +26,27 @@ export class ContextMenu {
       window.addEventListener('blur', ContextMenu.dismissAll);
     }, 0);
     return menu;
+  }
+
+  /**
+   * 列表行右键时在菜单末尾追加「复制文章 ID」（不显眼位置）。
+   * 非列表行上下文（侧栏源/文件夹/程序化菜单）不注入；已有同类项时去重。
+   */
+  static _injectEntryIDItem(items) {
+    const entryID = _lastEntryRow?.dataset?.entryId;
+    if (!entryID) return items;
+    const list = [...(items || [])];
+    const label = t('复制文章 ID');
+    if (list.some((it) => it?.label === label)) return list;
+    if (list.length > 0 && list[list.length - 1]?.type !== 'separator') {
+      list.push({ type: 'separator' });
+    }
+    list.push({
+      label,
+      icon: 'copy',
+      onClick: () => { window.robin?.copyText(entryID); },
+    });
+    return list;
   }
 
   static _build(items, depth) {

@@ -13,10 +13,14 @@ import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { formatFullDate } from './list.js';
 import { renderMarkdown } from '../markdown.js';
+import { ContextMenu } from './context-menu.js';
 
 const MAX_TRANSLATION_FAILURES = 2;
 // 逐句双语：视口批量按「句」计（一段约 3-6 句），调大批次减少往返
 const VISIBLE_BATCH = 24;
+// 阅读位置持久化：localStorage 键与条目上限（FIFO，超出删最早写入的）
+const SCROLL_POSITIONS_KEY = 'robinread.scrollPositions';
+const SCROLL_POSITIONS_LIMIT = 300;
 
 export class ReaderView {
   constructor(scrollEl, refs, handlers) {
@@ -43,7 +47,8 @@ export class ReaderView {
     this.popover = null;
     this.highlights = [];
     this.notes = [];
-    this._scrollPositions = new Map(); // entryID -> scrollTop（阅读位置记忆）
+    this._scrollPositions = new Map(); // entryID -> scrollTop（阅读位置记忆，跨会话持久化到 localStorage）
+    this._loadScrollPositions();
     this._scrollTick = false;
     this._thumbState = 'idle';
     this._hideTimer = null;
@@ -64,7 +69,7 @@ export class ReaderView {
     const sameEntry = this.entryID === entryID;
     // 切换文章前记住当前阅读位置，回来时恢复
     if (!sameEntry && this.entryID && this.scrollEl) {
-      this._scrollPositions.set(this.entryID, this.scrollEl.scrollTop);
+      this._rememberScrollPosition(this.entryID, this.scrollEl.scrollTop);
     }
     this.entryID = entryID;
     this.bilingualActive = sameEntry ? this.bilingualActive : false;
@@ -239,9 +244,59 @@ export class ReaderView {
     this.handlers.onFeedback?.(t('原文抓取失败（站点限制或需要登录），已保留当前内容。'));
   }
 
+  // MARK: - 导出（复制 Markdown / 保存文件 / 打印 PDF）
+
+  /** 头部「导出」按钮弹出的小菜单。动作用 ContextMenu，选择后自动关闭。 */
+  _showExportMenu(x, y) {
+    if (!this.entryID) return;
+    ContextMenu.show(x, y, [
+      { label: t('复制全文 Markdown'), icon: 'copy', onClick: () => this._copyArticleMarkdown() },
+      { label: t('导出为 Markdown 文件'), icon: 'docText', onClick: () => this._exportMarkdownFile() },
+      { type: 'separator' },
+      { label: t('打印 / 存为 PDF'), icon: 'newspaper', onClick: () => window.print() },
+    ]);
+  }
+
+  /** 复制全文 Markdown（kb:exportMarkdown → KnowledgeEngine.exportToMarkdown 返回纯字符串）。 */
+  async _copyArticleMarkdown() {
+    try {
+      const md = await window.robin.kbExportMarkdown(this.entryID);
+      if (!md || typeof md !== 'string') {
+        this.handlers.onFeedback?.(t('导出失败：没有可导出的内容。'));
+        return;
+      }
+      await window.robin.copyText(md);
+      this.handlers.onFeedback?.(t('已复制'));
+    } catch (err) {
+      this.handlers.onFeedback?.(`${t('导出失败')}：${err?.message || err}`);
+    }
+  }
+
+  /** 另存为 Markdown 文件：pickSavePath → writeTextFile；取消静默，失败提示。 */
+  async _exportMarkdownFile() {
+    try {
+      const md = await window.robin.kbExportMarkdown(this.entryID);
+      if (!md || typeof md !== 'string') {
+        this.handlers.onFeedback?.(t('导出失败：没有可导出的内容。'));
+        return;
+      }
+      const rawName = (this.entry?.title || '').trim() || t('未命名文章');
+      // Windows 文件名非法字符替换 + 截断，防路径注入与超长文件名
+      const safeName = rawName.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 80) || t('未命名文章');
+      const picked = await window.robin.pickSavePath(`${safeName}.md`);
+      const filePath = picked?.ok ? picked.data : null;
+      if (!filePath) return; // 用户取消
+      const written = await window.robin.writeTextFile(filePath, md);
+      if (!written?.ok) throw new Error(written?.error || t('写入文件失败'));
+      this.handlers.onFeedback?.(t('已导出'));
+    } catch (err) {
+      this.handlers.onFeedback?.(`${t('导出失败')}：${err?.message || err}`);
+    }
+  }
+
   clear() {
     if (this.entryID && this.scrollEl) {
-      this._scrollPositions.set(this.entryID, this.scrollEl.scrollTop);
+      this._rememberScrollPosition(this.entryID, this.scrollEl.scrollTop);
     }
     this._imgObserver?.disconnect();
     this.entryID = null;
@@ -265,6 +320,40 @@ export class ReaderView {
       </div>`;
     this.tocRail.classList.add('hidden-rail');
     this.scrollbar.style.display = 'none';
+  }
+
+  // MARK: - 阅读位置持久化（localStorage 跨会话）
+
+  /** 构造时从 localStorage 恢复位置表（JSON 对象，键序即写入序）。 */
+  _loadScrollPositions() {
+    try {
+      const raw = localStorage.getItem(SCROLL_POSITIONS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+      for (const [id, top] of Object.entries(parsed)) {
+        if (typeof top === 'number' && Number.isFinite(top) && top >= 0) this._scrollPositions.set(id, top);
+      }
+    } catch (_) { /* 隐私模式 / 数据损坏：忽略，退化为纯内存记忆 */ }
+  }
+
+  /** 记录阅读位置并同步写回 localStorage。 */
+  _rememberScrollPosition(entryID, scrollTop) {
+    if (!entryID || !Number.isFinite(scrollTop)) return;
+    this._scrollPositions.set(entryID, scrollTop);
+    this._persistScrollPositions();
+  }
+
+  /** 写回 localStorage：上限 300 条（FIFO，按插入序删最早写入的）；失败不致命。 */
+  _persistScrollPositions() {
+    try {
+      while (this._scrollPositions.size > SCROLL_POSITIONS_LIMIT) {
+        const oldest = this._scrollPositions.keys().next().value;
+        if (oldest === undefined) break;
+        this._scrollPositions.delete(oldest);
+      }
+      localStorage.setItem(SCROLL_POSITIONS_KEY, JSON.stringify(Object.fromEntries(this._scrollPositions)));
+    } catch (_) { /* 隐私模式 / 超配额：写不进去就算了，内存记忆仍在 */ }
   }
 
   _showLoading() {
@@ -366,6 +455,19 @@ export class ReaderView {
       browserBtn.innerHTML = icon('export');
       browserBtn.title = t('在浏览器中打开');
       browserBtn.addEventListener('click', () => window.robin.openLink(entry.url));
+      // 导出菜单（仅在有正文时显示）：复制 Markdown / 导出文件 / 打印 PDF
+      if (plainLen(this.html || '') > 0) {
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'btn-text bordered';
+        exportBtn.dataset.role = 'export';
+        exportBtn.innerHTML = `${icon('export')}<span style="margin-left:4px">${escapeHTML(t('导出'))}</span>`;
+        exportBtn.title = t('导出：复制 Markdown / 保存为文件 / 打印为 PDF');
+        exportBtn.addEventListener('click', () => {
+          const rect = exportBtn.getBoundingClientRect();
+          this._showExportMenu(rect.left, rect.bottom + 6);
+        });
+        actions.appendChild(exportBtn);
+      }
       actions.appendChild(readBtn);
       actions.appendChild(browserBtn);
       meta.appendChild(actions);
