@@ -216,15 +216,7 @@ function registerIPCHandlers(store, window) {
   handle('app:sidebar', () => store.sidebarStructure());
   handle('app:syncStates', () => store.accountSyncStates());
   handle('app:list', (scope, options) => store.listItems(scope, options || {}));
-  handle('app:reader', (entryID) => {
-    const entry = store.entry(entryID);
-    if (!entry) return null;
-    const feed = store.feed(entry.feedID);
-    const content = store.articleContent(entryID);
-    const summary = store.existingSummary(entryID);
-    const annotations = store.selectionAnnotations(entryID);
-    return { entry, feed, content, summary, annotations };
-  });
+  handle('app:reader', (entryID) => store.readerArticle(entryID));
   handle('app:entry', (entryID) => {
     const entry = store.entry(entryID);
     if (!entry) return null;

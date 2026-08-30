@@ -8,6 +8,7 @@
  * - 首个作者/内容字段优先（first writer wins）
  */
 const { plainText, decodeHTMLEntities } = require('./Models');
+const { normalizeFeedMarkup } = require('./ArticleExtractCore');
 
 class FeedParserError extends Error {
   constructor(kind) {
@@ -79,7 +80,9 @@ function parseJSON(text) {
       url: link,
       publishedAt: parseDate(item.date_published),
       summary: decodeHTMLEntities(item.summary || (body ? plainText(body) : '')),
-      contentHTML: item.content_html ?? item.content_text ?? null,
+      contentHTML: item.content_text
+        ? normalizeFeedMarkup(item.content_text)
+        : normalizeFeedMarkup(item.content_html ?? null),
     };
   });
 
@@ -348,7 +351,7 @@ function parseXML(xml, baseURL) {
           url: entryURL,
           publishedAt: parseDate(currentItem.published ?? currentItem.updated ?? currentItem.pubdate),
           summary: entrySummary,
-          contentHTML: entryContent,
+          contentHTML: normalizeFeedMarkup(entryContent),
         });
         currentItem = null;
         currentItemLink = null;

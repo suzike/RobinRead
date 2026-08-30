@@ -2660,4 +2660,101 @@ body.dark .reader-article img.nj-img-loading {
     color: #333 !important;
     border-left: 2px solid #999 !important;
   }
+  /* 画廊行打印还原：逐张原图输出，不裁剪不并排 */
+  .nj-img-row { display: block !important; }
+  .nj-img-row > * { width: auto !important; }
+  .nj-img-row img { height: auto !important; width: auto !important; max-width: 100% !important; object-fit: contain !important; }
+}
+
+/* ==========================================================================
+   多图并排画廊行（_restructureGalleryRows → .nj-img-row）
+   连续纯图块等高并排裁剪展示；≥3 张按两列换行。纸感：圆角 8、间距 8、无边框阴影收敛。
+   ========================================================================== */
+.reader-article .nj-img-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin: 1.4em 0;
+}
+.reader-article .nj-img-row > p,
+.reader-article .nj-img-row > div,
+.reader-article .nj-img-row > figure {
+  margin: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+.reader-article .nj-img-row img {
+  margin: 0;
+  width: 100%;
+  height: var(--nj-gallery-h, 188px);
+  object-fit: cover;
+  border-radius: 8px;
+}
+/* ≥3 张：两列换行（奇数张末行留半宽，不拉伸） */
+.reader-article .nj-img-row.nj-img-row-multi { flex-wrap: wrap; }
+.reader-article .nj-img-row.nj-img-row-multi > p,
+.reader-article .nj-img-row.nj-img-row-multi > div,
+.reader-article .nj-img-row.nj-img-row-multi > figure { flex: 0 0 calc(50% - 4px); }
+body.dark .reader-article .nj-img-row img { box-shadow: none; }
+
+/* ==========================================================================
+   代码语法高亮主题（highlight.js · 纸感低彩度）
+   行高/字号/底色全部继承 .reader-article pre 现有样式（--note-background 纸底），
+   这里只定义 token 颜色；深色模式 body.dark 单独校准保证可读。
+   ========================================================================== */
+.reader-article pre code.hljs,
+.reader-article pre code[class*="language-"] {
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+}
+.reader-article .hljs-comment, .reader-article .hljs-quote { color: #8f8a7c; font-style: italic; }
+.reader-article .hljs-keyword, .reader-article .hljs-selector-tag, .reader-article .hljs-literal,
+.reader-article .hljs-section, .reader-article .hljs-doctag, .reader-article .hljs-name { color: #a04f35; }
+.reader-article .hljs-string, .reader-article .hljs-regexp, .reader-article .hljs-addition { color: #5f7d4f; }
+.reader-article .hljs-number, .reader-article .hljs-symbol, .reader-article .hljs-bullet,
+.reader-article .hljs-link, .reader-article .hljs-deletion { color: #8a5478; }
+.reader-article .hljs-title, .reader-article .hljs-title.function_, .reader-article .hljs-title.class_,
+.reader-article .hljs-built_in { color: #56718f; }
+.reader-article .hljs-attr, .reader-article .hljs-attribute, .reader-article .hljs-variable,
+.reader-article .hljs-template-variable, .reader-article .hljs-params, .reader-article .hljs-property { color: #7a6543; }
+.reader-article .hljs-type, .reader-article .hljs-selector-id, .reader-article .hljs-selector-class,
+.reader-article .hljs-tag { color: #77618c; }
+.reader-article .hljs-meta, .reader-article .hljs-operator, .reader-article .hljs-punctuation { color: var(--text-secondary); }
+.reader-article .hljs-emphasis { font-style: italic; }
+.reader-article .hljs-strong { font-weight: 600; }
+
+/* 深色模式：同一低彩度色相提亮，纸底换深底 */
+body.dark .reader-article .hljs-comment, body.dark .reader-article .hljs-quote { color: #7f7b6e; }
+body.dark .reader-article .hljs-keyword, body.dark .reader-article .hljs-selector-tag,
+body.dark .reader-article .hljs-literal, body.dark .reader-article .hljs-section,
+body.dark .reader-article .hljs-doctag, body.dark .reader-article .hljs-name { color: #d8a27b; }
+body.dark .reader-article .hljs-string, body.dark .reader-article .hljs-regexp,
+body.dark .reader-article .hljs-addition { color: #a3b18a; }
+body.dark .reader-article .hljs-number, body.dark .reader-article .hljs-symbol,
+body.dark .reader-article .hljs-bullet, body.dark .reader-article .hljs-link,
+body.dark .reader-article .hljs-deletion { color: #c998b0; }
+body.dark .reader-article .hljs-title, body.dark .reader-article .hljs-title.function_,
+body.dark .reader-article .hljs-title.class_, body.dark .reader-article .hljs-built_in { color: #8fb0cc; }
+body.dark .reader-article .hljs-attr, body.dark .reader-article .hljs-attribute,
+body.dark .reader-article .hljs-variable, body.dark .reader-article .hljs-template-variable,
+body.dark .reader-article .hljs-params, body.dark .reader-article .hljs-property { color: #c9b98f; }
+body.dark .reader-article .hljs-type, body.dark .reader-article .hljs-selector-id,
+body.dark .reader-article .hljs-selector-class, body.dark .reader-article .hljs-tag { color: #b3a1cc; }
+body.dark .reader-article .hljs-meta, body.dark .reader-article .hljs-operator,
+body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
+
+/* ==========================================================================
+   数学公式（KaTeX 动态注入）
+   katex.min.css 负责 .katex 内部排版；这里只管与纸感正文的衔接。
+   ========================================================================== */
+.reader-article .nj-katex { user-select: text; }
+.reader-article .nj-katex .katex { font-size: 1.12em; }
+.reader-article .nj-katex-display {
+  display: block;
+  margin: 1.1em 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
 }

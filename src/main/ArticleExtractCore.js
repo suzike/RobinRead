@@ -634,6 +634,122 @@ async function extractInProcess(url) {
   }
 }
 
+// MARK: - Feed 正文格式规范化（转义 HTML / Markdown / 纯文本 → HTML）
+// 上游 ArticleMarkupNormalizer 思路的 JS 移植：按内容特征（非域名）识别格式，
+// 统一转成 HTML 后再走白名单消毒。判定顺序保证幂等：规范化输出含真实标签，
+// 再次输入时走 HTML 直通分支。
+
+const ANY_TAG_RE = /<[a-z!/][^>]*>/i;
+const BLOCK_TAG_RE = /<(p|div|br|hr|h[1-6]|ul|ol|li|table|blockquote|pre|img|figure|figcaption|section|article)\b/i;
+
+/** 单层实体解码（&amp;lt; 这类双层转义不再解，保持字面量语义）。 */
+function decodeEntitiesOnce(value) {
+  return String(value)
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&');
+}
+
+function looksLikeMarkdown(text) {
+  if (/```/.test(text)) return true;
+  const nonEmpty = text.split(/\r?\n/).filter((l) => l.trim());
+  if (nonEmpty.length < 2) return false;
+  let md = 0;
+  for (const line of nonEmpty) {
+    if (/^\s{0,3}#{1,6}\s+\S/.test(line)) md += 1;
+    else if (/^\s{0,3}[-*+]\s+\S/.test(line)) md += 1;
+    else if (/^\s{0,3}\d+[.)]\s+\S/.test(line)) md += 1;
+    else if (/^\s{0,3}>\s?\S/.test(line)) md += 1;
+    else if (/\*\*[^*\n]+\*\*/.test(line) || /\[[^\]\n]+\]\(https?:\/\/[^)\n]+\)/.test(line)) md += 1;
+  }
+  return md >= 2 && md / nonEmpty.length >= 0.4;
+}
+
+/** 行内格式：文本先转义，再生成受控标签（URL 仅 http/https，属性天然无引号）。 */
+function mdInline(escaped) {
+  return escaped
+    .replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt}"/>`)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (m, text, url) => `<a href="${url}">${text}</a>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+}
+
+function markdownToHTML(md) {
+  const lines = String(md).replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let i = 0;
+  const BLOCK_START = /^\s{0,3}(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|```)/;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*```/.test(line)) {
+      const buf = [];
+      i += 1;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i += 1; }
+      i += 1;
+      out.push(`<pre><code>${escapeHTMLText(buf.join('\n'))}</code></pre>`);
+      continue;
+    }
+    const heading = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/);
+    if (heading) {
+      const level = Math.min(6, heading[1].length + 1); // # 从 h2 起，与阅读器标题重映射口径一致
+      out.push(`<h${level}>${mdInline(escapeHTMLText(heading[2]))}</h${level}>`);
+      i += 1;
+      continue;
+    }
+    if (/^\s{0,3}[-*+]\s+\S/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s{0,3}[-*+]\s+\S/.test(lines[i])) { items.push(lines[i].replace(/^\s{0,3}[-*+]\s+/, '')); i += 1; }
+      out.push(`<ul>${items.map((t) => `<li>${mdInline(escapeHTMLText(t))}</li>`).join('')}</ul>`);
+      continue;
+    }
+    if (/^\s{0,3}\d+[.)]\s+\S/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s{0,3}\d+[.)]\s+\S/.test(lines[i])) { items.push(lines[i].replace(/^\s{0,3}\d+[.)]\s+/, '')); i += 1; }
+      out.push(`<ol>${items.map((t) => `<li>${mdInline(escapeHTMLText(t))}</li>`).join('')}</ol>`);
+      continue;
+    }
+    if (/^\s{0,3}>\s?/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s{0,3}>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^\s{0,3}>\s?/, '')); i += 1; }
+      out.push(`<blockquote><p>${mdInline(escapeHTMLText(buf.join('\n'))).replace(/\n/g, '<br>')}</p></blockquote>`);
+      continue;
+    }
+    if (!line.trim()) { i += 1; continue; }
+    const buf = [];
+    while (i < lines.length && lines[i].trim() && !BLOCK_START.test(lines[i])) { buf.push(lines[i]); i += 1; }
+    out.push(`<p>${mdInline(escapeHTMLText(buf.join('\n'))).replace(/\n/g, '<br>')}</p>`);
+  }
+  return out.join('\n');
+}
+
+/**
+ * Feed 正文规范化入口：
+ * 1) 已含真实标签 → HTML，原样（后续统一走白名单消毒）；
+ * 2) 无标签但单层解码后出现标签 → 转义 HTML，返回解码结果；
+ * 3) Markdown 特征主导 → 转 HTML（# 从 h2 起、fence→pre、受控行内标签）；
+ * 4) 其余纯文本 → 转义 + 空行分段。
+ */
+function normalizeFeedMarkup(html) {
+  const raw = String(html ?? '');
+  if (!raw.trim()) return raw;
+  if (ANY_TAG_RE.test(raw)) return raw;
+  const decoded = decodeEntitiesOnce(raw);
+  if (decoded !== raw && ANY_TAG_RE.test(decoded)) {
+    if (BLOCK_TAG_RE.test(decoded) || /<a\s|<img\s|<span\s|<em|<strong|<code/i.test(decoded)) return decoded;
+  }
+  const text = decoded !== raw ? decoded : raw;
+  if (looksLikeMarkdown(text)) return markdownToHTML(text);
+  const paragraphs = splitBlockTextIntoParagraphs(text);
+  if (paragraphs.length === 0) return raw;
+  return paragraphs
+    .map((p) => `<p>${escapeHTMLText(p).replace(/\n/g, '<br>')}</p>`)
+    .join('\n');
+}
+
 module.exports = {
   content,
   readabilityContent,
@@ -649,4 +765,5 @@ module.exports = {
   isSameReaderParagraph,
   decodeWebPage,
   extractInProcess,
+  normalizeFeedMarkup,
 };

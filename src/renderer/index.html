@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="styles/robin.css" />
   <link rel="stylesheet" href="styles/store.css" />
   <link rel="stylesheet" href="styles/account.css" />
+  <!-- highlight.js（本地 vendor，UMD → window.hljs）：同步 script 先于 module(app.js) 执行。
+       CSP script-src 'self' 允许本地 vendor。KaTeX 不静态引入——reader 检测到公式才动态注入（普通文章零开销）。 -->
+  <script src="vendor/highlight/highlight.min.js"></script>
 </head>
 <body>
   <div id="app">

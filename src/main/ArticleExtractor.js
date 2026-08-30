@@ -270,6 +270,7 @@ module.exports = {
   removingDuplicateLeadingHeading: Core.removingDuplicateLeadingHeading,
   needsExtraction: Core.needsExtraction,
   plainText: Core.plainText,
+  normalizeFeedMarkup: Core.normalizeFeedMarkup,
   isSameReaderParagraph: Core.isSameReaderParagraph,
 
   // —— 异步全流程（worker 优先，主进程回退）——

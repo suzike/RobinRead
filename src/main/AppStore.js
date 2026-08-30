@@ -39,6 +39,79 @@ const TRANSLATION_PROMPT_VERSION = 2;
 const MAX_PARAGRAPHS_PER_TRANSLATION_BATCH = 8; // 逐句双语：句级单元更短，批次适当加大
 const MAX_CHARACTERS_PER_TRANSLATION_BATCH = 1600;
 
+// PreparedArticle LRU：组装好的 reader 载荷缓存（j/k、空格连续翻篇秒开，不再闪「正在准备正文…」遮罩）
+const PREPARED_LRU_CAPACITY = 12;
+const PREPARED_LRU_TTL_MS = 10 * 60 * 1000; // 会话内 TTL 兜底：宁可多失效，不给脏数据
+
+/**
+ * reader 载荷 LRU（容量 12 + 10 分钟 TTL）。
+ * 利用 Map 插入序当新旧序：get 命中时删后重插刷新新近度；set 超容即淘汰最旧（首个 key）。
+ * 统计（hits/misses/evicted/expired/prefetchStored）供诊断脚本断言（store._preparedLRU.stats()）。
+ */
+class PreparedArticleLRU {
+  constructor(capacity = PREPARED_LRU_CAPACITY, ttlMs = PREPARED_LRU_TTL_MS) {
+    this.capacity = Math.max(1, Number(capacity) || PREPARED_LRU_CAPACITY);
+    this.ttlMs = ttlMs;
+    this.map = new Map(); // entryID -> { payload, at }
+    this.counters = { hits: 0, misses: 0, evicted: 0, expired: 0, cleared: 0, prefetchStored: 0 };
+  }
+
+  /** 是否存在未过期载荷（不计入统计，供预取防重与诊断）。 */
+  has(entryID) {
+    const rec = this.map.get(entryID);
+    if (!rec) return false;
+    return Date.now() - rec.at <= this.ttlMs;
+  }
+
+  /** 命中返回载荷并刷新新近度；未命中/过期计 miss 返回 null。 */
+  get(entryID) {
+    const rec = this.map.get(entryID);
+    if (!rec) {
+      this.counters.misses += 1;
+      return null;
+    }
+    if (Date.now() - rec.at > this.ttlMs) {
+      this.map.delete(entryID);
+      this.counters.expired += 1;
+      this.counters.misses += 1;
+      return null;
+    }
+    this.map.delete(entryID);
+    this.map.set(entryID, rec);
+    this.counters.hits += 1;
+    return rec.payload;
+  }
+
+  /** 写入（已存在则先删保持插入序 = 新近序），超容淘汰最旧。 */
+  set(entryID, payload, { viaPrefetch = false } = {}) {
+    if (this.map.has(entryID)) this.map.delete(entryID);
+    this.map.set(entryID, { payload, at: Date.now() });
+    if (viaPrefetch) this.counters.prefetchStored += 1;
+    while (this.map.size > this.capacity) {
+      const oldest = this.map.keys().next().value;
+      this.map.delete(oldest);
+      this.counters.evicted += 1;
+    }
+  }
+
+  delete(entryID) {
+    this.map.delete(entryID);
+  }
+
+  clear() {
+    this.counters.cleared += this.map.size;
+    this.map.clear();
+  }
+
+  keys() {
+    return [...this.map.keys()];
+  }
+
+  stats() {
+    return { size: this.map.size, capacity: this.capacity, ttlMs: this.ttlMs, ...this.counters };
+  }
+}
+
 class AppStore extends EventEmitter {
   constructor(userDataPath) {
     super();
@@ -79,6 +152,11 @@ class AppStore extends EventEmitter {
     this._entryChanges = new Map(); // entryID -> {id, isRead, isStarred}（上限 400）
     this._lastEmitAt = 0;
     this._emitTimer = null;
+
+    // PreparedArticle LRU：reader 载荷缓存 + 相邻预取状态
+    this._preparedLRU = new PreparedArticleLRU();
+    this._prefetchBusy = false;             // 相邻预取在途标记（防重入）
+    this._prefetchExtractTried = new Set(); // 本会话已预抓过正文的条目（失败不反复打网络）
 
     // 本机账户始终存在
     this.accounts.ensureLocalAccount();
@@ -477,6 +555,93 @@ class AppStore extends EventEmitter {
     return null;
   }
 
+  // MARK: - PreparedArticle LRU（reader 载荷缓存 + 相邻预取）
+
+  /**
+   * 'app:reader' 主路径：命中 LRU 直接返回（同步快路径），未命中组装后入缓存。
+   * 返回结构恒为 { entry, feed, content, summary, annotations }，与渲染层约定零改动。
+   */
+  readerArticle(entryID) {
+    const cached = this._preparedLRU.get(entryID);
+    if (cached) {
+      // 已读/星标不逐出载荷，但返回前用库内最新值刷新（单行读，代价小）
+      const fresh = this.articlesRepo.entry(entryID);
+      if (fresh) {
+        cached.entry.isRead = fresh.isRead;
+        cached.entry.isStarred = fresh.isStarred;
+        this._scheduleAdjacentPrefetch(entryID);
+        return cached;
+      }
+      this._preparedLRU.delete(entryID); // 条目已被删除：逐出，绝不回脏数据
+    }
+    const payload = this.assembleReaderPayload(entryID);
+    if (payload) {
+      this._preparedLRU.set(entryID, payload);
+      this._scheduleAdjacentPrefetch(entryID);
+    }
+    return payload;
+  }
+
+  /**
+   * 组装 reader 载荷（与原 ipc 'app:reader' 内联逻辑逐字段一致）。
+   * content 走 articleContent()：坏缓存自愈（缓存 < 原文 40% 时丢缓存回退 RSS）之后
+   * 才会进入载荷——因此 LRU 里存的一定是自愈后的干净载荷。
+   */
+  assembleReaderPayload(entryID) {
+    const entry = this.articlesRepo.entry(entryID);
+    if (!entry) return null;
+    const feed = this.feedsRepo.feed(entry.feedID);
+    const content = this.articleContent(entryID);
+    const summary = this.existingSummary(entryID);
+    const annotations = this.selectionAnnotations(entryID);
+    return { entry, feed, content, summary, annotations };
+  }
+
+  /** 相邻预取排程：让当前 IPC 回复先走，再在下一拍做预取（fire-and-forget，异常静默）。 */
+  _scheduleAdjacentPrefetch(entryID) {
+    setTimeout(() => {
+      this._prefetchAdjacentOf(entryID).catch(() => { /* 预取失败静默 */ });
+    }, 30);
+  }
+
+  /**
+   * 相邻预取：以 {kind:'all'} 兜底 scope 取前后各一篇，组装好的载荷入 LRU；
+   * 正文缺失时用 priority:'prefetch' 预抓（排在用户任务之后，不挤占）。
+   * 在途标记防重入；单篇失败不影响其余。
+   */
+  async _prefetchAdjacentOf(entryID) {
+    if (this._prefetchBusy) return; // 在途：跳过（下次打开会再触发）
+    this._prefetchBusy = true;
+    try {
+      for (const direction of ['next', 'previous']) {
+        const item = this.adjacentItem({ kind: 'all' }, entryID, direction);
+        if (!item || item.id === entryID || this._preparedLRU.has(item.id)) continue;
+        const payload = this.assembleReaderPayload(item.id);
+        if (!payload) continue;
+        this._preparedLRU.set(item.id, payload, { viaPrefetch: true });
+        this._prefetchExtractIfNeeded(item.id, payload);
+      }
+    } finally {
+      this._prefetchBusy = false;
+    }
+  }
+
+  /** 相邻文章预抓正文：仅在缺正文（needsExtraction）且本会话未试过时发起。 */
+  _prefetchExtractIfNeeded(entryID, payload) {
+    if (!payload.content || !payload.content.needsExtraction || !payload.entry.url) return;
+    if (this._prefetchExtractTried.has(entryID)) return;
+    this._prefetchExtractTried.add(entryID);
+    if (this._prefetchExtractTried.size > 200) {
+      this._prefetchExtractTried.delete(this._prefetchExtractTried.keys().next().value);
+    }
+    this.extractArticle(entryID, { priority: 'prefetch' }).catch(() => { /* 静默 */ });
+  }
+
+  /** PreparedArticle 缓存整体失效（新增/删除文章、订阅与文件夹结构、账户开关等）。 */
+  _invalidatePrepared() {
+    this._preparedLRU.clear();
+  }
+
   // MARK: - Feed 管理
 
   async addFeed(urlText, folder = null) {
@@ -516,6 +681,7 @@ class AppStore extends EventEmitter {
 
     this._applyParsedEntries(feed, result.parsed.entries);
     this.feedsRepo.updateFeed(feed.id, (f) => ({ ...f, lastRefreshedAt: nowSeconds() }));
+    this._invalidatePrepared(); // 订阅结构变更：宁可多失效
     this._emitState();
     return this.feedsRepo.feed(feed.id);
   }
@@ -592,6 +758,7 @@ class AppStore extends EventEmitter {
       this.articlesRepo.deleteEntriesForFeed(feedID);
       this.feedsRepo.deleteFeed(feedID);
     }
+    this._invalidatePrepared(); // 条目可能已删：宁可多失效
     this._emitState();
   }
 
@@ -607,6 +774,7 @@ class AppStore extends EventEmitter {
       }
     }
     this._pruneEmptyFolders();
+    this._invalidatePrepared();
     this._emitState();
   }
 
@@ -623,11 +791,13 @@ class AppStore extends EventEmitter {
     const trimmed = (name || '').trim();
     if (!trimmed) return;
     this.feedsRepo.ensureFolder(LOCAL_ACCOUNT_ID, trimmed);
+    this._invalidatePrepared();
     this._emitState();
   }
 
   renameFolder(folderID, newName) {
     this.feedsRepo.renameFolder(folderID, (newName || '').trim());
+    this._invalidatePrepared();
     this._emitState();
   }
 
@@ -638,6 +808,7 @@ class AppStore extends EventEmitter {
       this.feedsRepo.setFeedFolder(feedID, null);
     }
     this.feedsRepo.deleteFolder(folderID);
+    this._invalidatePrepared();
     this._emitState();
   }
 
@@ -658,6 +829,7 @@ class AppStore extends EventEmitter {
       this.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: url, feedURL: url });
       added += 1;
     }
+    if (added > 0) this._invalidatePrepared();
     this._emitState();
     return { total: urls.length, added, limited: added < urls.length };
   }
@@ -759,9 +931,12 @@ class AppStore extends EventEmitter {
         };
       }
     }
-    // RSS content 直接白名单消毒（Readability 是为「完整网页」设计的，会误判
-    // 已是正文片段的 RSS content 并把完整正文精简成几行——不在这里用它）。
-    const html = entry.contentHTML ? ArticleExtractor.sanitizedHTML(entry.contentHTML, entry.url) : null;
+    // RSS content：先做格式规范化（Markdown/转义 HTML/纯文本 → HTML，幂等），
+    // 再白名单消毒（Readability 是为「完整网页」设计的，会误判已是正文片段的
+    // RSS content 并把完整正文精简成几行——不在这里用它）。
+    const html = entry.contentHTML
+      ? ArticleExtractor.sanitizedHTML(ArticleExtractor.normalizeFeedMarkup(entry.contentHTML), entry.url)
+      : null;
     return {
       html,
       text: sourceText,
@@ -786,6 +961,8 @@ class AppStore extends EventEmitter {
     const isShell = existingLen > 400 && gotLen > 0 && gotLen < existingLen * 0.4;
     if (!isShell) {
       this.cachesRepo.saveCache(cache);
+      // 正文缓存已更新：逐出该 entry 的组装载荷，下次打开重组装即含新正文（内容指纹失效）
+      this._preparedLRU.delete(entryID);
       // 不推送 state：正文缓存对侧栏/列表无影响，预抓批量完成时推送只会造成状态风暴
     }
     return cache;
@@ -815,6 +992,7 @@ class AppStore extends EventEmitter {
       lastModified: result.lastModified,
       lastRefreshedAt: nowSeconds(),
     }));
+    this._invalidatePrepared(); // 单源刷新可能新增文章：宁可多失效
     this._emitState();
     return { newEntries: newIDs.length };
   }
@@ -1150,6 +1328,7 @@ class AppStore extends EventEmitter {
     } catch (err) {
       this.refreshStatus = { state: 'failed', message: errorMessage(err), finishedAt: nowSeconds() };
     }
+    this._invalidatePrepared(); // 刷新可能新增/删除/改状态：宁可多失效（成功失败都清）
     this._emitState();
   }
 
@@ -1228,11 +1407,13 @@ class AppStore extends EventEmitter {
     this.credentials.deleteFreshRSSPassword(accountID);
     this.accounts.deleteAccount(accountID);
     this.apiClients.delete(accountID);
+    this._invalidatePrepared();
     this._emitState();
   }
 
   setAccountEnabled(accountID, isEnabled) {
     this.accounts.setEnabled(accountID, Boolean(isEnabled));
+    this._invalidatePrepared();
     this._emitState();
   }
 
@@ -1317,6 +1498,7 @@ class AppStore extends EventEmitter {
       }));
       this.syncStatus.set(accountID, { state: 'failed', message: errorMessage(err), finishedAt: nowSeconds() });
     }
+    this._invalidatePrepared(); // 同步可能新增/删除文章与状态对账：宁可多失效（成功失败都清）
     this._emitState();
   }
 
@@ -2305,4 +2487,4 @@ function errorMessage(err) {
   return err.message || String(err);
 }
 
-module.exports = { AppStore, errorMessage, DEFAULT_TIMELINE_LIMIT };
+module.exports = { AppStore, errorMessage, DEFAULT_TIMELINE_LIMIT, PreparedArticleLRU };

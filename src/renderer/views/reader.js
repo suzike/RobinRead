@@ -386,6 +386,10 @@ export class ReaderView {
     this._setBodyHTML(this.html);
     this._normalizeArticle();
     this._restructureArticle();
+    // 代码高亮与公式渲染必须在段落标注（data-nj-id）/批注锚点之前完成：
+    // 两者都只做「节点内部」的文本拆分与包裹，不改块结构，不会使后续锚点失效
+    this._highlightCodeBlocks();
+    this._renderMath();
     this._annotateParagraphs();
     this._wrapSentenceUnits();
     this.paragraphs = collectParagraphs(this.body, this.entry?.title);
@@ -607,6 +611,7 @@ export class ReaderView {
    * 3. 文本列表识别（•/-/* 行 → <ul>；1. 2. 行 → <ol>）
    * 4. 图片规整（纯图段落 → <figure>，有 alt 时加 figcaption）
    * 5. 垃圾清理（空链接、分享/订阅/相关文章尾巴）
+   * 6. 多图并排（连续纯图块 → .nj-img-row 画廊行，一组上限 6）
    */
   _restructureArticle() {
     if (!this.body) return;
@@ -615,6 +620,7 @@ export class ReaderView {
     try { this._restructureParagraphs(); } catch (_) { /* 跳过 */ }
     try { this._restructureTextLists(); } catch (_) { /* 跳过 */ }
     try { this._restructureFigures(); } catch (_) { /* 跳过 */ }
+    try { this._restructureGalleryRows(); } catch (_) { /* 跳过 */ }
   }
 
   /** 1. 标题层级：收集用到的级别 → 稳定排序 → 映射为 h2/h3/h4 连续层级。 */
@@ -715,6 +721,126 @@ export class ReaderView {
         fig.appendChild(cap);
       }
       p.replaceWith(fig);
+    }
+  }
+
+  /**
+   * 6. 多图并排画廊行：把「视觉上相邻」的连续纯图片块（p/div/figure 仅含 img、无文本）
+   *    包进 .nj-img-row（flex 等高裁剪；≥3 张按两列换行，一组上限 6）。
+   *    - 图文混排（img 与文本同块）绝不归组；中间隔着标题/文本块即断开
+   *    - 打包只移动块位置、不改 img 节点本身：后续 _bindImages 仍直接在 img 上绑灯箱/懒加载
+   *    - 在段落标注（_annotateParagraphs）之前执行，wrapper 不影响 data-nj-id 锚点
+   */
+  _restructureGalleryRows() {
+    if (!this.body) return;
+    const isPureImageBlock = (el) => {
+      if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
+      const tag = el.tagName;
+      if (tag !== 'P' && tag !== 'DIV' && tag !== 'FIGURE') return false;
+      if (!el.querySelector('img')) return false;
+      if ((el.textContent || '').trim().length > 0) return false; // 含任何文本（含 figcaption）不归组
+      // 不允许携带其它结构（嵌套图组/代码/表格等）
+      if (el.querySelector('pre, code, table, video, iframe, blockquote, ul, ol, dl, h1, h2, h3, h4, h5, h6, figure, figcaption, button, a.nj-annotation-icon')) return false;
+      return true;
+    };
+    const blocks = [...this.body.children];
+    let run = [];
+    const flush = () => {
+      // ≥2 才成行；一组最多 6 张，超过切成多组，切剩的单张保持原样
+      while (run.length >= 2) {
+        const group = run.slice(0, 6);
+        run = run.slice(6);
+        const row = document.createElement('div');
+        row.className = 'nj-img-row' + (group.length > 2 ? ' nj-img-row-multi' : '');
+        group[0].parentNode.insertBefore(row, group[0]);
+        for (const block of group) row.appendChild(block);
+      }
+      run = [];
+    };
+    for (const block of blocks) {
+      if (isPureImageBlock(block)) { run.push(block); continue; }
+      flush();
+    }
+    flush();
+  }
+
+  /**
+   * 代码语法高亮（vendor/highlight/highlight.min.js，UMD → window.hljs，CSP script-src 'self' 合法）。
+   * 两级门控（对齐上游 PaperRss 的「language-* 门控」，并适配本项目实际）：
+   * 1) pre > code（或 pre 上）带 language-* / lang-* 类 → 按语言精确高亮；
+   * 2) 无标注块：仅当启发式判定「像多行代码」（CODE_HINT_RE + ≥2 行）才走 hljs.highlightAuto，
+   *    且 relevance 达标才应用——入库 sanitizer（禁改）会剥掉 class 属性，RSS 链路拿不到语言
+   *    标注，保守 auto 是该链路唯一可达的高亮路径；普通文本 relevance 极低，不会被误着色。
+   * 高亮发生在段落标注 / 批注锚点之前；hljs 只拆分包裹文本节点、不改文本内容，
+   * 因此翻译快照（plainText 去标签）与高亮重放（文本匹配包裹 mark）均不受影响。
+   */
+  _highlightCodeBlocks() {
+    if (!this.body || typeof window.hljs === 'undefined' || !window.hljs.highlightElement) return;
+    for (const block of this.body.querySelectorAll('pre > code')) {
+      if (block.dataset.njHighlighted === '1') continue; // 重放幂等（hljs 自身也有 data-highlighted 守卫）
+      // 语言类可能在 code 上，也可能写在 pre 上（个别 feed 的写法）
+      const host = block.parentElement?.tagName === 'PRE' ? block.parentElement : null;
+      const langClass = [...block.classList, ...(host ? [...host.classList] : [])]
+        .find((c) => /^(?:language|lang)-[\w+#.-]+$/.test(c));
+      try {
+        if (langClass) {
+          const lang = langClass.slice(langClass.indexOf('-') + 1).toLowerCase();
+          if (!window.hljs.getLanguage(lang)) continue; // 未知语言标注：保守跳过，绝不高亮炸内容
+          window.hljs.highlightElement(block);
+          block.dataset.njHighlighted = '1';
+        } else if (looksLikeCode(block.textContent)) {
+          // 排除 markdown/plaintext：这两个语言对「任意英文文本」都能吃出非零 relevance，
+          // 会把散文误着色；其余语言作为 auto 检测子集（构建缺失时 listLanguages 兜底为空 → 全量）
+          const subset = (typeof window.hljs.listLanguages === 'function')
+            ? window.hljs.listLanguages().filter((l) => !CODE_AUTO_NOISE_LANGS.has(l))
+            : [];
+          const result = window.hljs.highlightAuto(block.textContent, subset);
+          if (result && result.value && result.relevance >= CODE_AUTO_MIN_RELEVANCE) {
+            block.innerHTML = result.value; // hljs 输出：内部已转义原文，仅注入 hljs span
+            block.classList.add('hljs');
+            block.dataset.njHighlighted = '1';
+            block.dataset.njAutoHighlighted = '1';
+          }
+        }
+      } catch (_) { /* 单块失败不影响其余 */ }
+    }
+  }
+
+  /**
+   * 数学公式（KaTeX，stretch 能力）：仅当正文文本检测到 TeX 分隔符
+   * （$$...$$ / \[...\] / \(...\)）才动态注入 vendor 资源并渲染——普通文章零开销。
+   * 渲染只替换文本节点为 .nj-katex span：在代码高亮之后、批注锚点之前发起；
+   * 加载是异步的，但替换不触碰块结构，data-nj-id 锚点与翻译收集不受影响。
+   * 单 $ 分隔符误判风险大，刻意不支持。失败（vendor 缺失/公式非法）回退原文本。
+   */
+  _renderMath() {
+    if (!this.body || this.body.dataset.njMathDone === '1') return;
+    const text = this.body.textContent || '';
+    if (!KATEX_DETECT_RE.test(text)) return; // 无公式：一次正则即返回
+    this.body.dataset.njMathDone = '1';
+    ensureKatexReady()
+      .then((katex) => this._applyMath(katex))
+      .catch(() => { /* vendor 缺失或加载失败：保留原文本 */ });
+  }
+
+  _applyMath(katex) {
+    if (!this.body || !katex?.render) return;
+    const walker = document.createTreeWalker(this.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        const el = node.parentElement;
+        // 跳过代码块（pre/code 内的 $$ 是代码不是公式）与已渲染节点
+        if (!el || el.closest('pre, code, .nj-katex')) return NodeFilter.FILTER_REJECT;
+        return KATEX_SPAN_RE.test(node.textContent) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    });
+    const nodes = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+    for (const node of nodes) {
+      if (!node.parentNode) continue;
+      try {
+        const frag = katexReplacementFragments(katex, node.textContent);
+        if (frag) node.parentNode.replaceChild(frag, node);
+      } catch (_) { /* 单节点公式非法：整节点回退原文本 */ }
     }
   }
 
@@ -2997,6 +3123,99 @@ function paragraphContext(element) {
 
 function cssEscape(value) {
   return (window.CSS && CSS.escape) ? CSS.escape(value) : String(value).replace(/"/g, '\\"');
+}
+
+// MARK: - 数学公式（KaTeX 动态 vendor 注入）
+
+/**
+ * 无标注代码块的保守 auto 高亮门槛。实测（hljs 11.11.1 common 构建）：
+ * 真实短代码 relevance 普遍只有 3~8（sql 3 / json 4 / js·python 5 / c 8），
+ * 而自然语言由 looksLikeCode（行数 + 关键字特征 + 结构密度）先行拦截、根本到不了本检查，
+ * 因此本值只需滤掉 gate 下的极端边缘样本——设 3 即可，更高只会误杀短代码。
+ */
+const CODE_AUTO_MIN_RELEVANCE = 3;
+
+/** auto 检测排除的「噪声语言」：对任意自然语言文本也能给出非零 relevance，必须排除。 */
+const CODE_AUTO_NOISE_LANGS = new Set(['markdown', 'plaintext', 'plain text']);
+
+/** 「像代码」启发式：常见语言关键字 / 运算符 / 标签特征（只用于决定是否尝试 auto-detect）。 */
+const CODE_HINT_RE = /(?:\bfunction\b|=>|\bconst\b|\blet\b|\bvar\b|\bdef\s|\bclass\s|\bimport\b|\bexport\b|#include|\bSELECT\b|\bFROM\b|\bpublic\b|\bvoid\b|<\/?[a-z]+>|\}\s*;?\s*$|^\s*\{)/im;
+
+/** 结构字符（代码骨架：花括号/分号/括号/赋值/尖括号）密度下限——英文散文即使混入 function/class 等词，结构计数也几乎为 0。 */
+const CODE_STRUCT_RE = /[{};=()[\]<>/]|=>/g;
+
+/** 无标注 pre>code 是否值得尝试 auto 高亮：≥2 行非空行 + 命中代码特征 + ≥3 个结构字符（单行短块不碰）。 */
+function looksLikeCode(text) {
+  const value = String(text || '');
+  if (value.length < 24 || value.length > 20000) return false;
+  const lines = value.split('\n').filter((line) => line.trim()).length;
+  if (lines < 2) return false;
+  if (!CODE_HINT_RE.test(value)) return false;
+  const structural = (value.match(CODE_STRUCT_RE) || []).length;
+  return structural >= 3;
+}
+
+/** TeX 分隔符检测：$$...$$（display）/ \[...\]（display）/ \(...\)（inline）。 */
+const KATEX_DETECT_RE = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/;
+const KATEX_SPAN_RE = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g;
+
+/** katex 资源只注入一次（普通文章连 link/script 都不产生）；失败允许下次重试。 */
+let katexReadyPromise = null;
+
+function ensureKatexReady() {
+  if (window.katex?.render) return Promise.resolve(window.katex);
+  if (katexReadyPromise) return katexReadyPromise;
+  katexReadyPromise = new Promise((resolve, reject) => {
+    try {
+      // 字体走 katex.min.css 相对路径（vendor/katex/fonts/），font-src 回落 default-src 'self' 合法
+      if (!document.querySelector('link[data-nj-katex-css]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'vendor/katex/katex.min.css';
+        link.dataset.njKatexCss = '1';
+        document.head.appendChild(link);
+      }
+      const script = document.createElement('script');
+      script.src = 'vendor/katex/katex.min.js'; // script-src 'self' 允许本地 vendor
+      script.onload = () => {
+        if (window.katex?.render) resolve(window.katex);
+        else { katexReadyPromise = null; reject(new Error('katex loaded but window.katex missing')); }
+      };
+      script.onerror = () => { katexReadyPromise = null; reject(new Error('vendor/katex/katex.min.js 加载失败')); };
+      document.head.appendChild(script);
+    } catch (err) {
+      katexReadyPromise = null;
+      reject(err);
+    }
+  });
+  return katexReadyPromise;
+}
+
+/**
+ * 把文本节点内容拆为 [普通文本 | .nj-katex 公式] 片段。
+ * display：$$...$$ 与 \[...\]；inline：\(...\)。任一公式渲染抛错 → 整体抛错（调用方回退原文本）。
+ */
+function katexReplacementFragments(katex, text) {
+  const frag = document.createDocumentFragment();
+  const re = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
+  let last = 0;
+  let made = false;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)));
+    const tex = (match[1] ?? match[2] ?? match[3] ?? '').trim();
+    const display = match[1] !== undefined || match[2] !== undefined;
+    if (!tex) throw new Error('empty tex');
+    const holder = document.createElement('span');
+    holder.className = display ? 'nj-katex nj-katex-display' : 'nj-katex';
+    katex.render(tex, holder, { displayMode: display, throwOnError: true, strict: false });
+    frag.appendChild(holder);
+    made = true;
+    last = match.index + match[0].length;
+  }
+  if (!made) return null;
+  if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+  return frag;
 }
 
 // MARK: - 批注常量与工具
