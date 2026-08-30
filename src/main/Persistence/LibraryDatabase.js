@@ -112,11 +112,20 @@ class PreferenceStore {
     if (this._saveTimer) return;
     this._saveTimer = setTimeout(() => {
       this._saveTimer = null;
-      try {
-        fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-        fs.writeFileSync(this.filePath, JSON.stringify(this.values, null, 2), 'utf8');
-      } catch (_) { /* 保存失败不阻塞主流程 */ }
+      this.flushSync();
     }, 150);
+  }
+
+  /** 立即落盘（清除防抖定时器）。应用退出（before-quit）时调用，避免最后一次修改丢失。 */
+  flushSync() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+    try {
+      fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
+      fs.writeFileSync(this.filePath, JSON.stringify(this.values, null, 2), 'utf8');
+    } catch (_) { /* 保存失败不阻塞主流程 */ }
   }
 }
 

@@ -145,10 +145,14 @@ const TOPICS = [
   { id: 'cn', name: '中文技术圈', desc: '美团 / 少数派 / InfoQ：中文工程实践与效率文化', hue: 170, urls: ['https://tech.meituan.com/feed/', 'https://sspai.com/feed', 'https://www.infoq.cn/feed', 'https://www.ruanyifeng.com/blog/atom.xml', 'https://www.solidot.org/index.rss'] },
 ];
 
-/** 从 URL 推导站点 favicon（Google 服务，失败回退到字母 monogram）。 */
+/** 从 URL 推导站点 favicon：走主进程 robin-icon:// 三级缓存协议（google s2 热链在大陆不可达且无缓存），失败回退字母 monogram。 */
 function faviconFor(url) {
   try {
-    return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`;
+    const u = new URL(url);
+    const params = new URLSearchParams();
+    params.set('site', u.origin);
+    params.set('host', u.hostname.toLowerCase());
+    return `robin-icon://icon/?${params.toString()}`;
   } catch (_) { return null; }
 }
 

@@ -12,7 +12,6 @@
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { formatFullDate } from './list.js';
-import { feedIconURL } from './sidebar.js';
 import { renderMarkdown } from '../markdown.js';
 
 const MAX_TRANSLATION_FAILURES = 2;
@@ -85,6 +84,8 @@ export class ReaderView {
     try {
       await this._openBody(entryID);
     } catch (err) {
+      // 竞态守卫：抓取/读库 reject 时文章可能已切换，旧文章的兜底内容不得覆盖新文章
+      if (this.entryID !== entryID) return;
       console.error('[reader] open failed:', err);
       // 兜底渲染：至少把标题 + 摘要显示出来，绝不让阅读区空白
       try {
@@ -96,6 +97,9 @@ export class ReaderView {
       this._hideLoading();
     }
 
+    // 竞态守卫：_openBody 因切换文章提前返回时，不能拿新文章的 entryID 误触发自动摘要
+    // （会与文章 B 自己的触发相撞，弹「已有 AI 摘要任务正在进行」误报）
+    if (this.entryID !== entryID) return;
     // 自动摘要：无缓存、或上次生成被中断（isComplete=false）都自动重生成
     const llm = window.__robinLLM || {};
     const summaryMissing = !this.summary.artifact || this.summary.artifact.isComplete === false;
@@ -142,6 +146,9 @@ export class ReaderView {
       html = `<p>${escapeHTML(t('这篇文章没有可提取的正文（可能为纯图片、需登录或站点限制抓取）。'))}</p>`
         + (url ? `<p><a href="${attr(url)}">${escapeHTML(t('在浏览器中打开原文 →'))}</a></p>` : '');
     }
+    // 竞态守卫：上方两次 extractArticle 可能耗时数秒，期间用户已切到别的文章时，
+    // 不能让旧文章的正文覆盖新选中文章（界面与数据失配且不自愈）
+    if (this.entryID !== entryID) return;
     this.html = removingDuplicateLeadingHeading(html, this.entry.title);
     this.annotations = data.annotations || [];
     // 批注（高亮/笔记）：与正文同步拉取，渲染时按锚点重新着色/插桩
@@ -155,6 +162,7 @@ export class ReaderView {
         this.notes = Array.isArray(notes) ? notes : [];
       }
     }
+    if (this.entryID !== entryID) return;
     this._render();
 
     // 翻译策略：默认不翻译（手动点击翻译按钮触发）；仅当设置里显式开启「自动精读」才自动翻译
@@ -366,6 +374,25 @@ export class ReaderView {
 
     // AI 摘要卡（showsAISummary 时才渲染）
     this.summaryCard = document.createElement('div');
+    // 点击监听只在建卡时绑定一次：_renderSummaryCard 会被流式 delta 高频重绘，
+    // 在那里 addEventListener 会无限叠加（点一次触发 N 次，偶数次表现为点了没反应）
+    this.summaryCard.addEventListener('click', (event) => {
+      if (event.target.closest('[data-action="regenerate"]')) {
+        this.generateSummary(true);
+        return;
+      }
+      if (event.target.closest('[data-action="feedback"]')) {
+        const btn = event.target.closest('[data-action="feedback"]');
+        const rating = Number(btn.dataset.rating);
+        this._submitFeedback('summary', rating, btn);
+        return;
+      }
+      if (this.summary.artifact?.content || this.summary.streaming) {
+        this.toggleSummary();
+      } else if (!this.summary.generating) {
+        this.generateSummary(false);
+      }
+    });
     header.appendChild(this.summaryCard);
     this._renderSummaryCard();
 
@@ -909,19 +936,6 @@ export class ReaderView {
           <div class="robin-summary-text">${renderMarkdown(artifact.content)}</div>
           ${footer}
         </div>`;
-      card.addEventListener('click', (event) => {
-        if (event.target.closest('[data-action="regenerate"]')) {
-          this.generateSummary(true);
-          return;
-        }
-        if (event.target.closest('[data-action="feedback"]')) {
-          const btn = event.target.closest('[data-action="feedback"]');
-          const rating = Number(btn.dataset.rating);
-          this._submitFeedback('summary', rating, btn);
-          return;
-        }
-        this.toggleSummary();
-      });
     } else if (this.summary.generating) {
       card.classList.add('generating');
       card.innerHTML = `
@@ -932,7 +946,6 @@ export class ReaderView {
           </div>
           <button class="robin-summary-ai-btn">${icon('chevronRight')}</button>
         </div>`;
-      card.addEventListener('click', () => {});
     } else {
       card.classList.add('ungenerated');
       const errLine = this.summary.error
@@ -946,7 +959,6 @@ export class ReaderView {
           </div>
           <button class="robin-summary-ai-btn">${icon('chevronRight')}</button>
         </div>`;
-      card.addEventListener('click', () => this.generateSummary(false));
     }
   }
 
@@ -1021,9 +1033,9 @@ export class ReaderView {
       if (body && payload.message) {
         const status = document.createElement('div');
         status.className = 'robin-summary-status';
+        // 走 data-action 交给摘要卡的委托监听分发；按钮自带监听会与委托叠加
         status.innerHTML = `<span class="robin-summary-error">${escapeHTML(payload.message)}</span>
-          <button class="robin-summary-action-btn">${escapeHTML(t('重新生成'))}</button>`;
-        status.querySelector('button').addEventListener('click', () => this.generateSummary(true));
+          <button class="robin-summary-action-btn" data-action="regenerate">${escapeHTML(t('重新生成'))}</button>`;
         this.summaryCard.querySelector('.robin-summary-body')?.appendChild(status);
       }
     }

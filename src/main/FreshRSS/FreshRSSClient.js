@@ -22,12 +22,12 @@ class ReaderAPIAuthenticator {
     const loginURL = `${canonicalBaseURL(endpointURL)}/accounts/ClientLogin`;
     const body = new URLSearchParams({ Email: username, Passwd: password, output: 'json' }).toString();
 
-    const response = await fetchWithTimeout(loginURL, {
+    const { response } = await fetchWithTimeout(loginURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     }, 20000);
-    const responseText = await response.text();
+    const responseText = (await readBody(response)).toString('utf8');
 
     if (response.status !== 200) {
       this.invalidateAuth();
@@ -67,7 +67,7 @@ class ReaderAPIAuthenticator {
       || (await this.login(endpointURL, username, password));
 
     const tokenURL = `${canonicalBaseURL(endpointURL)}/reader/api/0/token`;
-    let response = await fetchWithTimeout(tokenURL, {
+    let { response } = await fetchWithTimeout(tokenURL, {
       method: 'GET',
       headers: { Authorization: `GoogleLogin auth=${authToken}` },
     }, 20000);
@@ -75,14 +75,17 @@ class ReaderAPIAuthenticator {
     if (response.status === 401 || response.status === 403) {
       this.invalidateAuth();
       const newAuth = await this.login(endpointURL, username, password);
-      response = await fetchWithTimeout(tokenURL, {
+      ({ response } = await fetchWithTimeout(tokenURL, {
         method: 'GET',
         headers: { Authorization: `GoogleLogin auth=${newAuth}` },
-      }, 20000);
+      }, 20000));
     }
 
-    if (response.status !== 200) throw new ReaderAPIError('writeTokenUnavailable');
-    const text = (await response.text()).trim();
+    if (response.status !== 200) {
+      response.finish();
+      throw new ReaderAPIError('writeTokenUnavailable');
+    }
+    const text = (await readBody(response)).toString('utf8').trim();
     if (!text) throw new ReaderAPIError('writeTokenUnavailable');
     this.cachedWriteToken = text;
     return text;
@@ -102,9 +105,31 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    // 超时保护延伸到响应体消费完成：readBody() 读完响应后调用 finish() 解除；
+    // 原先只保护到响应头，响应体读取卡死时会永久挂起。
+    response.finish = () => clearTimeout(timer);
+    return response;
+  } catch (err) {
     clearTimeout(timer);
+    if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) {
+      throw new ReaderAPIError('networkError', '连接超时');
+    }
+    throw err;
+  }
+}
+
+/** 消费响应体（与 fetch 同一 controller，读取期间超时持续有效）。 */
+async function readBody(response) {
+  try {
+    return Buffer.from(await response.arrayBuffer());
+  } catch (err) {
+    if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) {
+      throw new ReaderAPIError('networkError', '响应读取超时');
+    }
+    throw err;
+  } finally {
+    if (typeof response.finish === 'function') response.finish();
   }
 }
 
@@ -140,16 +165,16 @@ class ReaderAPIClient {
     }
 
     const request = buildRequest(authToken);
-    let response = await fetchWithTimeout(request.url, request, 30000);
-    let data = Buffer.from(await response.arrayBuffer());
+    let { response } = await fetchWithTimeout(request.url, request, 30000);
+    let data = await readBody(response);
 
     if ((response.status === 401 || response.status === 403) && allowRetryOnAuthError) {
       // 登录会话过期，重试一次
       this.authenticator.invalidateAuth();
       const newAuth = await this.authenticator.login(this.endpointURL, this.username, password);
       const retryReq = buildRequest(newAuth);
-      response = await fetchWithTimeout(retryReq.url, retryReq, 30000);
-      data = Buffer.from(await response.arrayBuffer());
+      ({ response } = await fetchWithTimeout(retryReq.url, retryReq, 30000));
+      data = await readBody(response);
       if (response.status === 401 || response.status === 403) throw new ReaderAPIError('invalidCredentials');
       if (!response.ok) {
         throw new ReaderAPIError('httpError', response.status, data.subarray(0, 200).toString('utf8'));

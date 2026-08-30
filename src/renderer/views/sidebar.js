@@ -466,19 +466,26 @@ export function bindFaviconFallback(scope) {
 }
 
 export function feedIconURL(feed) {
-  if (feed.storedIconURL) return feed.storedIconURL;
+  // 统一走主进程 robin-icon:// 协议（内存/磁盘/网络三级缓存 + 失败 5 天冷却）。
+  // 原先热链 google s2：无缓存且大陆网络不可达，图标区反复失败空转。
   let host = null;
   try {
     host = (feed.siteURL ? new URL(feed.siteURL).hostname : null)
       || (feed.feedURL ? new URL(feed.feedURL).hostname : null);
   } catch (_) { host = null; }
-  if (!host) return null;
-  host = host.toLowerCase();
+  host = host ? host.toLowerCase() : '';
   const path = (feed.feedURL || '').toLowerCase();
-  if (host.includes('twitter.com') || host.includes('x.com') || path.includes('/twitter/') || path.startsWith('/twitter') || path.includes('/x/')) {
-    return 'https://abs.twimg.com/favicons/twitter.3.ico';
+  let stored = feed.storedIconURL || '';
+  if (!stored && (host.includes('twitter.com') || host.includes('x.com') || path.includes('/twitter/') || path.startsWith('/twitter') || path.includes('/x/'))) {
+    stored = 'https://abs.twimg.com/favicons/twitter.3.ico';
   }
-  return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+  if (!host && !stored) return null;
+  const params = new URLSearchParams();
+  if (stored) params.set('stored', stored);
+  if (feed.siteURL) params.set('site', feed.siteURL);
+  if (feed.feedURL) params.set('feed', feed.feedURL);
+  if (host) params.set('host', host);
+  return `robin-icon://icon/?${params.toString()}`;
 }
 
 function letter(title) {

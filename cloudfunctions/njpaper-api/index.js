@@ -10,7 +10,7 @@
  * 路由（经云接入暴露，/api 前缀可选，函数内部已归一化）：
  *   GET  /api/config            公共配置（微信登录可用性 / 套餐）
  *   POST /api/auth/wechat       微信扫码登录：code → JWT
- *   POST /api/auth/dev-login    开发模式登录（仅当微信未配置时可用）
+ *   POST /api/auth/dev-login    开发模式登录（需 DEV_LOGIN_ENABLED=1 且微信未配置，默认关闭）
  *   GET  /api/me                当前用户 + 会员状态（Bearer JWT）
  *   POST /api/pay/orders        创建订单（微信 Native 下单 → code_url；未配置走 mock）
  *   GET  /api/pay/orders/:no    查询自己的订单（客户端轮询；mock 4 秒后自动支付）
@@ -45,6 +45,9 @@ const CONFIG = {
   afdianMonthlyUrl: env.AFDIAN_MONTHLY_URL || '',
   afdianLifetimeUrl: env.AFDIAN_LIFETIME_URL || '',
   wxPay: !!(env.WXPAY_MCHID && env.WXPAY_SERIAL_NO && env.WXPAY_APIV3_KEY && env.WXPAY_PRIVATE_KEY && env.WXPAY_PUBLIC_KEY),
+  // mock 支付（下单 4 秒后查询即自动「支付成功」）必须显式开启：
+  // 线上默认关闭，否则任何人注册→下单→轮询即可白嫖会员，激活码收费通道被绕过
+  payMock: env.PAY_MOCK_ENABLED === '1',
 };
 if (!CONFIG.jwtSecret) {
   CONFIG.jwtSecret = 'dev-' + crypto.randomUUID();
@@ -303,10 +306,10 @@ async function redeemCode(uid, body) {
   return { ok: true, ...publicUser(fresh) };
 }
 
-/** 管理端批量生成激活码（需 X-Admin-Secret = ADMIN_SECRET）。 */
+/** 管理端批量生成激活码（需 X-Admin-Secret = ADMIN_SECRET，常数时间比较）。 */
 async function adminGenerateCodes(body, headers) {
   if (!CONFIG.adminSecret) throw httpError(503, '管理密钥未配置（ADMIN_SECRET）');
-  if (String(headers['x-admin-secret'] || '') !== CONFIG.adminSecret) throw httpError(403, '无权限');
+  if (!timingSafeEqualStr(headers['x-admin-secret'], CONFIG.adminSecret)) throw httpError(403, '无权限');
   const plan = String(body && body.plan || 'monthly');
   if (!PLANS[plan]) throw httpError(400, '未知套餐');
   const count = Math.min(Math.max(Number(body && body.count) || 1, 1), 200);
@@ -322,7 +325,7 @@ async function adminGenerateCodes(body, headers) {
 /** 管理端列出激活码（含状态统计，用于对账）。 */
 async function adminListCodes(headers) {
   if (!CONFIG.adminSecret) throw httpError(503, '管理密钥未配置（ADMIN_SECRET）');
-  if (String(headers['x-admin-secret'] || '') !== CONFIG.adminSecret) throw httpError(403, '无权限');
+  if (!timingSafeEqualStr(headers['x-admin-secret'], CONFIG.adminSecret)) throw httpError(403, '无权限');
   const { rows } = await rdb('GET', 'redeem_codes', { query: { order: 'created_at.desc', limit: '500' } });
   const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
   const stats = { total: list.length, unused: 0, redeemed: 0, disabled: 0 };
@@ -363,8 +366,7 @@ function getWxPay() {
 
 async function createNativeOrder(order) {
   const pay = getWxPay();
-  if (!pay) return { code_url: `mock:${order.out_trade_no}`, mock: true };
-  const result = await pay.transactions({
+  if (!pay) return { code_url: `mock:${order.out_trade_no}`, mock: true };  const result = await pay.transactions({
     description: `RobinRead ${PLANS[order.plan].title}`,
     out_trade_no: order.out_trade_no,
     notify_url: `${CONFIG.publicBase}/api/pay/notify`,
@@ -380,7 +382,7 @@ function getConfig() {
   return {
     ok: true,
     wx_login_enabled: CONFIG.wxLogin,
-    pay_mock: !CONFIG.wxPay,
+    pay_mock: !CONFIG.wxPay && CONFIG.payMock,
     appid: CONFIG.wxAppid,
     redirect_uri: CONFIG.publicBase ? `${CONFIG.publicBase}/auth/callback` : '',
     plans: Object.values(PLANS).map(({ id, title, price_fen, days }) => ({ id, title, price_fen, days })),
@@ -397,6 +399,10 @@ async function authWechat(body) {
 }
 
 async function authDevLogin(body) {
+  // 双重门禁：显式开关（DEV_LOGIN_ENABLED=1，默认关）+ 微信登录未配置。
+  // 早年只看后者——线上未配置微信时，任何人都能登入同一个 dev 共享账号
+  // （共享昵称/头像/会员资格/订单列表），是事实上的公开后门。
+  if (env.DEV_LOGIN_ENABLED !== '1') throw httpError(404, 'dev-login 未启用');
   if (CONFIG.wxLogin) throw httpError(404, 'dev-login 仅在微信登录未配置时可用');
   const user = await upsertWechatUser({
     unionid: 'dev-user', openid: 'dev-openid',
@@ -466,20 +472,67 @@ async function updateProfile(uid, body) {
   return { ok: true, ...publicUser(user) };
 }
 
-// 下单限频：同 uid 每分钟最多 5 单（实例内存级，够用的第一道闸）
-const orderRate = new Map();
-function allowOrder(uid) {
+// MARK: - 入口限流（实例内存级滑动窗口；云函数多实例下为第一道闸，非完整防线）
+
+const rateBuckets = new Map();
+
+/** key 在 windowMs 内最多 limit 次；超限返回 false。 */
+function allowRate(key, limit, windowMs = 60_000) {
   const now = Date.now();
-  const list = (orderRate.get(uid) || []).filter((t) => now - t < 60_000);
-  if (list.length >= 5) return false;
+  // 兜底清理：key 数量失控时顺手剔除已过窗口的
+  if (rateBuckets.size > 5000) {
+    for (const [k, v] of rateBuckets) {
+      if (!v.length || now - v[v.length - 1] > windowMs) rateBuckets.delete(k);
+    }
+  }
+  const list = (rateBuckets.get(key) || []).filter((t) => now - t < windowMs);
+  if (list.length >= limit) {
+    rateBuckets.set(key, list);
+    return false;
+  }
   list.push(now);
-  orderRate.set(uid, list);
+  rateBuckets.set(key, list);
   return true;
+}
+
+function clientIP(headers) {
+  // CloudBase 网关：官方 FAQ 明确 X-Forwarded-For / X-Real-IP 拿不到真实客户端 IP，
+  // 推荐 X-Original-Forwarded-For；退而求其次 XFF 取最后一段（网关追加段，客户端自报的首段可伪造）。
+  const original = String(headers['x-original-forwarded-for'] || '').split(',')[0].trim();
+  if (original) return original;
+  const real = String(headers['x-real-ip'] || '').trim();
+  if (real) return real;
+  const xff = String(headers['x-forwarded-for'] || '').split(',');
+  const last = xff[xff.length - 1].trim();
+  return last || null;
+}
+
+/**
+ * IP 键限流。网关未提供可信 IP 时返回 null——此时【跳过】IP 键判定，
+ * 绝不能让所有请求挤进同一个 'unknown' 桶（否则登录全局 10/min 等于发布即自我 DoS）。
+ * 该场景下限流仅由 username/uid 键承担。
+ */
+function allowIPRate(ip, limit) {
+  if (!ip) return true;
+  return allowRate(`ip:${ip}`, limit);
+}
+
+function timingSafeEqualStr(a, b) {
+  const ba = Buffer.from(String(a || ''));
+  const bb = Buffer.from(String(b || ''));
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+// 下单限频：同 uid 每分钟最多 5 单
+function allowOrder(uid) {
+  return allowRate(`order:${uid}`, 5);
 }
 
 async function createOrder(uid, body) {
   const plan = String((body && body.plan) || '');
   if (!PLANS[plan]) throw httpError(400, '未知套餐');
+  if (!CONFIG.wxPay && !CONFIG.payMock) throw httpError(503, '支付渠道暂未开通，请使用激活码兑换会员');
   if (!allowOrder(uid)) throw httpError(429, '下单太频繁，请稍后再试');
   const user = await getUser(uid);
   if (!user) throw httpError(401, '用户不存在');
@@ -620,12 +673,29 @@ exports.main = async (event) => {
     const auth = String(headers.authorization || '');
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
     const session = token ? verifyJWT(token) : null;
+    const ip = clientIP(headers);
+    const tooMany = () => jsonResponse(429, { ok: false, error: '请求过于频繁，请稍后再试' });
 
     if (method === 'GET' && route === '/config') return jsonResponse(200, getConfig());
-    if (method === 'POST' && route === '/auth/wechat') return jsonResponse(200, await authWechat(body));
-    if (method === 'POST' && route === '/auth/register') return jsonResponse(200, await authRegister(body));
-    if (method === 'POST' && route === '/auth/login') return jsonResponse(200, await authLogin(body));
-    if (method === 'POST' && route === '/auth/dev-login') return jsonResponse(200, await authDevLogin(body));
+    if (method === 'POST' && route === '/auth/wechat') {
+      if (!allowIPRate(ip, 10)) return tooMany();
+      return jsonResponse(200, await authWechat(body));
+    }
+    if (method === 'POST' && route === '/auth/register') {
+      // 注册可无限刷垃圾账号 + scryptSync 消耗 CPU，按 IP 收紧
+      if (!allowIPRate(ip, 5)) return tooMany();
+      return jsonResponse(200, await authRegister(body));
+    }
+    if (method === 'POST' && route === '/auth/login') {
+      // 防在线爆破：按 IP 10 次/分钟；按用户名 20 次/分钟（放宽，避免恶意锁死他人登录）
+      const usernameKey = `login:${String(body && body.username || '').trim().toLowerCase()}`;
+      if (!allowIPRate(ip, 10) || !allowRate(usernameKey, 20)) return tooMany();
+      return jsonResponse(200, await authLogin(body));
+    }
+    if (method === 'POST' && route === '/auth/dev-login') {
+      if (!allowIPRate(ip, 10)) return tooMany();
+      return jsonResponse(200, await authDevLogin(body));
+    }
     if (method === 'GET' && route === '/me') {
       if (!session) return jsonResponse(401, { ok: false, error: '未登录或登录已过期' });
       return jsonResponse(200, await me(session.uid));
@@ -645,10 +715,18 @@ exports.main = async (event) => {
     }
     if (method === 'POST' && route === '/redeem') {
       if (!session) return jsonResponse(401, { ok: false, error: '未登录或登录已过期' });
+      // 激活码是有限资源：按 uid 5 次/分钟 + 按 IP 10 次/分钟，防碰撞枚举与数据库打点
+      if (!allowRate(`redeem:${session.uid}`, 5) || !allowIPRate(ip, 10)) return tooMany();
       return jsonResponse(200, await redeemCode(session.uid, body));
     }
-    if (method === 'POST' && route === '/admin/generate-codes') return jsonResponse(200, await adminGenerateCodes(body, headers));
-    if (method === 'GET' && route === '/admin/redeem-codes') return jsonResponse(200, await adminListCodes(headers));
+    if (method === 'POST' && route === '/admin/generate-codes') {
+      if (!allowRate(`admin:${ip || 'global'}`, 10)) return tooMany();
+      return jsonResponse(200, await adminGenerateCodes(body, headers));
+    }
+    if (method === 'GET' && route === '/admin/redeem-codes') {
+      if (!allowRate(`admin:${ip || 'global'}`, 10)) return tooMany();
+      return jsonResponse(200, await adminListCodes(headers));
+    }
     if (method === 'POST' && route === '/pay/notify') return payNotify(event);
     if (method === 'GET' && route === '/auth/callback') {
       // 开放平台授权回调页：Electron 客户端在跳转前就拦截了 code，此页仅兜底展示

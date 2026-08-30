@@ -216,21 +216,26 @@ function entryAccountBadge(accountType, accountID, accountDisplayName) {
   return i18n.localized('FreshRSS');
 }
 
-/** Feed 图标地址推导，1:1 移植自 Feed.iconURL。 */
+/** Feed 图标地址：统一走 robin-icon:// 协议（主进程 FeedIconStore 三级缓存），与 renderer/views/sidebar.js 保持一致。 */
 function feedIconURL(feed) {
-  if (feed.storedIconURL) return feed.storedIconURL;
   let host = null;
   try {
     host = (feed.siteURL ? new URL(feed.siteURL).hostname : null)
       || (feed.feedURL ? new URL(feed.feedURL).hostname : null);
   } catch (_) { host = null; }
-  if (!host) return null;
-  host = host.toLowerCase();
+  host = host ? host.toLowerCase() : '';
   const path = feed.feedURL ? feed.feedURL.toLowerCase() : '';
-  if (host.includes('twitter.com') || host.includes('x.com') || path.includes('/twitter/') || path.startsWith('/twitter') || path.includes('/x/')) {
-    return 'https://abs.twimg.com/favicons/twitter.3.ico';
+  let stored = feed.storedIconURL || '';
+  if (!stored && (host.includes('twitter.com') || host.includes('x.com') || path.includes('/twitter/') || path.startsWith('/twitter') || path.includes('/x/'))) {
+    stored = 'https://abs.twimg.com/favicons/twitter.3.ico';
   }
-  return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+  if (!host && !stored) return null;
+  const params = new URLSearchParams();
+  if (stored) params.set('stored', stored);
+  if (feed.siteURL) params.set('site', feed.siteURL);
+  if (feed.feedURL) params.set('feed', feed.feedURL);
+  if (host) params.set('host', host);
+  return `robin-icon://icon/?${params.toString()}`;
 }
 
 function uuid() {

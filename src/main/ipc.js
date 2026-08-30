@@ -7,10 +7,21 @@
  */
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, session, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, session, nativeImage, protocol, shell } = require('electron');
 const { checkForUpdate } = require('./UpdateCheckService');
 const { errorMessage } = require('./AppStore');
 const ArticleExtractor = require('./ArticleExtractor');
+
+// 自定义图标协议必须先注册为 privileged（仅限 app ready 之前调用）。
+// 生产入口 main.js 在 ready 前 require 本模块，特权始终生效；
+// selftest 等 harness 在 ready 后才 require，跳过注册——非特权 scheme 的 <img> 加载仍可用。
+try {
+  if (!app.isReady()) {
+    protocol.registerSchemesAsPrivileged([
+      { scheme: 'robin-icon', privileges: { standard: false, secure: true, supportFetchAPI: true, stream: true } },
+    ]);
+  }
+} catch (_) { /* 已注册过或环境限制：退化为非特权 scheme */ }
 
 function createMainWindow(store) {
   let bounds = store.preferences.get('RobinRead.windowBounds', null);
@@ -93,14 +104,39 @@ function resolveIcon() {
   return undefined;
 }
 
-const { shell } = require('electron');
-
 function debounce(fn, ms) {
   let timer = null;
   return (...args) => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+}
+
+// MARK: Feed 图标协议（robin-icon:// → FeedIconStore 三级缓存）
+let _iconProtocolInstalled = false;
+function registerIconProtocol() {
+  if (_iconProtocolInstalled) return;
+  _iconProtocolInstalled = true;
+  const { FeedIconStore } = require('./FeedIconStore');
+  const icons = new FeedIconStore(path.join(app.getPath('userData'), 'favicons'));
+  protocol.handle('robin-icon', async (request) => {
+    try {
+      const url = new URL(request.url);
+      const dataURL = await icons.load({
+        storedIconURL: url.searchParams.get('stored') || '',
+        siteURL: url.searchParams.get('site') || '',
+        feedURL: url.searchParams.get('feed') || '',
+        host: url.searchParams.get('host') || '',
+      });
+      if (!dataURL) return new Response('', { status: 404 });
+      const comma = dataURL.indexOf(',');
+      const mime = dataURL.slice(5, comma).split(';')[0] || 'image/png';
+      const body = Buffer.from(dataURL.slice(comma + 1), 'base64');
+      return new Response(body, { headers: { 'Content-Type': mime, 'Cache-Control': 'max-age=86400' } });
+    } catch (_) {
+      return new Response('', { status: 404 });
+    }
+  });
 }
 
 // 图片防盗链通用治理：本地页面（file://）发起的图片请求不带 Referer，
@@ -132,6 +168,7 @@ function registerNetworkInterceptors() {
 
 function registerIPCHandlers(store, window) {
   registerNetworkInterceptors();
+  registerIconProtocol();
   const send = (channel, payload) => {
     if (!window.isDestroyed()) window.webContents.send(channel, payload);
   };

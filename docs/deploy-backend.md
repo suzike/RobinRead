@@ -17,15 +17,26 @@ GET  /api/config             公共配置（套餐/回调地址）
 POST /api/auth/register      账号密码注册 {username, password, nickname?}（用户名 3-20 字母数字下划线；密码 6-64）
 POST /api/auth/login         账号密码登录 {username, password}
 POST /api/auth/wechat        微信扫码登录（可选；需 WX_APPID/WX_SECRET）
-POST /api/auth/dev-login     开发登录（联调兜底，无 UI 入口）
+POST /api/auth/dev-login     开发登录（联调兜底，无 UI 入口；需环境变量 DEV_LOGIN_ENABLED=1，默认 404 关闭）
 GET  /api/me                 用户+会员状态（Bearer JWT）
 POST /api/profile            资料自定义 {nickname, avatar_url}（昵称≤24字；头像 http(s) 链接或 data:image base64 ≤180KB）
-POST /api/pay/orders         下单（真实 Native 下单需 WXPAY_* 5 项；否则 mock 渠道）
+POST /api/pay/orders         下单（真实 Native 下单需 WXPAY_* 5 项；无 WXPAY 且 PAY_MOCK_ENABLED=1 时才走 mock 渠道，
+                             否则 503「支付渠道暂未开通，请使用激活码兑换会员」）
 GET  /api/pay/orders/:no     查询订单（轮询；mock 下单 4 秒后自动支付成功）
 POST /api/pay/notify         微信支付回调（验签+解密+幂等开通）
-POST /api/redeem            兑换激活码 {code}（Bearer JWT；幂等 unused→redeemed，开通会员）
-POST /api/admin/generate-codes  批量生成激活码（`x-admin-secret` 头 = ADMIN_SECRET；{plan, count≤200}）
+POST /api/redeem            兑换激活码 {code}（Bearer JWT；幂等 unused→redeemed，开通会员；uid 5 次/分钟 + IP 10 次/分钟限流）
+POST /api/admin/generate-codes  批量生成激活码（`x-admin-secret` 头 = ADMIN_SECRET；{plan, count≤200}；10 次/分钟限流）
 ```
+
+## 安全开关与环境变量（2026-08-30 加固）
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `DEV_LOGIN_ENABLED` | 未设置（关闭） | dev-login 双门禁之一（另一门禁：微信未配置）。**生产环境严禁设置**，否则任何人可登入共享 dev 账号 |
+| `PAY_MOCK_ENABLED` | 未设置（关闭） | mock 支付通道开关。mock 模式下单 4 秒即自动「支付成功」=免费开会员，**线上保持关闭**；本地联调走 `server/mock-server.js`（它自己实现了 mock，与云函数无关） |
+| `JWT_SECRET` / `TCB_ENV_ID` / `TCB_API_KEY` / `ADMIN_SECRET` | 必备 | 见上 |
+
+限流（实例内存级滑动窗口）：`/auth/login` IP 10/min + 用户名 20/min；`/auth/register` IP 5/min；`/auth/wechat`、`/auth/dev-login` IP 10/min；`/redeem` uid 5/min + IP 10/min；admin IP 10/min；下单 uid 5/min。IP 取自 `X-Original-Forwarded-For`（CloudBase 网关推荐头）→ `X-Real-IP` → `X-Forwarded-For` 末段；取不到时**跳过 IP 键**（仅保留用户名/uid 键），避免所有请求挤进同一桶互相锁死。上线前建议临时记录一次 `event.headers` 实证网关 IP 头形态。
 
 ## 激活码兑换（微信支付办不下来时的收费通道）
 

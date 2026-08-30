@@ -123,6 +123,19 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+// 退出前同步落盘：偏好是 150ms 防抖写入，关窗后立即 quit 会丢掉最后 150ms 的修改
+// （窗口位置、主题、语言等）；同时关闭 SQLite（WAL checkpoint）。
+// 挂在 will-quit（窗口 close 之后）而非 before-quit：菜单 quit 路径上 before-quit
+// 先于窗口 close 事件触发，提前 flush 会丢掉 close 时 saveBounds 的最终窗口位置。
+// flushSync 幂等、LibraryDatabase.close 吞错幂等，重复调用安全。
+app.on('will-quit', () => {
+  if (!store) return;
+  try {
+    store.preferences.flushSync();
+    store.database.close();
+  } catch (_) { /* 退出路径不抛错 */ }
+});
+
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [

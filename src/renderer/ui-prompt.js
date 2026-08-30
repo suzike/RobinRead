@@ -11,7 +11,7 @@ import { icon } from './icons.js';
 function escapeHTML(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function attr(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
-function overlayBase() {
+function overlayBase(onEscape) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
@@ -24,7 +24,14 @@ function overlayBase() {
     </div>`;
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-  const esc = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } };
+  // ESC = 取消：必须 resolve，否则 await 调用方永久挂起
+  const esc = (e) => {
+    if (e.key === 'Escape') {
+      overlay.remove();
+      document.removeEventListener('keydown', esc);
+      if (onEscape) onEscape();
+    }
+  };
   document.addEventListener('keydown', esc);
   return { overlay, modal, esc };
 }
@@ -32,7 +39,7 @@ function overlayBase() {
 /** 提示输入框，返回 Promise<string|null>。 */
 export function promptBox(title, { placeholder = '', initial = '', multiline = false } = {}) {
   return new Promise((resolve) => {
-    const { overlay, modal, esc } = overlayBase();
+    const { overlay, modal, esc } = overlayBase(() => resolve(null));
     modal.querySelector('h3').textContent = title;
     const body = modal.querySelector('.sheet-body');
     const field = document.createElement('div');
@@ -67,7 +74,7 @@ export function promptBox(title, { placeholder = '', initial = '', multiline = f
 /** 确认框，返回 Promise<boolean>。 */
 export function confirmBox(title, { message = '', okLabel = t('确定'), danger = false } = {}) {
   return new Promise((resolve) => {
-    const { overlay, modal, esc } = overlayBase();
+    const { overlay, modal, esc } = overlayBase(() => resolve(false));
     modal.querySelector('h3').textContent = title;
     const body = modal.querySelector('.sheet-body');
     body.innerHTML = `<p class="sheet-hint" style="line-height:1.6;color:var(--text-secondary)">${escapeHTML(message)}</p>`;
@@ -89,7 +96,7 @@ export function confirmBox(title, { message = '', okLabel = t('确定'), danger 
 /** 消息提示框（非阻塞），用于替代 window.alert。 */
 export function alertBox(title, message) {
   return new Promise((resolve) => {
-    const { overlay, modal, esc } = overlayBase();
+    const { overlay, modal, esc } = overlayBase(() => resolve());
     modal.querySelector('h3').textContent = title;
     const body = modal.querySelector('.sheet-body');
     body.innerHTML = `<p class="sheet-hint" style="line-height:1.6;color:var(--text-secondary);white-space:pre-wrap">${escapeHTML(message)}</p>`;

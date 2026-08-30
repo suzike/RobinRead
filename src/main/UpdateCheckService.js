@@ -40,16 +40,46 @@ function normalizeVersion(tag) {
   return String(tag || '').replace(/^v/i, '').trim();
 }
 
-function isNewer(latest, current) {
-  const a = normalizeVersion(latest).split(/[.-]/).map((x) => Number.parseInt(x, 10) || 0);
-  const b = normalizeVersion(current).split(/[.-]/).map((x) => Number.parseInt(x, 10) || 0);
-  const len = Math.max(a.length, b.length);
+/** 解析版本号：core 为数字段，pre 为预发布段（null = 正式版）。 */
+function parseVersion(tag) {
+  const raw = normalizeVersion(tag);
+  const dash = raw.indexOf('-');
+  const core = (dash >= 0 ? raw.slice(0, dash) : raw)
+    .split('.').map((x) => Number.parseInt(x, 10) || 0);
+  const pre = dash >= 0
+    ? raw.slice(dash + 1).split('.').map((x) => (/^\d+$/.test(x) ? Number.parseInt(x, 10) : x))
+    : null;
+  return { core, pre };
+}
+
+/** 语义化比较：核心段按数值；预发布 < 正式版；预发布段数字按数值、数字段 < 字符串段、少段更小。 */
+function compareVersions(a, b) {
+  const len = Math.max(a.core.length, b.core.length);
   for (let i = 0; i < len; i += 1) {
-    const av = a[i] ?? 0;
-    const bv = b[i] ?? 0;
-    if (av !== bv) return av > bv;
+    const av = a.core[i] ?? 0;
+    const bv = b.core[i] ?? 0;
+    if (av !== bv) return av > bv ? 1 : -1;
   }
-  return false;
+  if (a.pre === null && b.pre === null) return 0;
+  if (a.pre === null) return 1;   // 1.3.0 > 1.3.0-beta.5
+  if (b.pre === null) return -1;
+  const plen = Math.max(a.pre.length, b.pre.length);
+  for (let i = 0; i < plen; i += 1) {
+    const av = a.pre[i];
+    const bv = b.pre[i];
+    if (av === undefined) return -1;
+    if (bv === undefined) return 1;
+    if (av === bv) continue;
+    if (typeof av === 'number' && typeof bv === 'number') return av > bv ? 1 : -1;
+    if (typeof av === 'number') return -1;
+    if (typeof bv === 'number') return 1;
+    return av > bv ? 1 : -1;
+  }
+  return 0;
+}
+
+function isNewer(latest, current) {
+  return compareVersions(parseVersion(latest), parseVersion(current)) > 0;
 }
 
 async function checkForUpdate(ignoredVersion) {

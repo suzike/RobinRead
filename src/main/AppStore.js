@@ -21,7 +21,7 @@ const { fetchFeed } = require('./FeedService');
 const OPMLService = require('./OPMLService');
 const ArticleExtractor = require('./ArticleExtractor');
 const { LLMService, LLMServiceError, ArticleChunker } = require('./LLMService');
-const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL, fetchWithTimeout } = require('./FreshRSS/FreshRSSClient');
+const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL } = require('./FreshRSS/FreshRSSClient');
 const { KnowledgeEngine } = require('./KnowledgeEngine');
 const { EvolutionEngine } = require('./EvolutionEngine');
 const { AihotService } = require('./AihotService');
@@ -796,7 +796,7 @@ class AppStore extends EventEmitter {
   searchEntries(query, { limit = 80 } = {}) {
     const trimmed = String(query || '').trim();
     if (!trimmed) return [];
-    const pattern = `%${trimmed.replace(/([%_])/g, '\$1')}%`;
+    const pattern = `%${trimmed.replace(/[%_]/g, (c) => '\\' + c)}%`;
     const rows = this.database.prepare(`
       SELECT
           i.id AS entry_id, i.feed_id AS feed_id, i.account_id AS account_id,
@@ -814,7 +814,7 @@ class AppStore extends EventEmitter {
       LEFT JOIN articles a ON a.item_id = i.id
       LEFT JOIN article_states s ON s.item_id = i.id
       WHERE f.is_deleted = 0
-        AND (a.title LIKE ? ESCAPE '' OR a.summary LIKE ? ESCAPE '' OR a.author LIKE ? ESCAPE '')
+        AND (a.title LIKE ? ESCAPE '\\' OR a.summary LIKE ? ESCAPE '\\' OR a.author LIKE ? ESCAPE '\\')
       ORDER BY COALESCE(a.published_at, i.created_at) DESC
       LIMIT ?
     `).all(pattern, pattern, pattern, limit);
@@ -1116,7 +1116,12 @@ class AppStore extends EventEmitter {
       }
       this._applyReaderItems(accountID, items, idMap);
 
-      // 3. 未读/星标对账
+      // 3. 回放本地变更（先推后对账：离线期间标记的已读/星标先上服务器，
+      //    否则下一步按服务器状态对账会把本地新改动回滚成旧状态）
+      await this._drainOutbox(accountID);
+
+      // 4. 未读/星标对账（跳过 outbox 中仍有待回放记录的文章——推送失败/退避中，
+      //    服务器状态暂不代表用户意图，不能被覆盖）
       const unreadSet = await client.fetchAllUnreadItemIDs();
       const starredSet = await client.fetchAllStarredItemIDs();
       this._reconcileStates(accountID, unreadSet.ids, starredSet.ids);
@@ -1129,9 +1134,6 @@ class AppStore extends EventEmitter {
         consecutiveFailureCount: 0,
         lastError: null,
       }));
-
-      // 4. 回放本地变更
-      await this._drainOutbox(accountID);
 
       this.syncStatus.set(accountID, { state: 'completed', message: null, finishedAt: nowSeconds() });
     } catch (err) {
@@ -1247,7 +1249,13 @@ class AppStore extends EventEmitter {
       WHERE i.account_id = ?
     `).all(accountID);
 
+    // 仍有待回放记录（推送失败/退避中）的文章不对账：服务器此刻的状态不代表用户意图
+    const pending = new Set(this.database.prepare(
+      'SELECT DISTINCT item_id FROM article_state_outbox WHERE account_id = ?'
+    ).all(accountID).map((r) => r.item_id));
+
     for (const row of rows) {
+      if (pending.has(row.id)) continue;
       const shouldRead = row.is_read === 1 || !unreadSet.has(row.id);
       const shouldStar = starredSet.has(row.id);
       if (row.is_read !== (shouldRead ? 1 : 0)) this.statesRepo.setRead(row.id, shouldRead);

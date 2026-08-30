@@ -153,8 +153,9 @@ export class AihotView {
     for (const s of SECTIONS) {
       const item = document.createElement('div');
       item.className = `modal-nav-item ${s.id === this.section ? 'active' : ''}`;
-      item.innerHTML = `<span class="nav-icon">${icon(s.icon)}</span><span></span>${this._sectionBadge(s.id)}`;
-      item.querySelector('span:last-child').textContent = t(s.label);
+      // 徽标 span 在最后，label 必须用专属类名定位（last-child 会命中徽标本身）
+      item.innerHTML = `<span class="nav-icon">${icon(s.icon)}</span><span class="nav-label"></span>${this._sectionBadge(s.id)}`;
+      item.querySelector('.nav-label').textContent = t(s.label);
       item.addEventListener('click', () => {
         this.section = s.id;
         this._currentStory = null;
@@ -228,12 +229,28 @@ export class AihotView {
   }
 
   _sectionUnread(sectionId) {
-    if (!this.local?.readIDs || this._flatHot == null) return 0;
+    // 注意：不要加「_flatHot 之类的前置缓存」条件——那些字段从未赋值，
+    // 会导致徽标恒为 0。未读数基于 readIDs 与当前榜单缓存计算，
+    // 已读键口径与 _markVisibleRead 一致（id || title）。
+    if (!this.local?.readIDs) return 0;
     const read = new Set(this.local.readIDs);
-    const count = (list) => (list || []).filter((x) => x && !read.has(x.key || x.id)).length;
+    const count = (list) => (list || []).filter((x) => x && !read.has(x.id || x.title)).length;
     if (sectionId === 'hot') return count(this._hotCache || []);
     if (sectionId === 'selected') return count(this._selectedCache || []);
     return 0;
+  }
+
+  /** 轻量徽标刷新：数据加载/已读状态变化后只重绘各板块角标，不重建整个侧栏。 */
+  _refreshBadges() {
+    if (!this.modal) return;
+    const items = this.modal.querySelectorAll('.modal-sidebar .modal-nav-item');
+    SECTIONS.forEach((s, i) => {
+      const item = items[i];
+      if (!item) return;
+      const old = item.querySelector('.aihot-badge');
+      if (old) old.remove();
+      item.insertAdjacentHTML('beforeend', this._sectionBadge(s.id));
+    });
   }
 
   _cacheBust() {
@@ -270,7 +287,7 @@ export class AihotView {
     let list = items || [];
     if (this.unreadOnly) {
       const read = new Set(this.local?.readIDs || []);
-      list = list.filter((it) => !read.has(it.key || it.id));
+      list = list.filter((it) => !read.has(it.id || it.title));
     }
     if (this.category !== 'all' && kind === 'selected') {
       list = list.filter((it) => (it.category || '') === this.category);
@@ -299,6 +316,7 @@ export class AihotView {
     else if (this.section === 'favorites') this._renderFavorites(this.data || []);
     else if (this.section === 'story') this._renderStory(this.data || {});
     this._markVisibleRead();
+    this._refreshBadges();
   }
 
   /** 3. 已读跟踪：当前屏内容自动记为已读（下次进来可只看增量） */
@@ -306,7 +324,10 @@ export class AihotView {
     const ids = [];
     if (this.section === 'hot') (this.data || []).forEach((it) => ids.push(it.id || it.title));
     if (this.section === 'selected') (this.data || []).forEach((it) => ids.push(it.id || it.title));
-    if (ids.length) window.robin.aihotMarkRead?.(ids).then((snap) => { this.local = snap?.data || this.local; }).catch(() => null);
+    if (ids.length) window.robin.aihotMarkRead?.(ids).then((snap) => {
+      this.local = snap?.data || this.local;
+      this._refreshBadges(); // 记为已读后当前板块角标即时归零
+    }).catch(() => null);
   }
 
   // MARK: 热点榜（5 热度条 + 奖牌 + 关键词置顶）

@@ -440,11 +440,18 @@ class ArticleStateRepository {
 
   markOutboxAttempt(accountID, itemID, stateKey, error) {
     if (error) {
+      const row = this.db.prepare(`
+        SELECT attempt_count FROM article_state_outbox
+        WHERE account_id = ? AND item_id = ? AND state_key = ?
+      `).get(accountID, itemID, stateKey);
+      const attempts = ((row && row.attempt_count) || 0) + 1;
+      // 指数退避 30s * 2^n，封顶 1 小时（原实现 Math.min(6,1) 是常量，恒 60s）
+      const delay = Math.min(3600, 30 * (2 ** Math.min(6, attempts)));
       this.db.prepare(`
         UPDATE article_state_outbox
-        SET attempt_count = attempt_count + 1, next_attempt_at = ?, last_error = ?
+        SET attempt_count = ?, next_attempt_at = ?, last_error = ?
         WHERE account_id = ? AND item_id = ? AND state_key = ?
-      `).run(nowSeconds() + Math.min(3600, 30 * (2 ** Math.min(6, 1))), error, accountID, itemID, stateKey);
+      `).run(attempts, nowSeconds() + delay, error, accountID, itemID, stateKey);
     } else {
       this.db.prepare(`
         DELETE FROM article_state_outbox

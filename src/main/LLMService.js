@@ -21,6 +21,7 @@ class LLMServiceError extends Error {
       rateLimited: '请求过于频繁或当前额度受限。请稍后重试，并检查服务商账户额度。',
       missingAPIKey: '尚未设置 API Key。请先在设置中完成 AI 服务配置。',
       requestInProgress: '已有 AI 任务正在进行，请稍后再试。',
+      timeout: '连接长时间无响应，已中止。请检查网络与服务商状态后重试。',
     };
     super(kind === 'httpStatus' ? i18n.localizedFormat('模型接口返回 HTTP %lld：%@', code, message) : (messages[kind] || kind));
     this.kind = kind;
@@ -192,67 +193,108 @@ ${JSON.stringify(paragraphs)}`;
   }
 
   async _nonStreaming(request) {
-    const response = await fetchWithTimeout(request);
-    const data = Buffer.from(await response.arrayBuffer());
-    validateHTTP(response, data);
-    let result;
+    const { response, bump, finish } = await fetchWithTimeout(request);
     try {
-      result = JSON.parse(data.toString('utf8'));
-    } catch (_) {
-      throw new LLMServiceError('invalidResponse');
+      // 非流式同样按空闲计时：有字节到达就续期。长文上下文（6 万字 + reasoning）
+      // 的合法耗时可超 90s，不能按总时长掐断；持续无输出才中止。
+      const chunks = [];
+      for await (const chunk of response.body) {
+        bump();
+        chunks.push(chunk);
+      }
+      const data = Buffer.concat(chunks);
+      validateHTTP(response, data);
+      let result;
+      try {
+        result = JSON.parse(data.toString('utf8'));
+      } catch (_) {
+        throw new LLMServiceError('invalidResponse');
+      }
+      const text = result?.choices?.[0]?.message?.content?.trim();
+      if (!text) throw new LLMServiceError('invalidResponse');
+      return text;
+    } catch (err) {
+      if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.name === 'TimeoutError')) {
+        throw new LLMServiceError('timeout');
+      }
+      throw err;
+    } finally {
+      finish();
     }
-    const text = result?.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new LLMServiceError('invalidResponse');
-    return text;
   }
 
   async _stream(request, onDelta) {
-    const response = await fetchWithTimeout(request);
-    if (!response.ok) {
-      const data = Buffer.from(await response.arrayBuffer());
-      validateHTTP(response, data);
-      throw new LLMServiceError('invalidResponse');
-    }
-    const decoder = new TextDecoder('utf8');
-    let output = '';
-    let buffer = '';
-    let done = false;
-    for await (const chunk of response.body) {
-      buffer += decoder.decode(chunk, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line.startsWith('data:')) continue;
-        const value = line.slice(5).trim();
-        if (value === '[DONE]') { done = true; break; }
-        let parsed;
-        try { parsed = JSON.parse(value); } catch (_) { continue; }
-        const delta = parsed?.choices?.[0]?.delta?.content;
-        if (delta) {
-          output += delta;
-          await onDelta(delta);
-        }
+    const { response, bump, finish } = await fetchWithTimeout(request);
+    try {
+      if (!response.ok) {
+        const data = Buffer.from(await response.arrayBuffer());
+        validateHTTP(response, data);
+        throw new LLMServiceError('invalidResponse');
       }
-      if (done) break;
+      const decoder = new TextDecoder('utf8');
+      let output = '';
+      let buffer = '';
+      let finished = false;
+      for await (const chunk of response.body) {
+        bump(); // 看门狗续期：只有持续 90s 无任何输出才会中止
+        buffer += decoder.decode(chunk, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line.startsWith('data:')) continue;
+          const value = line.slice(5).trim();
+          if (value === '[DONE]') { finished = true; break; }
+          let parsed;
+          try { parsed = JSON.parse(value); } catch (_) { continue; }
+          const delta = parsed?.choices?.[0]?.delta?.content;
+          if (delta) {
+            output += delta;
+            await onDelta(delta);
+          }
+        }
+        if (finished) break;
+      }
+      if (!output) throw new LLMServiceError('emptyResponse');
+      return output;
+    } catch (err) {
+      // 看门狗中止（连接卡死/半开）→ 转成可读错误，任务失败可见且 canceller 能释放
+      if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.name === 'TimeoutError')) {
+        throw new LLMServiceError('timeout');
+      }
+      throw err;
+    } finally {
+      finish();
     }
-    if (!output) throw new LLMServiceError('emptyResponse');
-    return output;
   }
 }
 
+const LLM_IDLE_TIMEOUT_MS = 90000;
+
+/**
+ * 请求级 AbortController + 空闲看门狗：超时覆盖到响应体消费完成（原先只保护到响应头，
+ * LLM 网关中途卡死时流式读取会零超时挂起，且取消回调因不再有 delta 而失效）。
+ * 流式场景每收到数据调用 bump() 续期——长文生成可持续远超 90s，空闲才计时。
+ */
 async function fetchWithTimeout(request) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 90000);
+  let timer = null;
+  const fire = () => controller.abort();
+  const bump = () => { clearTimeout(timer); timer = setTimeout(fire, LLM_IDLE_TIMEOUT_MS); };
+  const finish = () => clearTimeout(timer);
+  bump();
   try {
-    return await fetch(request.url, {
+    const response = await fetch(request.url, {
       method: 'POST',
       headers: request.headers,
       body: request.body,
       signal: controller.signal,
     });
-  } finally {
-    clearTimeout(timer);
+    return { response, bump, finish };
+  } catch (err) {
+    finish();
+    if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) throw new LLMServiceError('timeout');
+    throw err;
   }
 }
 
