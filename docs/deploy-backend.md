@@ -96,3 +96,22 @@ NANJU_API_BASE=http://127.0.0.1:3777 npx electron scripts/probe-account.js   # �
 - 改价：改函数顶部 `PLANS` → `updateFunctionCode` 重新部署（客户端价格来自 /api/config 自动同步）
 - 对账：`membership_events` 全量流水；`queryPgDatabase(action="sql")` 即席查询
 - 退款：v1 未做接口，PG 手工置 `orders.status='refunded'` 并回退 `users.member_until`（记流水）
+
+## CLI 重新部署（2026-08-30 实测踩通的路径）
+
+登录凭据在 `~/.config/.cloudbase/auth.json`（CLI 登录一次即可），CLI 用 `npx -y -p @cloudbase/cli tcb`（v3.8.1）。
+
+```bash
+# 核对现状（环境变量在 detail 输出里，改动前先备份）
+npx -y -p @cloudbase/cli tcb fn detail njpaper-api -e ronbinread-d9gmsqi2vc0a18f04 --json
+
+# 代码更新：⚠️ `fn code update` 的 COS 上传在本机稳定 60s 超时（CLI bug），
+# zip 模式报「不能大于 1.5MB」——都不可用。走 fn deploy + cloudbaserc.json --force：
+# 仓库根建 cloudbaserc.json（functionRoot=./cloudfunctions，functions[0] 逐字复刻
+# detail 里的 runtime/timeout/memorySize/handler/envVariables/triggers），然后：
+npx -y -p @cloudbase/cli tcb fn deploy njpaper-api --force
+# 部署完立即删除 cloudbaserc.json（含密钥，严禁提交）
+```
+
+部署后验证：`/api/config` 应返回新字段口径；`dev-login` 期望 404；登录连打 11 次期望出现 429；
+突发请求下偶发 500 是 PG 冷启动超时（rdb 12s），单发即恢复，属瞬态。
