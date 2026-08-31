@@ -1043,7 +1043,18 @@ class AppStore extends EventEmitter {
       return { synced: true };
     }
     const { fetchFeed } = require('./FeedService');
-    const result = await fetchFeed(feed);
+    let result;
+    try {
+      // 用户显式刷新：强制全量拉取（跳过条件请求头），防桥接/CDN 缓存错误 304
+      // 导致「源明明有新文章却刷不出来」
+      result = await fetchFeed(feed, { force: true });
+    } catch (err) {
+      if (/wechat2rss/.test(feed.feedURL) && !/^HTTP /.test(String(err.message || ''))) {
+        // 连接级失败（连接被重置/超时）：第三方桥被网络屏蔽的典型表现
+        throw new Error(i18n.localized('公众号桥接服务连接失败（可能已被网络屏蔽）。请检查代理/网络后重试，或在订阅商店使用自建桥。'));
+      }
+      throw err;
+    }
     if (result.notModified) {
       this.feedsRepo.updateFeed(feedID, (f) => ({ ...f, lastRefreshedAt: nowSeconds() }));
       return { newEntries: 0 };

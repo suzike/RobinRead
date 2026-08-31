@@ -7,9 +7,10 @@
  */
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BrowserWindow, Menu, Tray, nativeTheme, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeTheme, shell, dialog, ipcMain, net } = require('electron');
 const { i18n } = require('./I18N');
 const ArticleExtractor = require('./ArticleExtractor');
+const FeedService = require('./FeedService');
 const { AppStore } = require('./AppStore');
 const { registerIPCHandlers, createMainWindow } = require('./ipc');
 
@@ -176,6 +177,10 @@ if (!IS_PROBE) {
 
     // 预热正文提取 worker：消除首次「阅读原文/正文补全」的进程冷启动延迟
     setTimeout(() => { try { ArticleExtractor.prewarm(); } catch (_) { /* 静默 */ } }, 2500);
+
+    // Feed 抓取注入 Electron net.fetch：走 Chromium 网络栈（系统代理），
+    // 被屏蔽的源（公众号桥、境外源）在用户开启系统代理时即可达
+    try { FeedService.useNetFetch((url, options) => net.fetch(url, options)); } catch (_) { /* 静默回退全局 fetch */ }
 
     buildMenu();
 
