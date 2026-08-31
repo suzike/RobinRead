@@ -38,12 +38,14 @@ contextBridge.exposeInMainWorld('robin', {
   refresh: () => invoke('refresh:run'),
   refreshFeed: (feedID) => invoke('refresh:feed', feedID),
   search: (query, options) => invoke('app:search', query, options),
+  smartFolderSearch: (query, limit) => invoke('app:smartFolderSearch', query, limit),
   generateDigest: () => invoke('ai:digest'),
   cachedDigest: () => invoke('ai:digestCache'),
 
   // 阅读状态
   markRead: (entryID, read) => invoke('read:mark', entryID, read),
   toggleStar: (entryID) => invoke('read:toggleStar', entryID),
+  toggleLater: (entryID, later) => invoke('read:toggleLater', entryID, later),
   markAllRead: (scope) => invoke('read:markAll', scope),
 
   // 正文提取

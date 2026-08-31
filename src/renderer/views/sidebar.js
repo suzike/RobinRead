@@ -2,7 +2,7 @@
 /**
  * RobinRead（知更）— 侧栏视图
  *
- * - 「阅读」分组：今天 / 未读 / 收藏（三个智能行）
+ * - 「阅读」分组：今天 / 未读 / 收藏 / 稍后读（四个智能行）
  * - 账户分组（可折叠，状态持久化）：根订阅 + 文件夹（DisclosureGroup 可折叠）
  * - Feed 行：favicon（失败回退首字母徽章）+ 未读数；拖拽归类到文件夹
  * - 文件夹行：单击选中；再次单击折叠/展开；右键（全部已读/重命名/删除）
@@ -58,6 +58,8 @@ export class SidebarView {
     readingGroup.appendChild(this.smartRow('today', t('今天'), 'sun', counts?.todayUnread ?? 0, scope));
     readingGroup.appendChild(this.smartRow('unread', t('未读'), 'circle', counts?.allUnread ?? 0, scope));
     readingGroup.appendChild(this.smartRow('starred', t('收藏'), 'star', counts?.starred ?? 0, scope));
+    // 稍后读：短期待办队列（与收藏的长期留存相区别），带未完成计数
+    readingGroup.appendChild(this.smartRow('later', t('稍后读'), 'clock', counts?.laterCount ?? 0, scope));
     readingSection.appendChild(readingGroup);
     this.scrollEl.appendChild(readingSection);
 
@@ -435,7 +437,12 @@ export class SidebarView {
       this._bindCount(row, counts?.unreadByFeed?.[row.dataset.feedId] ?? 0);
     });
     const smartRows = this.scrollEl.querySelectorAll('.sidebar-row[data-scope]');
-    const map = { today: counts?.todayUnread ?? 0, unread: counts?.allUnread ?? 0, starred: counts?.starred ?? 0 };
+    const map = {
+      today: counts?.todayUnread ?? 0,
+      unread: counts?.allUnread ?? 0,
+      starred: counts?.starred ?? 0,
+      later: counts?.laterCount ?? 0,
+    };
     smartRows.forEach((row) => this._bindCount(row, map[row.dataset.scope] ?? 0));
   }
 }

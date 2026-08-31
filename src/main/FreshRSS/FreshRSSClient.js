@@ -39,10 +39,15 @@ class ReaderAPIAuthenticator {
 
     let extractedAuth = null;
     for (const line of responseText.split(/\r?\n/)) {
-      const parts = line.split('=');
-      if (parts.length === 2 && parts[0].trim() === 'Auth') {
-        extractedAuth = parts[1].trim();
-        break;
+      // 按「第一个 =」切分键值：Auth 值本身可能包含 '='（base64 风格 token），
+      // 旧实现 split('=') 要求恰好两段，遇此类 token 会误判为解析失败
+      const eq = line.indexOf('=');
+      if (eq > 0 && line.slice(0, eq).trim() === 'Auth') {
+        const candidate = line.slice(eq + 1).trim();
+        if (candidate) {
+          extractedAuth = candidate;
+          break;
+        }
       }
     }
     if (!extractedAuth) {
@@ -95,10 +100,30 @@ class ReaderAPIAuthenticator {
 function canonicalBaseURL(rawURL) {
   let urlString = String(rawURL).trim();
   while (urlString.endsWith('/')) urlString = urlString.slice(0, -1);
+  // Miniflux（内置 Google Reader 兼容 API）：地址已以 /greader 结尾 → 原样使用。
+  // 其下的 /accounts/ClientLogin、/reader/api/0/... 拼接结构与 FreshRSS 完全一致，
+  // 因此只要 base 正确，整套 ReaderAPIClient 无需其他改动。
+  if (urlString.endsWith('/greader')) {
+    return urlString;
+  }
   if (urlString.endsWith('/api/greader.php') || urlString.endsWith('/p/api/greader.php')) {
     return urlString;
   }
   return `${urlString}/api/greader.php`;
+}
+
+/**
+ * Miniflux 预设的端点归一化：用户只填裸域名（https://host[:port]，无路径）时补 /greader；
+ * 已带路径（如 /greader 结尾或子路径部署）按用户填写保留（剥尾斜杠），不擅自拼接。
+ */
+function normalizeMinifluxEndpoint(rawURL) {
+  const trimmed = String(rawURL ?? '').trim();
+  if (!trimmed) return trimmed;
+  const withoutTrailing = trimmed.replace(/\/+$/, '');
+  if (/^https?:\/\/[^/]+$/i.test(withoutTrailing)) {
+    return `${withoutTrailing}/greader`;
+  }
+  return withoutTrailing;
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
@@ -109,7 +134,10 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     // 超时保护延伸到响应体消费完成：readBody() 读完响应后调用 finish() 解除；
     // 原先只保护到响应头，响应体读取卡死时会永久挂起。
     response.finish = () => clearTimeout(timer);
-    return response;
+    // 契约：login / ensureWriteToken / _performRequest 统一按 { response } 解构。
+    // （16d8cb3 把调用方改成解构后此处仍直接返回 Response，导致全链路拿到 undefined——
+    //  diag-phase6-miniflux 探针捕获的既有回归，此处修正。）
+    return { response };
   } catch (err) {
     clearTimeout(timer);
     if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) {
@@ -431,4 +459,4 @@ function streamItemToModel(item) {
   };
 }
 
-module.exports = { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL, fetchWithTimeout };
+module.exports = { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL, normalizeMinifluxEndpoint, fetchWithTimeout };

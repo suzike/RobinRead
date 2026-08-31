@@ -417,6 +417,7 @@ function scopeTitle(scope) {
     case 'today': return t('今天');
     case 'unread': return t('未读');
     case 'starred': return t('收藏');
+    case 'later': return t('稍后读');
     case 'feed': {
       const feed = findFeed(scope.feedID);
       return feed ? feed.title : t('订阅');
@@ -1320,8 +1321,24 @@ function openKnowledgeCenter() {
       kc.dismiss();
       handleEntrySelect(itemID, { isRead: true, isStarred: false });
     },
+    onOpenSmartFolder: ({ name, query }) => {
+      // 智能文件夹 = 保存的搜索：任一关键词命中（标题/摘要/正文）即入列表
+      kc.dismiss();
+      runSmartFolderSearch(name, query);
+    },
   });
   kc.present();
+}
+
+/** 智能文件夹：任一关键词命中即收录（OR 语义），列表头显示文件夹名。 */
+async function runSmartFolderSearch(name, query) {
+  const result = await window.robin.smartFolderSearch(query, 200);
+  const items = result.ok ? result.data : [];
+  state.listItems = items;
+  views.list.setSearchMode(true);
+  views.list.setDigestVisible(false);
+  views.list.render(items, { kind: 'smart', name }, state.selectedEntryID, false);
+  updateToolbarState();
 }
 
 function openEvolutionView() {
@@ -1429,7 +1446,7 @@ function bindEvents() {
     if (deltaChanged && !setChanged && !scopeSetAffecting && state.listItems.length) {
       views.list.patchEntries(snapshot.entryChanges || [], state.selectedEntryID);
       const delta = (snapshot.entryChanges || []).find((c) => c.id === state.selectedEntryID);
-      if (delta) views.reader.updateEntryState({ isRead: delta.isRead, isStarred: delta.isStarred });
+      if (delta) views.reader.updateEntryState({ isRead: delta.isRead, isStarred: delta.isStarred, isLater: delta.isLater });
       return;
     }
     // 静默刷新行状态（不整体重建，避免打断滚动与选择）
@@ -1452,7 +1469,7 @@ function bindEvents() {
       }
     }
     const item = state.listItems.find((entry) => entry.id === state.selectedEntryID);
-    if (item) views.reader.updateEntryState({ isRead: item.isRead, isStarred: item.isStarred });
+    if (item) views.reader.updateEntryState({ isRead: item.isRead, isStarred: item.isStarred, isLater: item.isLater });
   });
 
   /** 当前视图的行集是否会随条目读/星状态变化（决定增量补丁后是否需要重拉）。 */

@@ -41,8 +41,8 @@ function downloadText(filename, content, mime = 'text/plain') {
 }
 
 export class KnowledgeCenter {
-  constructor({ onOpenArticle }) {
-    this.handlers = { onOpenArticle };
+  constructor({ onOpenArticle, onOpenSmartFolder }) {
+    this.handlers = { onOpenArticle, onOpenSmartFolder };
     this.tab = 'highlights';
     this.data = {};
   }
@@ -690,7 +690,11 @@ export class KnowledgeCenter {
       row.className = 'evo-feedback-row';
       row.innerHTML = `<span style="display:flex;align-items:center;gap:8px">${icon('ai')}<b>${escapeHTML(f.name)}</b></span>
         <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-tertiary)">${escapeHTML(f.query || '')}</span>
+        <button class="btn-text" data-open="${attr(f.id)}">${escapeHTML(t('打开'))}</button>
         <button class="btn icon-only" data-del="${attr(f.id)}" title="${attr(t('删除'))}">${icon('trash')}</button></span>`;
+      row.querySelector('[data-open]').addEventListener('click', () => {
+        this.handlers.onOpenSmartFolder?.({ name: f.name, query: f.query || '' });
+      });
       row.querySelector('[data-del]').addEventListener('click', async (e) => {
         e.stopPropagation();
         await window.robin.kbDeleteSmartFolder(f.id);

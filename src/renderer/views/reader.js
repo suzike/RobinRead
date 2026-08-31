@@ -478,11 +478,12 @@ export class ReaderView {
     if (entry.author) parts.push(escapeHTML(entry.author));
     if (entry.publishedAt) parts.push(escapeHTML(formatFullDate(entry.publishedAt)));
     meta.innerHTML = parts.join(' &bull; ');
-    // 头部操作区：「听」（TTS 朗读，只要有正文就提供）+ 应用内精读 + 浏览器打开（次）
+    // 头部操作区：「听」（TTS 朗读，只要有正文就提供）+ 稍后读 + 应用内精读 + 浏览器打开（次）
     {
       const actions = document.createElement('span');
       actions.className = 'robin-header-original-actions';
       this._ttsAppendHeaderButton(actions);
+      this._appendLaterHeaderButton(actions);
       if (entry.url) {
         const readBtn = document.createElement('button');
         readBtn.className = 'btn-text bordered';
@@ -2979,10 +2980,43 @@ export class ReaderView {
     this._renderStudyPanel(true);
   }
 
-  updateEntryState({ isRead, isStarred }) {
+  updateEntryState({ isRead, isStarred, isLater }) {
     if (!this.entry) return;
     this.entry.isRead = isRead;
     this.entry.isStarred = isStarred;
+    if (isLater !== undefined) this.entry.isLater = isLater; // 未携带时不覆盖（老调用方兼容）
+    this._refreshLaterHeaderButton();
+  }
+
+  // MARK: - 稍后读（短期待办队列，与已读/收藏独立）
+
+  /** 头部「稍后读」toggle 按钮：读着累先入队，处理完移出（本地状态，不参与 FreshRSS 同步）。 */
+  _appendLaterHeaderButton(actions) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-text bordered nj-later-header-btn';
+    btn.dataset.role = 'later';
+    btn.innerHTML = `${icon('clock')}<span style="margin-left:4px"></span>`;
+    btn.addEventListener('click', () => {
+      const entry = this.entry;
+      if (!entry) return;
+      const next = !entry.isLater;
+      entry.isLater = next; // 乐观更新：state:changed 重拉后由 updateEntryState 校正
+      this._refreshLaterHeaderButton();
+      window.robin.toggleLater(entry.id, next);
+    });
+    this._laterHeaderBtn = btn;
+    this._refreshLaterHeaderButton();
+    actions.appendChild(btn);
+  }
+
+  /** 依 entry.isLater 刷新头部按钮文案/态（打开新文与状态回推共用）。 */
+  _refreshLaterHeaderButton() {
+    const btn = this._laterHeaderBtn;
+    if (!btn) return;
+    const later = Boolean(this.entry?.isLater);
+    btn.classList.toggle('active', later);
+    btn.querySelector('span').textContent = t(later ? '移出稍后读' : '稍后读');
+    btn.title = t(later ? '处理完了：移出稍后读队列' : '读着累？先存入稍后读队列');
   }
 
   focus() {

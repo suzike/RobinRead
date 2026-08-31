@@ -320,6 +320,22 @@ const MIGRATIONS = [
       `);
     },
   },
+
+  {
+    id: 'v6-article-is-later',
+    up: (db) => {
+      // 稍后读（与已读/收藏独立的第三状态）：读着累先存队列，处理完移除。
+      // 本地待办状态，不参与 FreshRSS outbox 同步。
+      // migrations 内无既有加列先例：ALTER TABLE ADD COLUMN 包 try/catch（列已存在时幂等跳过）。
+      try {
+        db.exec('ALTER TABLE article_states ADD COLUMN is_later INTEGER NOT NULL DEFAULT 0;');
+      } catch (_) { /* 列已存在：幂等重入 */ }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_article_states_later
+        ON article_states(is_later, item_id);
+      `);
+    },
+  },
 ];
 
 /** 应用所有未执行的迁移（等价 GRDB DatabaseMigrator.migrate）。 */

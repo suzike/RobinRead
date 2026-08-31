@@ -22,7 +22,7 @@ const { fetchFeed } = require('./FeedService');
 const OPMLService = require('./OPMLService');
 const ArticleExtractor = require('./ArticleExtractor');
 const { LLMService, LLMServiceError, ArticleChunker } = require('./LLMService');
-const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL } = require('./FreshRSS/FreshRSSClient');
+const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL, normalizeMinifluxEndpoint } = require('./FreshRSS/FreshRSSClient');
 const { KnowledgeEngine } = require('./KnowledgeEngine');
 const { EvolutionEngine } = require('./EvolutionEngine');
 const { AihotService } = require('./AihotService');
@@ -146,6 +146,7 @@ class AppStore extends EventEmitter {
     this._outboxTimer = null;
     this._retainedUnreadIDs = new Set(); // 未读会话保留
     this._retainedStarredIDs = new Set();
+    this._retainedLaterIDs = new Set();  // 稍后读会话保留（本地状态，仿 retainedUnreadIDs）
 
     // 状态推送瘦身：数据修订号 + 缓存 + 条目增量（避免每次已读触发全量重算与重拉）
     this._dataRev = 0;            // 影响侧栏计数的变更（计数缓存失效依据）
@@ -298,11 +299,17 @@ class AppStore extends EventEmitter {
   }
 
   /** 条目读/星变更：失效计数缓存 + 记录增量（渲染层免重拉、只打补丁）。 */
-  _noteEntryChange(entryID, isRead, isStarred) {
+  _noteEntryChange(entryID, isRead, isStarred, isLater) {
     this._dataRev += 1;
     this._entryStateRev += 1;
     if (!entryID) return;
-    this._entryChanges.set(entryID, { id: entryID, isRead: isRead === 1 || isRead === true, isStarred: isStarred === 1 || isStarred === true });
+    this._entryChanges.set(entryID, {
+      id: entryID,
+      isRead: isRead === 1 || isRead === true,
+      isStarred: isStarred === 1 || isStarred === true,
+      // isLater 仅在稍后读切换时随增量下发（既有调用方不传 → 载荷保持原样）
+      ...(isLater === undefined ? {} : { isLater: isLater === 1 || isLater === true }),
+    });
     if (this._entryChanges.size > 400) {
       const oldest = this._entryChanges.keys().next().value;
       this._entryChanges.delete(oldest);
@@ -323,7 +330,7 @@ class AppStore extends EventEmitter {
     if (this._countsCache && this._countsCache.rev === this._dataRev) {
       sidebarCounts = this._countsCache.counts;
     } else {
-      sidebarCounts = { allUnread: 0, todayUnread: 0, starred: 0, unreadByFeed: {}, unreadByFolder: {} };
+      sidebarCounts = { allUnread: 0, todayUnread: 0, starred: 0, laterCount: 0, unreadByFeed: {}, unreadByFolder: {} };
       for (const id of accountIDs) {
         const counts = this.timeline.fetchSidebarCounts(id, startOfDay);
         sidebarCounts = mergeCounts(sidebarCounts, counts);
@@ -551,7 +558,10 @@ class AppStore extends EventEmitter {
         scope,
         currentItemID,
         direction,
-        retainingIDs: direction === 'next' ? this._retainedUnreadIDs : this._retainedStarredIDs,
+        // later 视图翻篇用稍后读保留集；其余视图维持原方向语义（unread → 未读保留，starred → 星标保留）
+        retainingIDs: scope?.kind === 'later'
+          ? this._retainedLaterIDs
+          : (direction === 'next' ? this._retainedUnreadIDs : this._retainedStarredIDs),
       });
       if (item) return item;
     }
@@ -567,11 +577,12 @@ class AppStore extends EventEmitter {
   readerArticle(entryID) {
     const cached = this._preparedLRU.get(entryID);
     if (cached) {
-      // 已读/星标不逐出载荷，但返回前用库内最新值刷新（单行读，代价小）
+      // 已读/星标/稍后读不逐出载荷，但返回前用库内最新值刷新（单行读，代价小）
       const fresh = this.articlesRepo.entry(entryID);
       if (fresh) {
         cached.entry.isRead = fresh.isRead;
         cached.entry.isStarred = fresh.isStarred;
+        cached.entry.isLater = fresh.isLater;
         this._scheduleAdjacentPrefetch(entryID);
         return cached;
       }
@@ -908,6 +919,30 @@ class AppStore extends EventEmitter {
     }
     this.evolution.recordBehavior({ itemID: entryID, feedID: entry.feedID, action: next ? 'star' : 'skip' });
     this._noteEntryChange(entryID, entry.isRead, next);
+    this._emitState();
+    return next;
+  }
+
+  /**
+   * 稍后读切换（本地待办状态，与已读/收藏独立的第三状态）：
+   * - FreshRSS outbox 不参与（远端没有该状态，纯本地）；
+   * - 行集变更（later 视图增/删行）→ _bumpListSet，渲染层全量重拉当前列表；
+   * - 保留集仿 _retainedUnreadIDs：adjacentItem 翻篇时已在队列中的行不被 scope 过滤误伤。
+   */
+  toggleLater(entryID, later = null) {
+    const entry = this.articlesRepo.entry(entryID);
+    if (!entry) return null;
+    const next = later == null ? !entry.isLater : Boolean(later);
+    this.statesRepo.setLater(entryID, next);
+    if (next) {
+      this._retainedLaterIDs.add(entryID);
+      if (this._retainedLaterIDs.size > 500) {
+        const oldest = this._retainedLaterIDs.values().next().value;
+        this._retainedLaterIDs.delete(oldest);
+      }
+    }
+    this._noteEntryChange(entryID, entry.isRead, entry.isStarred, next);
+    this._bumpListSet();
     this._emitState();
     return next;
   }
@@ -1428,11 +1463,13 @@ class AppStore extends EventEmitter {
 
   // MARK: - FreshRSS 账户
 
-  async addFreshRSSAccount({ displayName, endpointURL, username, password }) {
-    const canonical = canonicalBaseURL(endpointURL);
+  async addFreshRSSAccount({ displayName, endpointURL, username, password, service = null }) {
+    // Miniflux 预设：裸域名（无路径）补 /greader；FreshRSS 预设保持既有语义不变
+    const normalizedURL = service === 'miniflux' ? normalizeMinifluxEndpoint(endpointURL) : endpointURL;
+    const canonical = canonicalBaseURL(normalizedURL);
     // 先验证凭据（一次性 Authenticator，不落地）
     const probe = new ReaderAPIAuthenticator();
-    await probe.login(endpointURL, username, password);
+    await probe.login(normalizedURL, username, password);
 
     const account = this.accounts.insertFreshRSSAccount({ displayName, endpointURL: canonical, username });
     this.credentials.setFreshRSSPassword(account.id, password);
@@ -1471,9 +1508,11 @@ class AppStore extends EventEmitter {
     return this.apiClients.get(accountID);
   }
 
-  async validateFreshRSSCredentials(endpointURL, username, password) {
+  async validateFreshRSSCredentials(endpointURL, username, password, service = null) {
+    // Miniflux 预设：裸域名（无路径）补 /greader 后再探测（与 addFreshRSSAccount 同规则）
+    const normalizedURL = service === 'miniflux' ? normalizeMinifluxEndpoint(endpointURL) : endpointURL;
     const probe = new ReaderAPIAuthenticator();
-    await probe.login(endpointURL, username, password);
+    await probe.login(normalizedURL, username, password);
   }
 
   /** FreshRSS 同步：订阅列表 + 增量文章 + 未读/星标对账 + outbox 回放。 */
@@ -1585,7 +1624,11 @@ class AppStore extends EventEmitter {
     for (const item of items) {
       if (!item.id) continue;
       const existingItemID = idMap.get(item.id);
-      const itemID = existingItemID ?? `gr:${stableDigest(item.id)}`;
+      // itemID 必须按账号作用域生成：items 主键是 id（不带 account_id），
+      // 不同 Reader 账号（FreshRSS/Miniflux）的外部 ID 都是 feed/1、tag:.../item/<hex>
+      // 这类服务端本地编号，极易重叠；不带账号前缀会让第二个账号的 upsert
+      // ON CONFLICT(id) 静默改写第一个账号的文章。存量行经 idMap 继续命中，升级安全。
+      const itemID = existingItemID ?? `gr:${accountID}:${stableDigest(item.id)}`;
       const feed = this._feedForReaderItem(accountID, item);
       if (!feed) continue;
 
@@ -2525,6 +2568,7 @@ function mergeCounts(a, b) {
     allUnread: a.allUnread + b.allUnread,
     todayUnread: a.todayUnread + b.todayUnread,
     starred: a.starred + b.starred,
+    laterCount: (a.laterCount || 0) + (b.laterCount || 0),
     unreadByFeed,
     unreadByFolder,
   };

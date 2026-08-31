@@ -16,7 +16,7 @@ document.addEventListener('contextmenu', (event) => {
 export class ContextMenu {
   static show(x, y, items) {
     ContextMenu.dismissAll();
-    const injected = ContextMenu._injectEntryIDItem(items);
+    const injected = ContextMenu._injectEntryIDItem(ContextMenu._injectLaterToggleItem(items));
     _lastEntryRow = null; // 一次性消费
     const menu = ContextMenu._build(injected, 0);
     document.body.appendChild(menu);
@@ -45,6 +45,27 @@ export class ContextMenu {
       label,
       icon: 'copy',
       onClick: () => { window.robin?.copyText(entryID); },
+    });
+    return list;
+  }
+
+  /**
+   * 列表行右键时在菜单顶部注入「稍后读 / 移出稍后读」toggle（本地待办，短期待办队列）。
+   * 文案按该行当前状态切换：行 DOM 带 data-is-later（list.js rowFor 写入并随状态补丁刷新）。
+   * 非列表行上下文不注入；已有同类项时去重。
+   */
+  static _injectLaterToggleItem(items) {
+    const row = _lastEntryRow;
+    const entryID = row?.dataset?.entryId;
+    if (!entryID) return items;
+    const isLater = row.dataset.isLater === '1';
+    const label = isLater ? t('移出稍后读') : t('稍后读');
+    const list = [...(items || [])];
+    if (list.some((it) => it?.label === label)) return list;
+    list.unshift({
+      label,
+      icon: 'clock',
+      onClick: () => { window.robin?.toggleLater(entryID, !isLater); },
     });
     return list;
   }

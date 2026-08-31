@@ -42,6 +42,7 @@ function entryRowToEntry(row) {
     contentHTML: row.content_html ?? null,
     isRead: Number(row.is_read ?? 0) === 1,
     isStarred: Number(row.is_starred ?? 0) === 1,
+    isLater: Number(row.is_later ?? 0) === 1,
     updatedAt: row.updated_at,
     dateArrived: row.date_arrived ?? row.created_at,
   };
@@ -358,6 +359,7 @@ class ArticleRepository {
       SELECT i.id, i.account_id, i.external_id, i.feed_id, i.created_at, i.updated_at,
              a.title, a.author, a.url, a.published_at, a.summary, a.content_html,
              COALESCE(s.is_read, 0) AS is_read, COALESCE(s.is_starred, 0) AS is_starred,
+             COALESCE(s.is_later, 0) AS is_later,
              COALESCE(s.date_arrived, i.created_at) AS date_arrived
       FROM items i
       LEFT JOIN articles a ON a.item_id = i.id
@@ -371,6 +373,7 @@ class ArticleRepository {
       SELECT i.id, i.account_id, i.external_id, i.feed_id, i.created_at, i.updated_at,
              a.title, a.author, a.url, a.published_at, a.summary, a.content_html,
              COALESCE(s.is_read, 0) AS is_read, COALESCE(s.is_starred, 0) AS is_starred,
+             COALESCE(s.is_later, 0) AS is_later,
              COALESCE(s.date_arrived, i.created_at) AS date_arrived
       FROM items i
       LEFT JOIN articles a ON a.item_id = i.id
@@ -420,6 +423,19 @@ class ArticleStateRepository {
       VALUES (?, 0, ?, ?, ?)
       ON CONFLICT(item_id) DO UPDATE SET is_starred = excluded.is_starred, updated_at = excluded.updated_at
     `).run(itemID, isStarred ? 1 : 0, now, now);
+  }
+
+  /**
+   * 稍后读切换（本地待办状态）：与已读/收藏独立的第三状态。
+   * DO UPDATE 只改 is_later——已读/星标不被覆盖；upsert 分支吃列默认值 0。
+   */
+  setLater(itemID, isLater) {
+    const now = nowSeconds();
+    this.db.prepare(`
+      INSERT INTO article_states (item_id, is_read, is_starred, is_later, date_arrived, updated_at)
+      VALUES (?, 0, 0, ?, ?, ?)
+      ON CONFLICT(item_id) DO UPDATE SET is_later = excluded.is_later, updated_at = excluded.updated_at
+    `).run(itemID, isLater ? 1 : 0, now, now);
   }
 
   /** 将 outbox 队列写入待同步状态（ FreshRSS 账户）。 */

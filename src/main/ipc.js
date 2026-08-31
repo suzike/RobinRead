@@ -465,6 +465,7 @@ function registerIPCHandlers(store, window) {
 
   // MARK: 搜索
   handle('app:search', (query, options) => store.searchEntries(query, options || {}));
+  handle('app:smartFolderSearch', (query, limit) => store.smartFolderSearch(query, { limit: Number(limit) || 200 }));
 
   // MARK: 今日简报（流式 + 当日缓存秒开）
   handle('ai:digest', () => store.generateTodayDigest((delta) => send('ai:digest-delta', { delta })));
@@ -477,6 +478,7 @@ function registerIPCHandlers(store, window) {
   // MARK: 阅读状态
   handle('read:mark', (entryID, read) => store.markRead(entryID, read));
   handle('read:toggleStar', (entryID) => store.toggleStar(entryID));
+  handle('read:toggleLater', (entryID, later) => store.toggleLater(entryID, later));
   handle('read:markAll', (scope) => store.markAllRead(scope));
 
   // MARK: 正文提取

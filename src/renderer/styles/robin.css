@@ -2848,3 +2848,29 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
     box-shadow: none !important;
   }
 }
+
+/* ==========================================================================
+   稍后读（Read Later）— 与已读/收藏独立的第三状态（短期待办队列）
+   纸感低彩度：时钟灰绿调，绝不与收藏的暖赭（--warm-accent）争色。
+   ========================================================================== */
+
+/* 列表行 meta 小标识（复用 star-mini 模式） */
+.entry-meta .later-mini {
+  color: var(--text-tertiary);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+.entry-meta .later-mini svg { width: 10px; height: 10px; }
+.entry-row.later .later-mini { color: var(--accent); opacity: 0.82; }
+
+/* 阅读器头部 toggle 按钮：入队后转低饱和强调色描边态 */
+.robin-header-original-actions .nj-later-header-btn.active {
+  color: var(--accent);
+  border-color: var(--note-border);
+  background: rgba(97, 115, 87, 0.08);
+}
+body.dark .robin-header-original-actions .nj-later-header-btn.active {
+  background: rgba(151, 178, 134, 0.10);
+}
+.nj-later-header-btn svg { width: 11px; height: 11px; }

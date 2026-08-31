@@ -998,18 +998,41 @@ export async function showRenameFolder(folder, onDone) {
 export function showFreshRSSAccount(onAdded) {
   const { overlay, modal } = smallModal(t('添加 FreshRSS 账号'));
   const body = modal.querySelector('.sheet-body');
+  // 服务类型下拉：Miniflux 与 FreshRSS 共用同一账户类型（freshRSS），
+  // 差异只在端点地址（Miniflux 的 Google Reader API base 以 /greader 结尾）
+  const serviceSelect = selectField(body, t('服务类型'), 'server', [
+    ['freshrss', t('FreshRSS')],
+    ['miniflux', t('Miniflux（Google Reader API）')],
+  ]);
   const nameInput = field(body, t('显示名称'), 'person', 'FreshRSS');
   const endpointInput = field(body, t('服务器地址'), 'server', 'https://freshrss.example.com');
   const userInput = field(body, t('用户名'), 'person', 'api_user');
   const passwordInput = field(body, t('应用专用密码'), 'general', '', true);
-  hint(body, t('在 FreshRSS 网页「设置 → 账户 → API 管理」中开启 API 并生成应用专用密码。'));
+  const freshRSSHint = t('在 FreshRSS 网页「设置 → 账户 → API 管理」中开启 API 并生成应用专用密码。');
+  const minifluxHint = t('Miniflux 用户：地址填 https://你的实例/greader（2.42+ 内置 Google Reader API），裸域名会自动补 /greader；在 Miniflux「设置 → 集成」中启用 Google Reader API 并使用其专用用户名与密码。');
+  const hintEl = hint(body, freshRSSHint);
+
+  const applyServiceUI = () => {
+    const isMiniflux = serviceSelect.value === 'miniflux';
+    endpointInput.placeholder = isMiniflux ? 'https://miniflux.example.com/greader' : 'https://freshrss.example.com';
+    nameInput.placeholder = isMiniflux ? 'Miniflux' : 'FreshRSS';
+    hintEl.textContent = isMiniflux ? minifluxHint : freshRSSHint;
+  };
+  serviceSelect.addEventListener('change', applyServiceUI);
 
   submitBar(modal, t('取消'), t('验证并添加'), async (button) => {
+    const isMiniflux = serviceSelect.value === 'miniflux';
+    let endpointURL = endpointInput.value.trim();
+    if (isMiniflux && /^https?:\/\/[^/]+\/?$/i.test(endpointURL)) {
+      // Miniflux 预设：裸域名补 /greader（与主进程 normalizeMinifluxEndpoint 同规则的轻量副本）
+      endpointURL = `${endpointURL.replace(/\/+$/, '')}/greader`;
+    }
     const payload = {
-      displayName: nameInput.value.trim() || 'FreshRSS',
-      endpointURL: endpointInput.value.trim(),
+      displayName: nameInput.value.trim() || (isMiniflux ? 'Miniflux' : 'FreshRSS'),
+      endpointURL,
       username: userInput.value.trim(),
       password: passwordInput.value,
+      service: isMiniflux ? 'miniflux' : null,
     };
     if (!payload.endpointURL || !payload.username || !payload.password) return false;
     button.textContent = t('正在验证…');
@@ -1263,6 +1286,7 @@ function hint(container, text) {
   el.className = 'sheet-hint';
   el.textContent = text;
   container.appendChild(el);
+  return el; // 返回引用，便于按表单状态切换提示文案
 }
 
 function submitBar(modal, cancelLabel, confirmLabel, onSubmit) {

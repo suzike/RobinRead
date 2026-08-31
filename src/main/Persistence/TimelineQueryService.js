@@ -22,6 +22,7 @@ function rowToListItem(row) {
     publishedAt: row.published_at ?? null,
     isRead: Number(row.is_read ?? 0) === 1,
     isStarred: Number(row.is_starred ?? 0) === 1,
+    isLater: Number(row.is_later ?? 0) === 1,
     feedIconURL: feedIconURL({
       storedIconURL: row.stored_icon_url ?? null,
       siteURL: row.site_url ?? null,
@@ -46,7 +47,8 @@ const LIST_SELECT = `
       f.feed_url AS feed_url,
       a.published_at AS published_at,
       COALESCE(s.is_read, 0) AS is_read,
-      COALESCE(s.is_starred, 0) AS is_starred
+      COALESCE(s.is_starred, 0) AS is_starred,
+      COALESCE(s.is_later, 0) AS is_later
   FROM items i
   INNER JOIN feeds f ON f.id = i.feed_id
   LEFT JOIN accounts acc ON acc.id = i.account_id
@@ -97,6 +99,16 @@ class TimelineQueryService {
       WHERE f.is_deleted = 0 AND s.is_starred = 1 ${accountWhere};
     `).get(...params).c;
 
+    // 稍后读队列计数（与已读/收藏独立的第三状态，短期待办）
+    const laterCount = this.database.prepare(`
+      SELECT COUNT(*) AS c
+      FROM items i
+      INNER JOIN article_states s ON s.item_id = i.id
+      INNER JOIN feeds f ON f.id = i.feed_id
+      LEFT JOIN accounts acc ON acc.id = i.account_id
+      WHERE f.is_deleted = 0 AND s.is_later = 1 ${accountWhere};
+    `).get(...params).c;
+
     const unreadByFeed = {};
     for (const row of this.database.prepare(`
       SELECT i.feed_id AS feed_id, COUNT(*) AS unread_count
@@ -126,7 +138,7 @@ class TimelineQueryService {
       unreadByFolder[row.folder_name] = row.unread_count;
     }
 
-    return { allUnread, todayUnread, starred, unreadByFeed, unreadByFolder };
+    return { allUnread, todayUnread, starred, laterCount, unreadByFeed, unreadByFolder };
   }
 
   _scopeClauses(accountID, scope, retainingIDs) {
@@ -162,6 +174,16 @@ class TimelineQueryService {
           const ids = [...retainingIDs];
           where.push(`(s.is_starred = 1 OR i.id IN (${ids.map(() => '?').join(',')}))`);
           params.push(...ids);
+        }
+        break;
+      case 'later':
+        // 稍后读队列：retainingIDs 模式照抄 unread（移出队列的行默认消失，保留集例外）
+        if (!retainingIDs || retainingIDs.size === 0) {
+          where.push('s.is_later = 1');
+        } else {
+          const laterRetained = [...retainingIDs];
+          where.push(`(s.is_later = 1 OR i.id IN (${laterRetained.map(() => '?').join(',')}))`);
+          params.push(...laterRetained);
         }
         break;
       case 'feed':

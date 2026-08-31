@@ -86,6 +86,11 @@ export class ListView {
         empty.innerHTML = `<div class="glyph">${icon('star')}</div><h3></h3><p></p>`;
         empty.querySelector('h3').textContent = t('还没有收藏');
         empty.querySelector('p').textContent = t('阅读时按 M 或点工具栏 ☆ 收藏文章，收藏的文章都会保存在这里。');
+      } else if (scope?.kind === 'later') {
+        // 稍后读视图空态：短期待办队列已清空
+        empty.innerHTML = `<div class="glyph">${icon('clock')}</div><h3></h3><p></p>`;
+        empty.querySelector('h3').textContent = t('稍后读队列为空');
+        empty.querySelector('p').textContent = t('读着累先存起来：右键文章或点阅读器「稍后读」，处理完移出即可。');
       } else {
         empty.innerHTML = `<div class="glyph">${icon('newspaper')}</div><h3></h3><p></p>`;
         empty.querySelector('h3').textContent = t('没有文章');
@@ -114,6 +119,8 @@ export class ListView {
       case 'today': return t('今天');
       case 'unread': return t('未读');
       case 'starred': return t('收藏');
+      case 'later': return t('稍后读');
+      case 'smart': return scope.name || t('智能文件夹');
       case 'feed': {
         for (const account of window.__robinSidebar || []) {
           const feed = (account.allFeeds || []).find((f) => f.id === scope.feedID);
@@ -134,8 +141,9 @@ export class ListView {
   rowFor(item) {
     const row = document.createElement('article');
     const showSummary = shouldShowSummary(item.title, item.summaryPreview);
-    row.className = `entry-row ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${showSummary ? 'has-summary' : ''}`;
+    row.className = `entry-row ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''} ${showSummary ? 'has-summary' : ''}`;
     row.dataset.entryId = item.id;
+    row.dataset.isLater = item.isLater ? '1' : '0'; // 右键菜单注入「稍后读」toggle 依据
 
     const favicon = item.feedIconURL
       ? `<img class="entry-favicon" src="${attr(item.feedIconURL)}" referrerpolicy="no-referrer" loading="lazy"/>`
@@ -151,6 +159,7 @@ export class ListView {
           ${favicon}
           <span class="entry-source"></span>
           ${badge ? `<span class="entry-account-badge"></span>` : ''}
+          ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
           ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
           <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
         </div>
@@ -243,50 +252,59 @@ export class ListView {
     this.topInset?.classList.toggle('search-mode', active);
   }
 
-  /** 状态变更：仅打补丁（读/星），不重建（对应 patchEntryState）。 */
+  /** 状态变更：仅打补丁（读/星/稍后读），不重建（对应 patchEntryState）。 */
   updateItems(items, selectedID) {
     const byID = new Map(items.map((item) => [item.id, item]));
     for (const row of this.rowsHost.querySelectorAll('.entry-row')) {
       const next = byID.get(row.dataset.entryId);
       if (!next) continue;
-      row.classList.toggle('read', next.isRead);
-      row.classList.toggle('unread', !next.isRead);
-      row.classList.toggle('starred', next.isStarred);
-      const star = row.querySelector('.star-mini');
-      if (next.isStarred && !star) {
-        const meta = row.querySelector('.entry-meta');
-        const el = document.createElement('span');
-        el.className = 'star-mini';
-        el.innerHTML = icon('starFilled');
-        meta.insertBefore(el, meta.querySelector('.entry-time'));
-      } else if (!next.isStarred && star) {
-        star.remove();
-      }
+      this._patchRowState(row, next);
     }
     if (selectedID) this.markSelected(selectedID);
   }
 
-  /** 状态推送增量补丁：只更新变更的条目（{id,isRead,isStarred}[]），不做任何重拉。 */
+  /** 状态推送增量补丁：只更新变更的条目（{id,isRead,isStarred,isLater?}[]），不做任何重拉。 */
   patchEntries(changes, selectedID) {
     const byID = new Map(changes.map((item) => [item.id, item]));
     for (const row of this.rowsHost.querySelectorAll('.entry-row')) {
       const next = byID.get(row.dataset.entryId);
       if (!next) continue;
-      row.classList.toggle('read', next.isRead);
-      row.classList.toggle('unread', !next.isRead);
-      row.classList.toggle('starred', next.isStarred);
-      const star = row.querySelector('.star-mini');
-      if (next.isStarred && !star) {
-        const meta = row.querySelector('.entry-meta');
-        const el = document.createElement('span');
-        el.className = 'star-mini';
-        el.innerHTML = icon('starFilled');
-        meta.insertBefore(el, meta.querySelector('.entry-time'));
-      } else if (!next.isStarred && star) {
-        star.remove();
-      }
+      this._patchRowState(row, next);
     }
     if (selectedID) this.markSelected(selectedID);
+  }
+
+  /** 单行读/星/稍后读状态补丁（updateItems 与 patchEntries 共用）。 */
+  _patchRowState(row, next) {
+    row.classList.toggle('read', next.isRead);
+    row.classList.toggle('unread', !next.isRead);
+    row.classList.toggle('starred', next.isStarred);
+    const star = row.querySelector('.star-mini');
+    if (next.isStarred && !star) {
+      const meta = row.querySelector('.entry-meta');
+      const el = document.createElement('span');
+      el.className = 'star-mini';
+      el.innerHTML = icon('starFilled');
+      meta.insertBefore(el, meta.querySelector('.entry-time'));
+    } else if (!next.isStarred && star) {
+      star.remove();
+    }
+    // 稍后读标识：仅在本行数据实际携带 isLater 时校正（增量载荷可能不含该字段）
+    if (next.isLater !== undefined) {
+      row.classList.toggle('later', Boolean(next.isLater));
+      row.dataset.isLater = next.isLater ? '1' : '0';
+      const laterMini = row.querySelector('.later-mini');
+      if (next.isLater && !laterMini) {
+        const meta = row.querySelector('.entry-meta');
+        const el = document.createElement('span');
+        el.className = 'later-mini';
+        el.title = t('稍后读');
+        el.innerHTML = icon('clock');
+        meta.insertBefore(el, meta.querySelector('.star-mini') || meta.querySelector('.entry-time'));
+      } else if (!next.isLater && laterMini) {
+        laterMini.remove();
+      }
+    }
   }
 
   _onScroll() {
