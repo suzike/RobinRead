@@ -197,6 +197,12 @@ contextBridge.exposeInMainWorld('robin', {
   pickSavePath: (defaultName) => invoke('app:pickSavePath', { defaultName }),
   writeTextFile: (filePath, content) => invoke('app:writeTextFile', { filePath, content }),
 
+  // 商店健康 + AI 探索（订阅源发现）
+  storeHealth: () => invoke('store:health'),
+  exploreRun: (payload) => invoke('explore:run', payload),
+  exploreExplain: (payload) => invoke('explore:explain', payload),
+  exploreDismiss: (payload) => invoke('explore:dismiss', payload),
+
   // 无边框窗口控制
   winMinimize: () => ipcRenderer.send('window:minimize'),
   winToggleMaximize: () => ipcRenderer.send('window:maximize'),

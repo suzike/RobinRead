@@ -101,6 +101,19 @@ class LLMService {
     });
   }
 
+  /** AI 探索：基于真实抓取的最近样章生成源解释（禁止编造未给出的信息）。 */
+  async explainFeed({ name, url, samples, interestTags }, configuration, apiKey) {
+    const sampleText = (samples || []).map((s) => `- 《${s.title || '无标题'}》：${s.snippet || ''}`).join('\n');
+    const interest = (interestTags || []).length ? `读者兴趣标签：${interestTags.join('、')}。` : '';
+    return this.complete({
+      prompt: `订阅源：${name}\n地址：${url}\n最近文章样章：\n${sampleText}\n\n${interest}`,
+      system: `你是一位严谨的中文阅读策展人。只依据给出的样章信息（不得编造未提供的细节），为这个订阅源写一段 80-150 字的中文推荐说明，依次覆盖：这个源讲什么、写作风格、适合谁订阅、更新节奏${interest ? '、为什么契合上述兴趣' : ''}。直接输出说明正文，不要标题和客套。`,
+      configuration, apiKey,
+      forceDisableReasoning: true,
+      overrideTemperature: 0.3,
+    });
+  }
+
   async articleContext(text, configuration, apiKey) {
     return this.complete({
       prompt: `Article:\n\n${ArticleChunker.contextualArticle(text, '', 60000)}`,

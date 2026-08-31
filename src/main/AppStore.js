@@ -26,6 +26,8 @@ const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL } = require('.
 const { KnowledgeEngine } = require('./KnowledgeEngine');
 const { EvolutionEngine } = require('./EvolutionEngine');
 const { AihotService } = require('./AihotService');
+const { ExploreService } = require('./ExploreService');
+const FeedDiscovery = require('./FeedDiscovery');
 const { ReaderAPIError } = require('./FreshRSS/ReaderAPIError');
 const {
   defaultLLMConfiguration, deepSeekLLMConfiguration, plainText, stableDigest,
@@ -133,6 +135,7 @@ class AppStore extends EventEmitter {
     this.knowledge = new KnowledgeEngine(this);
     this.evolution = new EvolutionEngine(this);
     this.aihot = new AihotService();
+    this.explore = new ExploreService(this);
     this.apiClients = new Map(); // accountID -> ReaderAPIClient
     this.refreshStatus = { state: 'idle' };
     this.syncStatus = new Map(); // accountID -> {state, message}
@@ -662,7 +665,16 @@ class AppStore extends EventEmitter {
       if (!gate.ok) throw gate.error;
     }
 
-    const result = await fetchFeed({ feedURL });
+    let result;
+    try {
+      result = await fetchFeed({ feedURL });
+    } catch (err) {
+      // 不是直连 feed 地址（如博客首页/域名）：站点级自动发现，贴首页即可订阅
+      const disc = await FeedDiscovery.discoverFeed(feedURL).catch(() => null);
+      if (!disc || !disc.ok) throw err;
+      result = { notModified: false, parsed: disc.parsed, etag: null, lastModified: null };
+      feedURL = disc.feedURL;
+    }
     if (result.notModified) throw new Error(i18n.localized('Feed 内容格式不完整。'));
 
     let folderID = null;
@@ -2402,6 +2414,23 @@ class AppStore extends EventEmitter {
       result[account.id] = this.accounts.getSyncState(account.id);
     }
     return result;
+  }
+
+  /** 订阅源健康状态（商店卡片标注用）。key = feed_url。 */
+  healthByFeedURL() {
+    const rows = this.database.prepare(`
+      SELECT f.feed_url AS url, h.is_dead, h.consecutive_failures, h.last_success_at
+      FROM feed_health h JOIN feeds f ON f.id = h.feed_id
+    `).all();
+    const map = {};
+    for (const r of rows) {
+      map[r.url] = {
+        isDead: Boolean(r.is_dead),
+        recentFailures: r.consecutive_failures,
+        lastSuccessAt: r.last_success_at ?? null,
+      };
+    }
+    return map;
   }
 
   // MARK: - 偏好

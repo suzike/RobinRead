@@ -131,6 +131,12 @@ class EvolutionEngine {
 
   // ── 阅读行为与兴趣画像 ────────────────────────────────────
 
+  /** 直接调整画像键权重（AI 探索的「不感兴趣」反馈用；键形如 domain:example.com）。 */
+  bumpInterestKey(key, delta) {
+    if (!key || !Number.isFinite(delta)) return;
+    this._bumpInterest(key, delta);
+  }
+
   /** 记录一次行为。action: read / star / highlight / skip / note / ai */
   recordBehavior({ itemID, feedID = null, action, weight = 1.0 }) {
     const allowed = ['read', 'star', 'highlight', 'skip', 'note', 'ai', 'review'];

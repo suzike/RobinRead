@@ -424,6 +424,12 @@ function registerIPCHandlers(store, window) {
   handle('aihot:setKeywords', (kw) => store.aihotSetKeywords(kw));
   handle('aihot:deepRead', (payload) => store.aihotDeepRead(payload));
 
+  // MARK: 商店健康 + AI 探索（订阅源发现）
+  handle('store:health', () => store.healthByFeedURL());
+  handle('explore:run', (payload) => store.explore.run(payload || {}));
+  handle('explore:explain', (payload) => store.explore.explain(payload || {}));
+  handle('explore:dismiss', (payload) => store.explore.dismiss(payload || {}));
+
   // MARK: 账号与会员（微信登录 / 会员状态 / 订单）
   const { AuthService } = require('./Account/AuthService');
   const auth = new AuthService({

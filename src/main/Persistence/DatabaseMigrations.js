@@ -302,6 +302,24 @@ const MIGRATIONS = [
       } catch (_) { /* FTS5 不可用：搜索保持 LIKE */ }
     },
   },
+
+  {
+    id: 'v5-explored-feeds',
+    up: (db) => {
+      // AI 探索（订阅源发现）：候选源的探索记录与反馈闭环
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explored_feeds (
+            url          TEXT PRIMARY KEY NOT NULL,
+            domain       TEXT,
+            verdict      TEXT NOT NULL DEFAULT 'explored',
+            score        REAL,
+            explanation  TEXT,
+            explored_at  REAL NOT NULL
+        );
+        CREATE INDEX idx_explored_feeds_domain ON explored_feeds(domain);
+      `);
+    },
+  },
 ];
 
 /** 应用所有未执行的迁移（等价 GRDB DatabaseMigrator.migrate）。 */
