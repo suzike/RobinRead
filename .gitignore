@@ -9,3 +9,4 @@ shots/
 paperrss.tar.gz
 .DS_Store
 Thumbs.db
+dist-release/
