@@ -14,7 +14,7 @@
  *
  * 交互原则：AIHot 已把内容总结成中文——一切点击先在应用内读中文，英文原文只作深挖入口。
  */
-import { t } from '../i18n.js';
+import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
 
@@ -22,10 +22,10 @@ function timeAgo(iso) {
   if (!iso) return '';
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
-  if (d > 0) return `${d} 天前`;
-  if (h > 0) return `${h} 小时前`;
-  if (m > 0) return `${m} 分钟前`;
-  return '刚刚';
+  if (d > 0) return tf('%lld 天前', d);
+  if (h > 0) return tf('%lld 小时前', h);
+  if (m > 0) return tf('%lld 分钟前', m);
+  return t('刚刚');
 }
 function esc(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -101,6 +101,8 @@ export class AihotView {
 
   async _load({ silent = false } = {}) {
     this.local = this.local || {};
+    const token = {}; // B14：请求令牌——只有最后一次 _load 的响应允许落地渲染
+    this._loadToken = token;
     try {
       const snapPromise = window.robin.aihotSnapshot?.().catch(() => null);
       const loads = {
@@ -117,11 +119,13 @@ export class AihotView {
       if (!loader) return;
       if (!silent) this._skeleton();
       const [data, snap] = await Promise.all([loader(), snapPromise]);
+      if (this._loadToken !== token || !this.overlay) return; // 过期响应 / 弹层已关闭：整体丢弃
       this.data = data;
       if (snap) this.local = snap;
       this.error = null;
       this.loadedAt = Date.now();
     } catch (err) {
+      if (this._loadToken !== token || !this.overlay) return;
       if (silent) return; // 静默轮询失败保留现有内容
       this.data = null;
       this.error = String(err?.message || err);
@@ -335,8 +339,10 @@ export class AihotView {
   _renderHot(items) {
     if (!items.length) { this._empty('暂无数据', '稍后再来看看。'); return; }
     this._hotCache = items;
-    const maxSources = Math.max(1, ...items.map((it) => it.sourceCount || 0));
-    const hero = this._hero(items.length, items.reduce((s, it) => s + (it.sourceCount || 0), 0));
+    // B15：约定为数字的字段（rank/sourceCount）一律先数值化，远端返回字符串时退化为 0
+    const counts = items.map((it) => Number(it.sourceCount) || 0);
+    const maxSources = Math.max(1, ...counts);
+    const hero = this._hero(items.length, counts.reduce((s, c) => s + c, 0));
 
     // 关注命中置顶（同样遵守 只看未读/搜索 过滤）
     const kwHits = this._visibleItems(items.filter((it) => this._matchKeywords(it.title).length), 'hot');
@@ -361,8 +367,10 @@ export class AihotView {
     const read = new Set(this.local?.readIDs || []);
     const isRead = read.has(it.id || it.title);
     const kw = this._matchKeywords(it.title);
-    const medal = it.rank <= 3 ? `<div class="aihot-rank medal m${it.rank}">${it.rank}</div>` : `<div class="aihot-rank">${it.rank}</div>`;
-    const heat = Math.round(((it.sourceCount || 0) / maxSources) * 100);
+    const rank = Number(it.rank) || 0; // B15：数值化后再插值，杜绝字符串注入
+    const sc = Number(it.sourceCount) || 0;
+    const medal = rank > 0 && rank <= 3 ? `<div class="aihot-rank medal m${rank}">${rank}</div>` : `<div class="aihot-rank">${rank}</div>`;
+    const heat = Math.round((sc / maxSources) * 100);
     const card = document.createElement('div');
     card.className = `aihot-card clickable${isRead ? ' is-read' : ''}${pinned ? ' is-pinned' : ''}`;
     card.innerHTML = `
@@ -371,7 +379,7 @@ export class AihotView {
         <div class="aihot-title"></div>
         <div class="aihot-meta">
           <span class="aihot-heat" title="${esc(t('热度（报道源数）'))}"><i style="width:${Math.max(6, heat)}%"></i></span>
-          <span class="aihot-source-count">${icon('flame')} ${it.sourceCount} 源在报</span>
+          <span class="aihot-source-count">${icon('flame')} ${sc} 源在报</span>
           ${it.latestAt ? `<span class="aihot-time">${esc(timeAgo(it.latestAt))}</span>` : ''}
           ${isRead ? `<span class="aihot-readtag">${esc(t('已读'))}</span>` : ''}
         </div>
@@ -391,7 +399,7 @@ export class AihotView {
       key,
       title: it.title,
       summary: '',
-      meta: `${it.sourceCount} 个来源正在报道此事`,
+      meta: `${sc} 个来源正在报道此事`,
       sourceNames: it.sourceNames || [],
       originalURL: it.originalURL,
       storyURL: it.storyURL,
@@ -400,7 +408,7 @@ export class AihotView {
     card.querySelector('.aihot-fav').addEventListener('click', async (e) => {
       e.stopPropagation();
       this.local = (await window.robin.aihotToggleFavorite({
-        key, title: it.title, meta: `${it.sourceCount} 源`, originalURL: it.originalURL, storyURL: it.storyURL,
+        key, title: it.title, meta: `${sc} 源`, originalURL: it.originalURL, storyURL: it.storyURL,
       }))?.data || this.local;
       e.currentTarget.classList.toggle('active');
     });
@@ -542,19 +550,18 @@ export class AihotView {
   }
 
   async _loadMoreSelected() {
+    const token = this._loadToken; // B14：沿用当前板块令牌——切板块后旧分页响应作废，不得 push 进新板块数据
     try {
       const page = await window.robin.aihotSelectedPage({ limit: 50, page: this._selectedNextPage || null });
+      if (this._loadToken !== token || !this.overlay) return;
       const more = page?.items || [];
-      if (!this._selectedNextPage) {
-        // 第一次点「加载更多」：替换为归档流数据（快照比 items 窗口更全）
-        this.data = [...(this.data || []), ...more];
-      } else {
-        this.data = [...(this.data || []), ...more];
-      }
+      // 第一次点「加载更多」也走合并：归档流数据（快照比 items 窗口更全）追加在当前列表之后
+      this.data = [...(this.data || []), ...more];
       this._selectedNextPage = page?.hasMore ? page.nextPage : null;
       if (!more.length) this.handlers.onFeedback?.(t('没有更多了'));
       this._renderContent();
     } catch (err) {
+      if (this._loadToken !== token) return;
       this.handlers.onFeedback?.(t('加载更多失败：') + (err?.message || err));
     }
   }
@@ -562,6 +569,7 @@ export class AihotView {
   _selectedCard(it) {
     const read = new Set(this.local?.readIDs || []);
     const key = it.id || it.title;
+    const score = it.score == null ? null : (Number(it.score) || 0); // B15：数值化后再插值
     const card = document.createElement('div');
     card.className = `aihot-card clickable${read.has(key) ? ' is-read' : ''}`;
     card.innerHTML = `
@@ -571,7 +579,7 @@ export class AihotView {
         <div class="aihot-meta">
           ${it.source ? `<span class="aihot-source">${esc(it.source)}</span>` : ''}
           ${it.category ? `<span class="fs-tag">${esc(it.category)}</span>` : ''}
-          ${it.score != null ? `<span class="aihot-score">信噪 ${it.score}</span>` : ''}
+          ${score != null ? `<span class="aihot-score">信噪 ${score}</span>` : ''}
           ${it.publishedAt ? `<span class="aihot-time">${esc(timeAgo(it.publishedAt))}</span>` : ''}
         </div>
       </div>
@@ -650,10 +658,12 @@ export class AihotView {
   // MARK: 统计条
 
   _hero(topics, sources) {
+    const nTopics = Number(topics) || 0; // B15：统计值数值化后再插值
+    const nSources = sources == null ? null : (Number(sources) || 0);
     const hero = document.createElement('div');
     hero.className = 'aihot-hero';
-    const parts = [`<span>${icon('flame')} <b>${topics}</b> ${esc(t('条内容'))}</span>`];
-    if (sources != null) parts.push(`<span>${icon('globe')} <b>${sources}</b> ${esc(t('报道源'))}</span>`);
+    const parts = [`<span>${icon('flame')} <b>${nTopics}</b> ${esc(t('条内容'))}</span>`];
+    if (nSources != null) parts.push(`<span>${icon('globe')} <b>${nSources}</b> ${esc(t('报道源'))}</span>`);
     if (this.loadedAt) parts.push(`<span>${icon('clock')} ${esc(t('更新于'))} ${esc(timeAgo(this.loadedAt))}</span>`);
     hero.innerHTML = parts.join('');
     return hero;
@@ -704,12 +714,14 @@ export class AihotView {
     hint.textContent = t('点击卡片查看完整评测页（浏览器打开）；价格为一百万 token 的输入/输出价。');
     this.contentHost.appendChild(hint);
     for (const m of models) {
-      const heat = Math.round(((Number(m.score) || 0) / maxScore) * 100);
-      const medal = m.rank <= 3 ? `medal m${m.rank}` : '';
+      const rank = Number(m.rank) || 0; // B15：数值化后再插值，杜绝字符串注入
+      const score = Number(m.score) || 0;
+      const heat = Math.round((score / maxScore) * 100);
+      const medal = rank > 0 && rank <= 3 ? `medal m${rank}` : '';
       const card = document.createElement('div');
       card.className = 'aihot-card clickable aihot-lb-card';
       card.innerHTML = `
-        <div class="aihot-rank ${medal}">${String(m.rank).padStart(2, '0')}</div>
+        <div class="aihot-rank ${medal}">${String(rank).padStart(2, '0')}</div>
         <div class="aihot-main">
           <div class="aihot-lb-head">
             ${m.logoURL ? `<img class="aihot-lb-logo" src="${esc(m.logoURL)}" alt="" referrerpolicy="no-referrer"/>` : ''}
@@ -726,7 +738,7 @@ export class AihotView {
         </div>`;
       card.querySelector('.aihot-title').textContent = m.name;
       card.querySelector('.aihot-lb-vendor').textContent = m.vendor || '';
-      card.querySelector('.aihot-lb-score b').textContent = m.score || '—';
+      card.querySelector('.aihot-lb-score b').textContent = score ? String(score) : '—';
       card.addEventListener('click', () => this.handlers.onOpenURL?.(m.detailURL));
       this.contentHost.appendChild(card);
     }
@@ -818,14 +830,19 @@ export class AihotView {
   async _openStory(storyURL) {
     const publicId = String(storyURL || '').split('/').filter(Boolean).pop();
     if (!publicId) return;
+    const token = {}; // B14：故事加载与 _load 共用令牌语义——切板块后旧故事响应作废
+    this._loadToken = token;
     this.section = 'story';
     this._storyId = publicId;
     this._render();
     this.contentHost.innerHTML = `<div class="list-empty"><div class="glyph">${icon('spark')}</div><h3>${esc(t('加载故事…'))}</h3></div>`;
     try {
-      this.data = await window.robin.aihotStory(publicId);
+      const data = await window.robin.aihotStory(publicId);
+      if (this._loadToken !== token || !this.overlay) return;
+      this.data = data;
       this.error = null;
     } catch (err) {
+      if (this._loadToken !== token || !this.overlay) return;
       this.error = String(err?.message || err);
       this.data = null;
     }
@@ -833,12 +850,14 @@ export class AihotView {
   }
 
   _renderStory(story) {
+    const srcCount = Number(story.sourceCount) || 0; // B15：数值化后再插值
+    const repCount = Number(story.reportCount) || 0;
     const head = document.createElement('div');
     head.className = 'aihot-story-head';
     head.innerHTML = `
       <button class="btn-text bordered aihot-back">${icon('chevronMenuRight')}<span style="margin-left:4px">${esc(t('返回热点榜'))}</span></button>
       <div class="aihot-story-title"></div>
-      <div class="aihot-meta"><span>${story.sourceCount || 0} 源 · ${story.reportCount || 0} 报道</span>${story.latestAt ? `<span>${esc(timeAgo(story.latestAt))}</span>` : ''}</div>`;
+      <div class="aihot-meta"><span>${srcCount} 源 · ${repCount} 报道</span>${story.latestAt ? `<span>${esc(timeAgo(story.latestAt))}</span>` : ''}</div>`;
     head.querySelector('.aihot-back').addEventListener('click', () => { this.section = 'hot'; this._currentStory = null; this._render(); this._load(); });
     head.querySelector('.aihot-story-title').textContent = story.title;
     this.contentHost.appendChild(head);

@@ -259,7 +259,7 @@ class EvolutionEngine {
 
     // 3. 未读堆积
     const unread = this._countUnread();
-    const unreadWarn = unread > 300 ? 'warn' : unread > 500 ? 'critical' : 'ok';
+    const unreadWarn = unread > 500 ? 'critical' : unread > 300 ? 'warn' : 'ok';
     checks.push({ id: 'unread-backlog', ok: unreadWarn === 'ok', detail: `${unread} 篇未读`, level: unreadWarn });
 
     // 4. AI 配置

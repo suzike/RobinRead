@@ -7,7 +7,7 @@
  */
 
 function escapeHTML(value) {
-  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 export function renderMarkdown(raw) {
@@ -29,7 +29,9 @@ export function renderMarkdown(raw) {
     v = v.replace(/`([^`]+)`/g, '<code>$1</code>');
     v = v.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     v = v.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-    v = v.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    // gotcha：URL 会插值进双引号属性位，必须做属性级转义（escapeHTML 已含 &quot;，
+    // 此处再强制 "→%22 兜底），否则 [x](https://e.com/"onmouseover="alert(1)) 可注入事件属性
+    v = v.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_m, text, url) => `<a href="${url.replace(/"/g, '%22')}" target="_blank" rel="noopener">${text}</a>`);
     return v;
   };
 

@@ -670,6 +670,10 @@ class AppStore extends EventEmitter {
       folderID = this.feedsRepo.ensureFolder(LOCAL_ACCOUNT_ID, folder.trim()).id;
     }
 
+    // 二次查重：首次检查与插入之间隔着最长 30s 的网络抓取，双击/并发会插入重复源
+    const raced = this.feedsRepo.feedByURL(LOCAL_ACCOUNT_ID, feedURL);
+    if (raced) throw new Error(i18n.localized('这个订阅已经存在。'));
+
     const feed = this.feedsRepo.insertFeed({
       accountID: LOCAL_ACCOUNT_ID,
       title: result.parsed.title,
@@ -1255,7 +1259,7 @@ class AppStore extends EventEmitter {
         caches: this.database.prepare('SELECT COUNT(*) c FROM article_caches').get().c,
       };
       this.database.exec(`
-        DELETE FROM ai_artifacts WHERE item_id NOT IN (SELECT id FROM items)
+        DELETE FROM ai_artifacts WHERE (item_id IS NULL OR item_id NOT IN (SELECT id FROM items))
           AND updated_at < strftime('%s','now','-7 days');
         DELETE FROM article_caches WHERE item_id NOT IN (SELECT id FROM items)
           OR fetched_at < strftime('%s','now','-45 days');
@@ -1292,7 +1296,16 @@ class AppStore extends EventEmitter {
     try {
       for (const account of enabledAccounts) {
         if (account.type === 'local') {
-          const feeds = this.feedsRepo.feeds(account.id);
+          const allFeeds = this.feedsRepo.feeds(account.id);
+          let feeds = allFeeds;
+          // 死源（连续 5 次失败）不再拖自动刷新：定时轮询跳过；
+          // 启动刷新与手动刷新仍包含它们（成功即自动复活 is_dead=0）
+          if (origin === 'auto') {
+            const dead = new Set(this.database.prepare(
+              'SELECT feed_id FROM feed_health WHERE is_dead = 1'
+            ).all().map((r) => r.feed_id));
+            feeds = allFeeds.filter((f) => !dead.has(f.id));
+          }
           const results = await Promise.allSettled(feeds.map((feed) => this._refreshLocalFeed(feed)));
           for (const result of results) {
             if (result.status === 'fulfilled') {

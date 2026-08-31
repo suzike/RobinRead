@@ -9,7 +9,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, nativeTheme } = require('electron');
 
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'robinread-selftest-'));
 app.setPath('userData', userData);
@@ -267,6 +267,8 @@ app.whenReady().then(async () => {
         hasToolbar: Boolean(document.getElementById('btn-refresh')),
         columns: document.querySelectorAll('.column').length,
         bodyBg: getComputedStyle(document.body).backgroundColor,
+        // 渲染层实际套用的主题类（app.js 依据 snapshot.prefersDark / matchMedia 切换 body.dark）
+        bodyDark: document.body.classList.contains('dark'),
         cssLoaded: Boolean(document.querySelector('#split')) && getComputedStyle(document.getElementById('split')).display === 'flex',
       };
     })()`);
@@ -274,7 +276,12 @@ app.whenReady().then(async () => {
     check('ui-toolbar', domSummary.hasToolbar);
     check('ui-css-loaded', domSummary.cssLoaded);
     check('ui-sidebar', domSummary.sidebarRows >= 3 && domSummary.sidebarHasToday, `rows=${domSummary.sidebarRows}, today=${domSummary.sidebarHasToday}`);
-    check('ui-theme-paper', domSummary.bodyBg === 'rgb(246, 242, 231)', domSummary.bodyBg);
+    // 纸感主题色随系统深浅色切换（body.dark → --page-background: #1b1a17，浅色 → #f6f2e7）。
+    // 以渲染层实际套用的 body.dark 为准断言，nativeTheme.shouldUseDarkColors 仅用于诊断输出，
+    // 避免系统深色模式下写死浅色值导致长期红灯。
+    const expectedBg = domSummary.bodyDark ? 'rgb(27, 26, 23)' : 'rgb(246, 242, 231)';
+    check('ui-theme-paper', domSummary.bodyBg === expectedBg,
+      `dark(prefersDark=${nativeTheme.shouldUseDarkColors})=${domSummary.bodyDark}, bg=${domSummary.bodyBg}, expected=${expectedBg}`);
 
     // 第二栏错位修复：column-list 宽度应跟随 --list-width 变量，与工具栏中区对齐
     const alignSummary = await win.webContents.executeJavaScript(`(() => {

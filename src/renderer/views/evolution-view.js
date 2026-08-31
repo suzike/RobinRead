@@ -3,17 +3,17 @@
  * RobinRead Windows — 自进化诊断面板
  * 源健康 / 兴趣画像 / 个性化推荐 / AI 反馈 / 自诊断 / 信息密度
  */
-import { t } from '../i18n.js';
+import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 
 function timeAgo(seconds) {
   if (!seconds) return '—';
   const diff = Math.max(0, Date.now() / 1000 - seconds);
   const m = Math.floor(diff / 60), h = Math.floor(diff / 3600), d = Math.floor(diff / 86400);
-  if (d > 0) return `${d} 天前`;
-  if (h > 0) return `${h} 小时前`;
-  if (m > 0) return `${m} 分钟前`;
-  return '刚刚';
+  if (d > 0) return tf('%lld 天前', d);
+  if (h > 0) return tf('%lld 小时前', h);
+  if (m > 0) return tf('%lld 分钟前', m);
+  return t('刚刚');
 }
 
 export class EvolutionView {

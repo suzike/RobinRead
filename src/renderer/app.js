@@ -579,7 +579,8 @@ function renderDigestVisual(raw, refs, meta, onClose = null) {
 
   // ── 主视觉：日期 + 统计徽章 ──
   const now = new Date();
-  const dateStr = `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日`;
+  const locale = window.__robinLanguage === 'en' ? 'en-US' : 'zh-CN';
+  const dateStr = now.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
   const week = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
   const hero = document.createElement('div');
   hero.className = 'dg-hero';

@@ -2099,9 +2099,12 @@ export class ReaderView {
       const startWithin = node === range.startContainer ? range.startOffset : 0;
       const endWithin = node === range.endContainer ? range.endOffset : node.textContent.length;
       if (endWithin <= startWithin) continue;
+      // gotcha：splitText 会改写 node.textContent.length，终点守卫必须用分裂前的原始长度，
+      // 否则同节点内选区（startWithin>0）的溢出判断恒假，高亮会一直包到节点末尾。
+      const originalLength = node.textContent.length;
       let target = node;
       if (startWithin > 0) target = target.splitText(startWithin);
-      if (endWithin < node.textContent.length) target.splitText(endWithin - startWithin);
+      if (endWithin < originalLength) target.splitText(endWithin - startWithin);
       const mark = document.createElement('mark');
       decorate(mark);
       target.parentNode.insertBefore(mark, target);
@@ -2643,14 +2646,14 @@ export class ReaderView {
       <img class="nj-lightbox-img" src="${attr(src)}" alt="${attr(alt)}"/>
       <button class="nj-lightbox-close" title="${attr(t('关闭（Esc）'))}">${icon('close')}</button>
     `;
-    const dismiss = () => lightbox.remove();
+    // gotcha：esc 挂在 document 上，任何关闭路径（点击/Esc）都必须移除它，否则长会话每开一张图泄漏一个监听
+    const esc = (event) => { if (event.key === 'Escape') dismiss(); };
+    const dismiss = () => {
+      document.removeEventListener('keydown', esc);
+      lightbox.remove();
+    };
     lightbox.addEventListener('click', dismiss);
-    document.addEventListener('keydown', function esc(event) {
-      if (event.key === 'Escape') {
-        dismiss();
-        document.removeEventListener('keydown', esc);
-      }
-    });
+    document.addEventListener('keydown', esc);
     document.body.appendChild(lightbox);
   }
 

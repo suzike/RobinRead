@@ -343,7 +343,11 @@ class AuthService {
 
   _writeState() {
     try {
-      fs.writeFileSync(this._statePath(), JSON.stringify(this._state), 'utf8');
+      // 原子写：先写临时文件再改名，崩溃瞬间不会留下截断的 JSON
+      const target = this._statePath();
+      const tmp = `${target}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(this._state), 'utf8');
+      fs.renameSync(tmp, target);
     } catch (_) { /* 写失败不阻塞主流程 */ }
   }
 

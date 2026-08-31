@@ -3,7 +3,7 @@
  * RobinRead Windows — 知识中心
  * 高亮 / 笔记 / 间隔复习 / 收藏集 / 统计 / 标签云
  */
-import { t } from '../i18n.js';
+import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 import { promptBox, confirmBox } from '../ui-prompt.js';
 
@@ -25,10 +25,10 @@ function timeAgo(seconds) {
   if (!seconds) return '';
   const diff = Math.max(0, Date.now() / 1000 - seconds);
   const m = Math.floor(diff / 60), h = Math.floor(diff / 3600), d = Math.floor(diff / 86400);
-  if (d > 0) return `${d} 天前`;
-  if (h > 0) return `${h} 小时前`;
-  if (m > 0) return `${m} 分钟前`;
-  return '刚刚';
+  if (d > 0) return tf('%lld 天前', d);
+  if (h > 0) return tf('%lld 小时前', h);
+  if (m > 0) return tf('%lld 分钟前', m);
+  return t('刚刚');
 }
 
 function downloadText(filename, content, mime = 'text/plain') {

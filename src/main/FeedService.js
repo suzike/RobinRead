@@ -35,7 +35,8 @@ async function fetchFeed(feed) {
     if (response.status === 304) {
       return { notModified: true, etag: etag ?? feed.etag, lastModified: lastModified ?? feed.lastModified };
     }
-    if (response.status === 403 || response.status === 401 || response.status === 429) {
+    if (response.status === 429) throw new HTTPStatusError(429); // 被限流时换 UA 重试只会加重
+    if (response.status === 403 || response.status === 401) {
       // 部分站点（如 blogs.mathworks.com）拦截未知 UA：用浏览器 UA 重试一次
       const retry = await fetch(feed.feedURL, {
         headers: { ...headers, 'User-Agent': BROWSER_UA, Accept: 'text/html,application/xhtml+xml,application/xml,*/*' },

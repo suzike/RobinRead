@@ -159,27 +159,46 @@ class HueWheel {
     this._hue = 0;
     this._c = 0.1;
     this._l = 0.5;
+    this._dragging = false;
+    this._destroyed = false;
 
     const setFromEvent = (event) => {
+      if (!this.canvas) return;
       const rect = this.canvas.getBoundingClientRect();
       const x = event.clientX - rect.left - rect.width / 2;
       const y = event.clientY - rect.top - rect.height / 2;
       let angle = (Math.atan2(y, x) * 180) / Math.PI;
       angle = (angle + 360) % 360;
-      this.onHue(Math.round(angle));
+      this.onHue?.(Math.round(angle));
     };
-    let dragging = false;
+    // B12：window 级监听器保存为具名引用，destroy() 成对移除——
+    // 否则设计器每次重渲 new HueWheel 都会泄漏 2 个全局监听器。
+    this._onWindowMove = (event) => {
+      if (this._dragging) setFromEvent(event);
+    };
+    this._onWindowUp = () => { this._dragging = false; };
     this.canvas.addEventListener('mousedown', (event) => {
-      dragging = true;
+      this._dragging = true;
       setFromEvent(event);
     });
-    window.addEventListener('mousemove', (event) => {
-      if (dragging) setFromEvent(event);
-    });
-    window.addEventListener('mouseup', () => { dragging = false; });
+    window.addEventListener('mousemove', this._onWindowMove);
+    window.addEventListener('mouseup', this._onWindowUp);
+  }
+
+  /** 摘除 window 级监听器并置空内部引用；丢弃实例（重渲 / 关闭设计器）前必须调用。 */
+  destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    window.removeEventListener('mousemove', this._onWindowMove);
+    window.removeEventListener('mouseup', this._onWindowUp);
+    this._onWindowMove = null;
+    this._onWindowUp = null;
+    this.onHue = null;
+    this.canvas = null;
   }
 
   update(hue, c, l) {
+    if (this._destroyed || !this.canvas) return; // 已销毁：跳过重绘
     this._hue = hue;
     this._c = c;
     this._l = l;
@@ -413,6 +432,7 @@ export class ThemeDesigner {
 
   dismiss() {
     document.removeEventListener('keydown', this._esc);
+    this.wheel?.destroy(); // B12：关闭设计器时摘除色轮的 window 监听器
     this.overlay?.remove();
     this.overlay = null;
   }
@@ -556,6 +576,7 @@ export class ThemeDesigner {
     const wheelRow = document.createElement('div');
     wheelRow.className = 'td-wheel-row';
     const channel = CHANNELS.find((c) => c.key === this.channel);
+    this.wheel?.destroy(); // B12：丢弃旧色轮前先摘除其 window 级监听器
     this.wheel = new HueWheel(148, null, (hue) => {
       this.patch({ [channel.hueKey]: hue });
     });
