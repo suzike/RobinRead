@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.4.0",
-  "name": "知更 RobinRead 2.4.0",
+  "tag_name": "v2.4.2",
+  "name": "知更 RobinRead 2.4.2",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-08-31T00:00:00Z",
-  "body": "知更 RobinRead v2.4.0 —— AI 探索与全场景阅读。新增 AI 探索（一键发现目录之外的高质量订阅源，本地验证 + 样章预览 + AI 解释）、TTS 听文章（本地语音离线朗读）、稍后读队列、Miniflux 同步、系统托盘与备份恢复；商店治理与英文界面全量补齐。前往官网下载最新安装包。"
+  "body": "知更 RobinRead v2.4.2 —— 修复公众号刷不出新文章（抓取走系统代理，被屏蔽的桥接源可达）；新增 AI 探索、TTS 听文章、稍后读队列、Miniflux 同步、备份恢复、系统托盘；商店治理与英文界面全量补齐。开启系统代理后公众号与境外源即可正常刷新。前往官网下载最新安装包。"
 }
