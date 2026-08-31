@@ -2,6 +2,7 @@
 /** 调试：AI 模式 + 领域词外扩（真实凭据）。全新临时目录 + 启动前拷全凭据三件套。 */
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const { app } = require('electron');
 
 const LOG = path.join(__dirname, 'explore-ai-dbg.log');
