@@ -1,5 +1,8 @@
-const { app } = require("electron");
 const fs = require("fs");
-app.setPath("userData", fs.mkdtempSync(require("path").join(require("os").tmpdir(), "mini-")));
-app.whenReady().then(() => { fs.appendFileSync(__dirname + "/mini-ready.log", "ready
-"); app.exit(0); });
+const L = (m) => fs.appendFileSync(__dirname + "/mini-ready.log", m + "
+");
+L("module load");
+const { app } = require("electron");
+L("electron required");
+app.whenReady().then(() => { L("READY"); app.exit(0); });
+setTimeout(() => { L("30s 仍挂起，主动退出"); app.exit(124); }, 30000);
