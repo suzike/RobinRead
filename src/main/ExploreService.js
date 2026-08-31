@@ -19,8 +19,10 @@ const POOL = require(path.join(__dirname, 'data', 'feed-pool.json'));
 
 const VALIDATE_CONCURRENCY = 4;
 const VALIDATE_TIMEOUT_MS = 12000;
+const CANDIDATE_DEADLINE_MS = 40000; // 单候选总预算（含站点→feed 发现）
 const PLANNING_POOL_SLICE = 80;
 const SAMPLES_PER_CARD = 3;
+const EXPAND_COUNT = 12;
 
 function nowSeconds() { return Date.now() / 1000; }
 
@@ -72,14 +74,17 @@ class ExploreService {
   }
 
   /** 探索入口。mode: 'ai'（画像+LLM 规划+解释）| 'basic'（本地池+验证，无解释）。 */
-  async run({ mode = 'ai', domain = null, excludeDomains = [], limit = 10, strength = 'balanced' } = {}) {
+  async run({ mode = 'ai', domain = null, excludeDomains = [], limit = 10, strength = 'balanced', onProgress = null } = {}) {
     const excluded = new Set((excludeDomains || []).map((d) => String(d || '').toLowerCase()).filter(Boolean));
     // 数据库侧排除：已订阅 + 历史探索（域名级，防御性兜底，渲染层已先行排除）
     for (const row of this.store.database.prepare('SELECT feed_url FROM feeds WHERE is_deleted = 0').all()) {
       const d = registrableDomain(hostOf(row.feed_url));
       if (d) excluded.add(d);
     }
-    for (const row of this.store.database.prepare('SELECT domain FROM explored_feeds WHERE domain IS NOT NULL').all()) {
+    for (const row of this.store.database.prepare(
+      "SELECT domain FROM explored_feeds WHERE domain IS NOT NULL AND (verdict IN ('rejected', 'subscribed') OR explored_at > ?)"
+    ).all(nowSeconds() - 3 * 24 * 3600)) {
+      // 拒绝/已订阅永久排除；普通「已探索」3 天内不重复（薄领域不至于被一次性榨干）
       excluded.add(row.domain);
     }
 
@@ -103,6 +108,7 @@ class ExploreService {
     const profile = this.store.evolution.interestProfile();
     const topTags = (profile.tags || []).slice(0, 5).map((t) => t.tag || t).filter(Boolean);
     let shortlist = [];
+    let expanded = []; // LLM 按领域外扩的站点候选（池内覆盖不足时的关键补充）
     if (candidates.length > PLANNING_POOL_SLICE) {
       if (topTags.length) {
         const scored = candidates.map((c) => {
@@ -121,20 +127,42 @@ class ExploreService {
           const llmOrdered = picked.map((p) => byName.get(`${p.name}|${p.feedURL}`) || byName.get(`${p.name}`)).filter(Boolean);
           shortlist = [...llmOrdered, ...shortlist.filter((c) => !llmOrdered.includes(c))];
         }
+        // 领域探索时池内匹配往往太窄（如「agent」全池仅 1 条）——让 LLM 外扩知名站点，
+        // 与池内候选合并后统一走本地验证（站点→feed 发现→解析），验证不过不展示
+        if (domain) {
+          expanded = await this._llmExpandDomain(domain, excluded).catch(() => []);
+        }
       }
     } else {
       shortlist = this._diverseSlice(candidates, PLANNING_POOL_SLICE);
+      if (useAI && domain && candidates.length < 5) {
+        expanded = await this._llmExpandDomain(domain, excluded).catch(() => []);
+      }
     }
-    if (shortlist.length === 0) return { cards: [], note: '候选池为空或全部已被排除' };
+    for (const ex of expanded) shortlist.unshift(ex); // 外扩候选排最前优先验证
+    if (shortlist.length === 0) {
+      return {
+        cards: [],
+        note: domain
+          ? `候选池中没有匹配「${domain}」的源${llmReady ? '，且 AI 外扩未能给出可用站点' : ''}。试试更宽泛的关键词`
+          : '候选池为空',
+      };
+    }
 
     // 3) 并发验证与评分（LLM 规划排序仅影响验证顺序，不影响结论）
+    // 每个候选 40s 硬预算：外扩候选要做「站点→feed 发现」，慢站点不许拖死整体
+    const withDeadline = (p) => Promise.race([
+      p,
+      new Promise((resolve) => setTimeout(() => resolve(null), CANDIDATE_DEADLINE_MS)),
+    ]);
     const cards = [];
     let stop = false;
     let cursor = 0;
     const worker = async () => {
       while (!stop && cursor < shortlist.length) {
         const candidate = shortlist[cursor++];
-        const verdict = await this._validateCandidate(candidate).catch(() => null);
+        const verdict = await withDeadline(this._validateCandidate(candidate).catch(() => null));
+        onProgress?.({ name: candidate.name, ok: Boolean(verdict) });
         if (!verdict) continue;
         cards.push(verdict);
         if (cards.length >= Math.max(limit, 10)) stop = true; // 多验几张供评分排序
@@ -156,10 +184,13 @@ class ExploreService {
     for (const card of top) {
       insert.run(card.feedURL, card.domain, 'explored', card.score, nowSeconds());
     }
+    const note = top.length === 0
+      ? `验证了 ${shortlist.length} 个候选源，均无法访问（可能已失效或当前网络受限）。试试更换关键词后重试`
+      : null;
     return {
       cards: top.map(({ score, ...rest }) => ({ ...rest, score: Math.round(score) })),
       mode: useAI ? 'ai' : 'basic',
-      note: cards.length === 0 ? '候选验证全部失败，请检查网络后重试' : null,
+      note,
     };
   }
 
@@ -300,6 +331,39 @@ class ExploreService {
       .map((p) => shortlist[(Number(p.i) || 0) - 1] || shortlist.find((c) => c.name === p.name))
       .filter(Boolean);
     return picked;
+  }
+
+  /**
+   * LLM 域名外扩：领域词在池内覆盖不足时，让 LLM 提议该领域的知名站点/博客
+   * （站点级 URL，不一定有 feed——验证管线会做「站点→feed 发现」兜底）。
+   * 幻觉 URL 会在验证阶段自然淘汰，红线不变：验证不过不展示。
+   */
+  async _llmExpandDomain(domain, excluded) {
+    const { config, apiKey } = this.store._requireAIReady();
+    const excludedHint = excluded.size ? `以下域名已被用户订阅或探索过，不要重复提议：${[...excluded].slice(0, 40).join('、')}。` : '';
+    const output = await this.store.llm.complete({
+      prompt: `用户想在「${domain}」领域寻找值得用 RSS 订阅的内容源。请列出 ${EXPAND_COUNT} 个该领域公认有持续输出、值得订阅的网站/博客/期刊（优先官方博客与知名作者，站点需真实存在且大概率提供 RSS）。${excludedHint}\n严格输出 JSON：{"sites":[{"name":"站点名","site":"https://..."}]}`,
+      system: 'You are a feed discovery scout. Propose real, well-known sites only. Respond with valid JSON only.',
+      configuration: config,
+      apiKey,
+      forceDisableReasoning: true,
+      overrideTemperature: 0.3,
+    });
+    const match = output.match(/\{[\s\S]*\}/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]);
+    const seen = new Set();
+    const out = [];
+    for (const s of parsed.sites || []) {
+      const site = String(s.site || '').trim();
+      if (!/^https?:\/\//i.test(site)) continue;
+      const host = registrableDomain(hostOf(site));
+      if (!host || excluded.has(host) || seen.has(host)) continue;
+      seen.add(host);
+      out.push({ name: String(s.name || host).slice(0, 80), siteURL: site, feedURL: '', lang: /[\u4e00-\u9fff]/.test(s.name || '') ? 'zh' : 'en', category: 'expanded', desc: '', tags: [domain] });
+      if (out.length >= EXPAND_COUNT) break;
+    }
+    return out;
   }
 }
 
