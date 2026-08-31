@@ -20,9 +20,8 @@ const POOL = require(path.join(__dirname, 'data', 'feed-pool.json'));
 const VALIDATE_CONCURRENCY = 4;
 const VALIDATE_TIMEOUT_MS = 12000;
 const CANDIDATE_DEADLINE_MS = 40000; // 单候选总预算（含站点→feed 发现）
-const PLANNING_POOL_SLICE = 80;
 const SAMPLES_PER_CARD = 3;
-const EXPAND_COUNT = 12;
+const GENERATE_COUNT = 18;
 
 function nowSeconds() { return Date.now() / 1000; }
 
@@ -73,8 +72,9 @@ class ExploreService {
     this.store = store;
   }
 
-  /** 探索入口。mode: 'ai'（画像+LLM 规划+解释）| 'basic'（本地池+验证，无解释）。 */
-  async run({ mode = 'ai', domain = null, excludeDomains = [], limit = 10, strength = 'balanced', onProgress = null } = {}) {
+  /** 探索入口。mode: 'ai'（LLM 生成候选+解释）| 'basic'（本地池+验证，无解释）。
+   *  seenDomains：本轮会话已展示过的域名（「换一批」时由渲染层传入，避免重复）。 */
+  async run({ mode = 'ai', domain = null, excludeDomains = [], seenDomains = [], limit = 10, strength = 'balanced', onProgress = null } = {}) {
     const excluded = new Set((excludeDomains || []).map((d) => String(d || '').toLowerCase()).filter(Boolean));
     // 数据库侧排除：已订阅 + 历史探索（域名级，防御性兜底，渲染层已先行排除）
     for (const row of this.store.database.prepare('SELECT feed_url FROM feeds WHERE is_deleted = 0').all()) {
@@ -87,70 +87,72 @@ class ExploreService {
       // 拒绝/已订阅永久排除；普通「已探索」3 天内不重复（薄领域不至于被一次性榨干）
       excluded.add(row.domain);
     }
+    for (const d of seenDomains || []) {
+      const key = String(d || '').toLowerCase();
+      if (key) excluded.add(key);
+    }
 
     const llmReady = this.store.hasAIAPIKey();
     const useAI = mode === 'ai' && llmReady;
-
-    // 1) 候选预筛：池 → 排除集 →（可选领域过滤）→ 兴趣标签相关性预筛
-    let candidates = POOL.sources.filter((s) => {
-      const host = hostOf(s.feedURL || s.siteURL);
-      const d = registrableDomain(host);
-      if (!d || excluded.has(d)) return false;
-      if (domain) {
-        const q = String(domain).toLowerCase();
-        const hay = `${s.name} ${s.desc || ''} ${(s.tags || []).join(' ')} ${s.category || ''}`.toLowerCase();
-        if (!hay.includes(q) && !host.includes(q)) return false;
-      }
-      return true;
-    });
-
-    // 2) 挑选短名单：AI 模式用画像标签预筛 + LLM 规划；否则确定性多样化抽样
     const profile = this.store.evolution.interestProfile();
     const topTags = (profile.tags || []).slice(0, 5).map((t) => t.tag || t).filter(Boolean);
-    let shortlist = [];
-    let expanded = []; // LLM 按领域外扩的站点候选（池内覆盖不足时的关键补充）
-    if (candidates.length > PLANNING_POOL_SLICE) {
-      if (topTags.length) {
-        const scored = candidates.map((c) => {
-          const hay = `${c.name} ${c.desc || ''} ${(c.tags || []).join(' ')}`;
-          return { c, n: tagText(hay).filter((t) => topTags.includes(t)).length };
-        }).sort((a, b) => b.n - a.n);
-        const relevant = scored.filter((x) => x.n > 0).map((x) => x.c);
-        const rest = scored.filter((x) => x.n === 0).map((x) => x.c);
-        candidates = [...relevant, ...rest]; // 相关优先，但保留长尾供探索
-      }
-      shortlist = this._diverseSlice(candidates, PLANNING_POOL_SLICE);
-      if (useAI) {
-        const picked = await this._llmShortlist(shortlist, topTags, domain).catch(() => null);
-        if (picked && picked.length) {
-          const byName = new Map(shortlist.map((c) => [`${c.name}|${c.feedURL}`, c]));
-          const llmOrdered = picked.map((p) => byName.get(`${p.name}|${p.feedURL}`) || byName.get(`${p.name}`)).filter(Boolean);
-          shortlist = [...llmOrdered, ...shortlist.filter((c) => !llmOrdered.includes(c))];
-        }
-        // 领域探索时池内匹配往往太窄（如「agent」全池仅 1 条）——让 LLM 外扩知名站点，
-        // 与池内候选合并后统一走本地验证（站点→feed 发现→解析），验证不过不展示
+    const topic = domain || (topTags.length ? topTags.join('、') : null);
+
+    // 1) 候选生成——生成式发现（主通道）：LLM 按兴趣/领域直接提议真实站点，
+    //    静态池（1920 条、元数据薄）只作补充与去重底座。关键词搜薄池必然落空。
+    const shortlist = [];
+    const seenD = new Set();
+    const push = (c) => {
+      const d = registrableDomain(hostOf(c.feedURL || c.siteURL));
+      if (!d || seenD.has(d) || excluded.has(d)) return false;
+      seenD.add(d);
+      shortlist.push(c);
+      return true;
+    };
+
+    if (useAI) {
+      const generated = await this._llmGenerateCandidates(topic, excluded, seenDomains || []).catch(() => []);
+      let added = 0;
+      for (const g of generated) if (push(g)) added += 1;
+      // 池内关键词命中作为补充（最多 12 条）
+      let poolAdded = 0;
+      for (const s of POOL.sources) {
+        if (shortlist.length >= GENERATE_COUNT) break;
+        const host = hostOf(s.feedURL || s.siteURL);
+        const d = registrableDomain(host);
+        if (!d || excluded.has(d) || seenD.has(d)) continue;
         if (domain) {
-          expanded = await this._llmExpandDomain(domain, excluded).catch(() => []);
+          const q = String(domain).toLowerCase();
+          const hay = `${s.name} ${s.desc || ''} ${(s.tags || []).join(' ')} ${s.category || ''}`.toLowerCase();
+          if (!hay.includes(q) && !host.includes(q)) continue;
         }
+        if (push({ name: s.name, siteURL: s.siteURL || '', feedURL: s.feedURL || '', desc: s.desc || '', tags: s.tags || [], category: s.category || 'pool', lang: s.lang })) poolAdded += 1;
+      }
+      if (shortlist.length === 0) {
+        return {
+          cards: [],
+          note: domain
+            ? `AI 未能为「${domain}」找到可验证的候选源（或网络受限）。试试换一个说法，或检查网络后重试`
+            : '候选池为空且 AI 生成失败，请检查网络后重试',
+        };
       }
     } else {
-      shortlist = this._diverseSlice(candidates, PLANNING_POOL_SLICE);
-      if (useAI && domain && candidates.length < 5) {
-        expanded = await this._llmExpandDomain(domain, excluded).catch(() => []);
+      // basic 模式：池内关键词/分类筛选
+      for (const s of POOL.sources) {
+        const host = hostOf(s.feedURL || s.siteURL);
+        const d = registrableDomain(host);
+        if (!d || excluded.has(d)) continue;
+        if (domain) {
+          const q = String(domain).toLowerCase();
+          const hay = `${s.name} ${s.desc || ''} ${(s.tags || []).join(' ')} ${s.category || ''}`.toLowerCase();
+          if (!hay.includes(q) && !host.includes(q)) continue;
+        }
+        push({ name: s.name, siteURL: s.siteURL || '', feedURL: s.feedURL || '', desc: s.desc || '', tags: s.tags || [], category: s.category || 'pool', lang: s.lang });
       }
     }
-    for (const ex of expanded) shortlist.unshift(ex); // 外扩候选排最前优先验证
-    if (shortlist.length === 0) {
-      return {
-        cards: [],
-        note: domain
-          ? `候选池中没有匹配「${domain}」的源${llmReady ? '，且 AI 外扩未能给出可用站点' : ''}。试试更宽泛的关键词`
-          : '候选池为空',
-      };
-    }
 
-    // 3) 并发验证与评分（LLM 规划排序仅影响验证顺序，不影响结论）
-    // 每个候选 40s 硬预算：外扩候选要做「站点→feed 发现」，慢站点不许拖死整体
+    // 2) 并发验证与评分：每个候选 40s 硬预算（LLM 生成的候选只有站点地址，
+    //    需做「站点→feed 发现→解析」，慢站点不许拖死整体）
     const withDeadline = (p) => Promise.race([
       p,
       new Promise((resolve) => setTimeout(() => resolve(null), CANDIDATE_DEADLINE_MS)),
@@ -170,7 +172,11 @@ class ExploreService {
     };
     await Promise.all(Array.from({ length: VALIDATE_CONCURRENCY }, () => worker()));
 
-    const sorted = cards.sort((a, b) => b.score - a.score);
+    const sorted = cards
+      // 验证后二次拦截：发现/重定向可能把 feed 解析到与已订阅源相同的域（如
+      // feedburner 包装地址解救出真实 feed），以最终域名为准再拦一次
+      .filter((c) => !excluded.has(c.domain))
+      .sort((a, b) => b.score - a.score);
     // 探索风格三档：保守只收高分近期活跃源；大胆放宽门槛多看长尾
     const minScore = strength === 'calm' ? 55 : strength === 'balanced' ? 35 : 0;
     const freshMaxDays = strength === 'calm' ? 45 : Infinity;
@@ -311,43 +317,24 @@ class ExploreService {
     return out;
   }
 
-  /** LLM 规划：从短名单里挑最有探索价值的候选（仅排序建议，必须本地验证）。 */
-  async _llmShortlist(shortlist, topTags, domain) {
-    const { config, apiKey } = this.store._requireAIReady();
-    const slice = shortlist.slice(0, PLANNING_POOL_SLICE).map((c, i) => `${i + 1}. ${c.name}${c.desc ? '：' + c.desc : ''}${(c.tags || []).length ? '［' + c.tags.join('/') + '］' : ''}`);
-    const interest = topTags.length ? `用户兴趣标签：${topTags.join('、')}。` : (domain ? `用户想深入探索的领域：${domain}。` : '用户暂无画像，请保证领域多样性。');
-    const output = await this.store.llm.complete({
-      prompt: `候选订阅源列表：\n${slice.join('\n')}\n\n${interest}\n请从中挑出 ${Math.min(15, shortlist.length)} 个最值得探索的候选（可以全部来自列表，不要编造列表外的条目），按探索价值降序输出它们的编号与名称，JSON 格式：{"picked":[{"i":1,"name":"..."}]}`,
-      system: 'You are a feed discovery planner. Pick candidates from the given list only. Respond with valid JSON only.',
-      configuration: config,
-      apiKey,
-      forceDisableReasoning: true,
-      overrideTemperature: 0.2,
-    });
-    const match = output.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    const parsed = JSON.parse(match[0]);
-    const picked = (parsed.picked || [])
-      .map((p) => shortlist[(Number(p.i) || 0) - 1] || shortlist.find((c) => c.name === p.name))
-      .filter(Boolean);
-    return picked;
-  }
-
   /**
-   * LLM 域名外扩：领域词在池内覆盖不足时，让 LLM 提议该领域的知名站点/博客
-   * （站点级 URL，不一定有 feed——验证管线会做「站点→feed 发现」兜底）。
-   * 幻觉 URL 会在验证阶段自然淘汰，红线不变：验证不过不展示。
+   * LLM 生成候选（生成式发现的主通道）：按兴趣/领域直接提议真实站点，
+   * 不再依赖静态池的关键词匹配（薄池搜关键词必然落空）。
+   * 幻觉 URL 在验证阶段自然淘汰，红线不变：验证不过不展示。
+   * seenDomains：本轮会话已展示过的域名（「换一批」时避免重复提议）。
    */
-  async _llmExpandDomain(domain, excluded) {
+  async _llmGenerateCandidates(topic, excludedDomains, seenDomains) {
     const { config, apiKey } = this.store._requireAIReady();
-    const excludedHint = excluded.size ? `以下域名已被用户订阅或探索过，不要重复提议：${[...excluded].slice(0, 40).join('、')}。` : '';
+    const avoid = [...new Set([...excludedDomains, ...seenDomains].map((d) => String(d || '').toLowerCase()))].slice(0, 60);
+    const interest = topic ? `用户想订阅「${topic}」领域的内容源。` : '请依据多元性覆盖不同领域，别只给大厂。';
+    const avoidHint = avoid.length ? `以下域名已展示或订阅过，不要重复提议：${avoid.join('、')}。` : '';
     const output = await this.store.llm.complete({
-      prompt: `用户想在「${domain}」领域寻找值得用 RSS 订阅的内容源。请列出 ${EXPAND_COUNT} 个该领域公认有持续输出、值得订阅的网站/博客/期刊（优先官方博客与知名作者，站点需真实存在且大概率提供 RSS）。${excludedHint}\n严格输出 JSON：{"sites":[{"name":"站点名","site":"https://..."}]}`,
-      system: 'You are a feed discovery scout. Propose real, well-known sites only. Respond with valid JSON only.',
+      prompt: `${interest}\n请推荐 15-20 个真实存在、持续更新、值得用 RSS 订阅的内容源（知名官方博客与优质独立作者混合，中英文均可；站点必须真实存在，不确定确切 feed 地址时给站点首页地址即可）。${avoidHint}\n严格输出 JSON：{"sites":[{"name":"站点名","site":"https://...","desc":"一句话简介"}]}`,
+      system: 'You are a feed discovery scout with deep knowledge of the blogsphere. Propose real, well-known and trustworthy sites only. Respond with valid JSON only.',
       configuration: config,
       apiKey,
       forceDisableReasoning: true,
-      overrideTemperature: 0.3,
+      overrideTemperature: 0.6,
     });
     const match = output.match(/\{[\s\S]*\}/);
     if (!match) return [];
@@ -358,10 +345,18 @@ class ExploreService {
       const site = String(s.site || '').trim();
       if (!/^https?:\/\//i.test(site)) continue;
       const host = registrableDomain(hostOf(site));
-      if (!host || excluded.has(host) || seen.has(host)) continue;
+      if (!host || seen.has(host)) continue;
       seen.add(host);
-      out.push({ name: String(s.name || host).slice(0, 80), siteURL: site, feedURL: '', lang: /[\u4e00-\u9fff]/.test(s.name || '') ? 'zh' : 'en', category: 'expanded', desc: '', tags: [domain] });
-      if (out.length >= EXPAND_COUNT) break;
+      out.push({
+        name: String(s.name || host).slice(0, 80),
+        siteURL: site,
+        feedURL: '',
+        lang: /[\u4e00-\u9fff]/.test(`${s.name || ''}${s.desc || ''}`) ? 'zh' : 'en',
+        category: 'generated',
+        desc: String(s.desc || '').slice(0, 120),
+        tags: [],
+      });
+      if (out.length >= 20) break;
     }
     return out;
   }

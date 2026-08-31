@@ -215,6 +215,7 @@ export class FeedStore {
       strength: localStorage.getItem('robinread.explore.strength') === 'calm'
         || localStorage.getItem('robinread.explore.strength') === 'bold'
         ? localStorage.getItem('robinread.explore.strength') : 'balanced',
+      seenDomains: new Set(),  // 会话内已展示过的候选域名（「换一批」排除用）
       subscribedUrls: new Set(),
       explanations: new Map(),  // feedURL → { status: queued|loading|done|error, text }
       explainQueue: [],
@@ -552,9 +553,18 @@ export class FeedStore {
     const grid = document.createElement('div');
     grid.className = 'fs-grid';
     if (list.length === 0) {
+      const q = this.query.trim();
       const empty = document.createElement('div');
       empty.className = 'list-empty';
-      empty.innerHTML = `<div class="glyph">${icon('search')}</div><h3>${escapeHTML(t('没有匹配的订阅源'))}</h3><p>${escapeHTML(t('换个关键词试试。'))}</p>`;
+      empty.innerHTML = `<div class="glyph">${icon('search')}</div><h3>${escapeHTML(t('没有匹配的订阅源'))}</h3><p>${escapeHTML(t('目录里暂时没有相关源。可以让 AI 去全网找找这个领域的优质订阅源。'))}</p>`;
+      if (q) {
+        const aiBtn = document.createElement('button');
+        aiBtn.className = 'btn-text primary';
+        aiBtn.style.marginTop = '12px';
+        aiBtn.textContent = t('用 AI 探索「') + q + t('」');
+        aiBtn.addEventListener('click', () => this._enterExploreWithQuery(q, { autostart: true }));
+        empty.appendChild(aiBtn);
+      }
       grid.appendChild(empty);
     }
     for (const entry of list) grid.appendChild(this._card(entry));
@@ -900,6 +910,15 @@ export class FeedStore {
         note.textContent = ex.note;
         host.appendChild(note);
       }
+      // 换一批：排除本轮已展示的域名，AI 重新生成一批（小红书式发现流）
+      if (ex.cards.length) {
+        const next = document.createElement('button');
+        next.className = 'btn-text primary';
+        next.style.marginTop = '10px';
+        next.innerHTML = `${icon('refresh')}<span style="margin-left:5px">${escapeHTML(t('换一批'))}</span>`;
+        next.addEventListener('click', () => this.startExplore(ex.requestedMode || 'ai'));
+        host.appendChild(next);
+      }
     }
 
     // ── 卡片流 ──
@@ -918,15 +937,17 @@ export class FeedStore {
     this.modal.appendChild(body);
   }
 
-  /** 从一个源进入探索视图并预填同域领域词（是否开始探索仍由用户手动点击）。 */
-  _enterExploreWithDomain(url) {
-    let domain = '';
-    try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch (_) { /* 非法地址就不预填 */ }
+  /** 进入探索视图：url 提取同域领域词；纯关键词则原样作为领域。
+   *  autostart=true 时渲染后立即以 AI 模式开跑（目录搜索零结果的入口用）。 */
+  _enterExploreWithDomain(urlOrQuery, { autostart = false } = {}) {
+    let domain = String(urlOrQuery || '').trim();
+    try { domain = new URL(domain).hostname.replace(/^www\./, ''); } catch (_) { /* 不是地址就按关键词原样用 */ }
     this.view = 'explore';
     this.explore.domain = domain;
     this._render();
     const input = this.modal?.querySelector('.fs-explore-domain');
     if (input) input.value = domain;
+    if (autostart) this.startExplore('ai');
   }
 
   /** 启动探索。mode='ai' 先做额度门槛（有 Key 才预扣，限额弹窗中止）；basic 不消耗额度。 */
@@ -950,6 +971,10 @@ export class FeedStore {
         }
       }
     }
+    // 换一批前先把本轮已展示域名记入 seenDomains（后端生成时排除，保证新一批不重复）
+    for (const c of ex.cards || []) {
+      try { ex.seenDomains.add(new URL(c.feedURL || c.url).hostname.replace(/^www\./, '')); } catch (_) { /* 跳过 */ }
+    }
     ex.phase = 'running';
     ex.requestedMode = mode;
     ex.mode = null;
@@ -963,7 +988,7 @@ export class FeedStore {
 
     let result = null;
     try {
-      result = await window.robin.exploreRun({ mode, domain: ex.domain.trim() || undefined, strength: ex.strength || 'balanced' });
+      result = await window.robin.exploreRun({ mode, domain: ex.domain.trim() || undefined, strength: ex.strength || 'balanced', seenDomains: [...ex.seenDomains] });
     } catch (err) {
       result = { ok: false, error: String((err && err.message) || err) };
     }

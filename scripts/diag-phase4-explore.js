@@ -41,7 +41,7 @@ app.whenReady().then(async () => {
       cards.every((c) => c.feedURL && c.name && typeof c.score === 'number' && Array.isArray(c.samples)),
       JSON.stringify(cards[0] ? { name: cards[0].name, score: cards[0].score, samples: cards[0].samples.length, interval: cards[0].intervalDays, chars: cards[0].avgChars } : {}));
     check('评分区间合法', cards.every((c) => c.score >= 0 && c.score <= 100));
-    const domains = cards.map((c) => c.domain);
+    const domains = cards.map((c) => c.domain); console.log('[卡片明细]', cards.map((c) => c.domain + '|' + c.name.slice(0, 14)).join(' ; '));
     check('已订阅域名被排除', !domains.some((d) => d.includes('ruanyifeng')), domains.join(','));
 
     // 2) explored_feeds 落库
