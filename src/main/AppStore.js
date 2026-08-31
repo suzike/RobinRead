@@ -829,7 +829,8 @@ class AppStore extends EventEmitter {
   }
 
   importOPML(data) {
-    const urls = OPMLService.importURLs(data);
+    // 结构化导入：保留条目标题与 outline 文件夹层级（原实现标题=URL、层级丢弃）
+    const items = OPMLService.importTree(data);
     const existing = new Set(this.feedsRepo.allFeeds().map((f) => f.feedURL));
     // 免费版按剩余额度截断导入；已达上限直接拒绝（会员无限）
     let capacity = Infinity;
@@ -839,15 +840,29 @@ class AppStore extends EventEmitter {
       if (!gate.unlimited) capacity = Math.max(0, gate.limit - this.feedsRepo.allFeeds().length);
     }
     let added = 0;
-    for (const url of urls) {
-      if (existing.has(url)) continue;
+    let folders = 0;
+    const seenFolders = new Set();
+    for (const item of items) {
+      if (existing.has(item.url)) continue;
       if (added >= capacity) break;
-      this.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: url, feedURL: url });
+      const feed = this.feedsRepo.insertFeed({
+        accountID: LOCAL_ACCOUNT_ID,
+        title: item.title || item.url,
+        feedURL: item.url,
+      });
+      if (item.folder && !seenFolders.has(item.folder)) {
+        seenFolders.add(item.folder);
+      }
+      if (item.folder) {
+        const folder = this.feedsRepo.ensureFolder(LOCAL_ACCOUNT_ID, item.folder);
+        this.feedsRepo.setFeedFolder(feed.id, folder.id);
+        folders += 1;
+      }
       added += 1;
     }
     if (added > 0) this._invalidatePrepared();
     this._emitState();
-    return { total: urls.length, added, limited: added < urls.length };
+    return { total: items.length, added, limited: added < items.length, folders: seenFolders.size };
   }
 
   exportOPML() {
@@ -1853,7 +1868,7 @@ class AppStore extends EventEmitter {
         if (canceller.cancelled) throw new Error('cancelled');
         artifact.content += delta;
         this.emit('ai:delta', { key, entryID, kind: 'summary', delta, content: artifact.content });
-      });
+      }, canceller.controller.signal);
 
       artifact.content = content;
       artifact.isComplete = true;
@@ -1922,8 +1937,8 @@ class AppStore extends EventEmitter {
       this.artifactsRepo.saveArtifact(artifact);
 
       const llmCall = kind === AIArtifactKind.deepRead
-        ? (onDelta) => this.llm.deepRead(text, config, apiKey, onDelta)
-        : (onDelta) => this.llm.richSummary(text, config, apiKey, onDelta);
+        ? (onDelta) => this.llm.deepRead(text, config, apiKey, onDelta, canceller.controller.signal)
+        : (onDelta) => this.llm.richSummary(text, config, apiKey, onDelta, canceller.controller.signal);
       const content = await llmCall(async (delta) => {
         if (canceller.cancelled) throw new Error('cancelled');
         artifact.content += delta;
@@ -2121,11 +2136,11 @@ class AppStore extends EventEmitter {
         const inputs = batch.map((p) => p.original);
         let translations;
         try {
-          translations = await this.llm.translateBatch(inputs, config, apiKey);
+          translations = await this.llm.translateBatch(inputs, config, apiKey, canceller.controller.signal);
         } catch (_) {
           translations = [];
           for (const input of inputs) {
-            translations.push(await this.llm.translate(input, config, apiKey));
+            translations.push(await this.llm.translate(input, config, apiKey, null, canceller.controller.signal));
           }
         }
         batch.forEach((paragraph, index) => {
@@ -2141,7 +2156,7 @@ class AppStore extends EventEmitter {
         if (canceller.cancelled) throw new Error('cancelled');
         if (paragraph.original.length > MAX_CHARACTERS_PER_TRANSLATION_BATCH) {
           await flushBatch();
-          const translation = await this.llm.translate(paragraph.original, config, apiKey);
+          const translation = await this.llm.translate(paragraph.original, config, apiKey, null, canceller.controller.signal);
           const segment = { id: paragraph.id, original: paragraph.original, translation };
           segments.push(segment);
           if (onSegment) onSegment(segment);
@@ -2226,11 +2241,11 @@ class AppStore extends EventEmitter {
         const inputs = batch.map((p) => p.original);
         let translations;
         try {
-          translations = await this.llm.translateBatch(inputs, config, apiKey);
+          translations = await this.llm.translateBatch(inputs, config, apiKey, canceller.controller.signal);
         } catch (_) {
           translations = [];
           for (const input of inputs) {
-            translations.push(await this.llm.translate(input, config, apiKey));
+            translations.push(await this.llm.translate(input, config, apiKey, null, canceller.controller.signal));
           }
         }
         batch.forEach((paragraph, index) => {
@@ -2245,7 +2260,7 @@ class AppStore extends EventEmitter {
         if (canceller.cancelled) throw new Error('cancelled');
         if (paragraph.original.length > MAX_CHARACTERS_PER_TRANSLATION_BATCH) {
           await flushBatch();
-          const translation = await this.llm.translate(paragraph.original, config, apiKey);
+          const translation = await this.llm.translate(paragraph.original, config, apiKey, null, canceller.controller.signal);
           newSegments.push({ id: paragraph.id, original: paragraph.original, translation });
           continue;
         }
@@ -2396,7 +2411,9 @@ class AppStore extends EventEmitter {
 
   cancelAI(key) {
     const canceller = this.activeAICancellers.get(key);
-    if (canceller) canceller.cancelled = true;
+    if (!canceller) return;
+    canceller.cancelled = true;
+    if (canceller.controller) canceller.controller.abort();
   }
 
   /** 订阅排序（侧栏拖拽 / onMove）。 */
@@ -2518,7 +2535,9 @@ function escapeHtmlminimal(value) {
 }
 
 function createCanceller() {
-  return { cancelled: false };
+  // cancelled 标志供流式 onDelta 检查；controller 让取消直达 fetch 层
+  //（连接滴流/服务端不发 delta 时也能立即中止，不再依赖 onDelta 回调触发）
+  return { cancelled: false, controller: new AbortController() };
 }
 
 function errorMessage(err) {

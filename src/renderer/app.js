@@ -1347,6 +1347,10 @@ function openFeedStore() {
     onSubscribed: async () => {
       await reloadAll();
     },
+    onOpenFeed: (feedID, feedTitle) => {
+      // 订阅成功页「去读第一篇」：切到该源视图（handleScopeSelect 会重拉列表）
+      handleScopeSelect({ kind: 'feed', feedID, feedName: feedTitle || '' });
+    },
   });
   store.present();
 }

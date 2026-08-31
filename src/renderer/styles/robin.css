@@ -2758,3 +2758,93 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
   overflow-x: auto;
   overflow-y: hidden;
 }
+
+/* ==========================================================================
+   TTS 朗读（听文章）
+   段落跟随高亮（.nj-tts-active）：左侧强调线 + 极淡底色，纸感低彩度；
+   迷你播放器：正文底部居中悬浮胶囊（纸片底、圆角、克制的阴影）。
+   仅追加，不改上方任何既有规则。
+   ========================================================================== */
+.reader-article .nj-tts-active {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: rgba(97, 115, 87, 0.07);
+  border-radius: 3px;
+  transition: background-color 0.35s ease, box-shadow 0.35s ease;
+}
+.reader-article h1.robin-header-title.nj-tts-active {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: rgba(97, 115, 87, 0.07);
+}
+.nj-tts-header-btn.is-playing {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 播放器悬浮时给正文留出底部空间，绝不遮挡最后一行 */
+.nj-tts-open .reader-article { padding-bottom: 96px; }
+
+.nj-tts-player {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 9px;
+  background: var(--note-background);
+  border: 1px solid var(--note-border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-card);
+  max-width: calc(100% - 48px);
+}
+.nj-tts-pbtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  flex: 0 0 auto;
+}
+.nj-tts-pbtn:hover { background: var(--row-hover); color: var(--accent); }
+.nj-tts-pbtn svg { width: 12px; height: 12px; pointer-events: none; }
+.nj-tts-pbtn.nj-tts-rate { width: auto; min-width: 24px; padding: 0 7px; border-radius: 999px; }
+.nj-tts-voice {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--separator);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-sans);
+  max-width: 168px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  margin-left: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.nj-tts-voice:focus { border-color: var(--accent); }
+.nj-tts-voice option { color: var(--text-primary); background: var(--note-background); }
+
+/* 打印 / 存为 PDF：播放器隐藏，跟随高亮退成纯文本，底部预留取消 */
+@media print {
+  .nj-tts-player { display: none !important; }
+  .nj-tts-open .reader-article { padding-bottom: 0 !important; }
+  .reader-article .nj-tts-active,
+  .reader-article h1.robin-header-title.nj-tts-active {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}

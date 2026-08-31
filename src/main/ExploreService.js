@@ -72,7 +72,7 @@ class ExploreService {
   }
 
   /** 探索入口。mode: 'ai'（画像+LLM 规划+解释）| 'basic'（本地池+验证，无解释）。 */
-  async run({ mode = 'ai', domain = null, excludeDomains = [], limit = 10 } = {}) {
+  async run({ mode = 'ai', domain = null, excludeDomains = [], limit = 10, strength = 'balanced' } = {}) {
     const excluded = new Set((excludeDomains || []).map((d) => String(d || '').toLowerCase()).filter(Boolean));
     // 数据库侧排除：已订阅 + 历史探索（域名级，防御性兜底，渲染层已先行排除）
     for (const row of this.store.database.prepare('SELECT feed_url FROM feeds WHERE is_deleted = 0').all()) {
@@ -142,7 +142,13 @@ class ExploreService {
     };
     await Promise.all(Array.from({ length: VALIDATE_CONCURRENCY }, () => worker()));
 
-    const top = cards.sort((a, b) => b.score - a.score).slice(0, limit);
+    const sorted = cards.sort((a, b) => b.score - a.score);
+    // 探索风格三档：保守只收高分近期活跃源；大胆放宽门槛多看长尾
+    const minScore = strength === 'calm' ? 55 : strength === 'balanced' ? 35 : 0;
+    const freshMaxDays = strength === 'calm' ? 45 : Infinity;
+    let admitted = sorted.filter((c) => c.score >= minScore && c.freshnessDays <= freshMaxDays);
+    if (admitted.length < Math.min(3, limit)) admitted = sorted; // 过严导致空手时回退全部
+    const top = admitted.slice(0, limit);
     // 4) 落 explored 记录（verdict=explored；订阅/拒绝时更新）
     const insert = this.store.database.prepare(
       'INSERT OR REPLACE INTO explored_feeds (url, domain, verdict, score, explanation, explored_at) VALUES (?, ?, ?, ?, NULL, ?)'

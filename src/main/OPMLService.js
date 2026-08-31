@@ -26,6 +26,36 @@ function importURLs(data) {
   return [...urls].sort();
 }
 
+/**
+ * 结构化导入：保留 outline 层级与条目标题（原 importURLs 丢弃两者，标题只能拿 URL 充数）。
+ * folder 取直接父级 outline 的标题（扁平文件夹模型只用一层）。返回 [{ url, title, folder }]。
+ */
+function importTree(data) {
+  const text = Buffer.isBuffer(data) ? data.toString('utf8') : String(data);
+  const items = [];
+  const stack = [];
+
+  tokenizeXML(text, {
+    onStart(name, attributes) {
+      if (name.toLowerCase() !== 'outline') return;
+      const title = String(attributes.text ?? attributes.title ?? '').trim();
+      const value = attributes.xmlUrl ?? attributes.xmlurl;
+      const folder = stack.filter(Boolean).slice(-1)[0] || '';
+      if (value) {
+        const trimmed = value.trim();
+        if (/^https?:\/\//i.test(trimmed)) items.push({ url: trimmed, title, folder });
+      }
+      stack.push(title);
+    },
+    onEnd(name) {
+      if (name.toLowerCase() === 'outline') stack.pop();
+    },
+    onText() {},
+  });
+
+  return items;
+}
+
 function exportOPML(feeds) {
   const outlines = feeds
     .filter((feed) => !feed.isDeleted)
@@ -52,4 +82,4 @@ function escapeXML(value) {
     .replace(/</g, '&lt;');
 }
 
-module.exports = { importURLs, exportOPML };
+module.exports = { importURLs, importTree, exportOPML };

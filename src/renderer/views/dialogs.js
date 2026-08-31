@@ -1,8 +1,8 @@
 'use strict';
 /**
- * RobinRead（知更）— 设置窗口（8 分区 1:1）与 Sheet 对话框
+ * RobinRead（知更）— 设置窗口（9 分区 1:1）与 Sheet 对话框
  *
- * 分区（对应 SettingsSection）：外观 / 账号 / AI 功能 / 刷新 / 语言 / 同步 / 反馈 / 关于
+ * 分区（对应 SettingsSection）：外观 / 通用 / 账号 / AI 功能 / 刷新 / 语言 / 同步 / 反馈 / 关于
  */
 import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
@@ -11,6 +11,7 @@ import { promptBox, confirmBox, alertBox } from '../ui-prompt.js';
 
 const SECTIONS = [
   { id: 'appearance', title: '外观', icon: 'appearance' },
+  { id: 'general', title: '通用', icon: 'general' },
   { id: 'accounts', title: '账号', icon: 'person' },
   { id: 'ai', title: 'AI 功能', icon: 'ai' },
   { id: 'refresh', title: '刷新', icon: 'refresh' },
@@ -110,6 +111,7 @@ export class SettingsView {
     const llm = this.state.snapshot?.llm || {};
     switch (this.section) {
       case 'appearance': this._appearance(scroll, prefs); break;
+      case 'general': this._general(scroll); break;
       case 'accounts': this._accounts(scroll); break;
       case 'ai': this._ai(scroll, llm); break;
       case 'refresh': this._refresh(scroll, prefs); break;
@@ -281,6 +283,137 @@ export class SettingsView {
         <p style="font-size:${prefs.articleFontSize ?? 17}px">${escapeHTML(t('RobinRead 专为沉浸式阅读打造。在保持纸张排版美感的同时，提供舒适的长文阅读体验。字号调整会同步到所有文章。'))}</p>
       </div>`;
     container.appendChild(preview);
+  }
+
+  // MARK: 通用（桌面行为 / 备份与恢复 / 存储管理）
+
+  async _general(container) {
+    const [general, login] = await Promise.all([
+      window.robin.getGeneral().catch(() => null),
+      window.robin.loginItem().catch(() => null),
+    ]);
+    const g = general || { closeToTray: false, newArticleNotify: true };
+    const l = login || { supported: false, enabled: false, message: '' };
+
+    // ── 桌面行为 ──
+    container.appendChild(group(t('桌面行为'), t('窗口与系统通知偏好，仅影响这台设备。'), [
+      toggleRow(t('关闭窗口时最小化到托盘'), t('点击关闭按钮时隐藏到系统托盘并在后台保持刷新；从托盘菜单选择「退出」才会真正关闭应用。'), g.closeToTray === true, async (v) => {
+        await window.robin.setGeneral({ closeToTray: v });
+      }),
+      toggleRow(t('刷新发现新文章时系统通知'), t('窗口最小化或隐藏时刷新到新文章会弹系统通知；前台阅读时不打扰。'), g.newArticleNotify !== false, async (v) => {
+        await window.robin.setGeneral({ newArticleNotify: v });
+      }),
+      toggleRow(t('开机自启'), l.supported ? t('登录 Windows 后自动启动 RobinRead。') : t(l.message || '仅打包版（安装版）可用，当前环境不支持。'), l.enabled === true, async (v) => {
+        const result = await window.robin.loginItem(v);
+        if (result && result.supported === false) {
+          await alertBox(t('开机自启'), t(result.message || '仅打包版（安装版）可用，当前环境不支持。'));
+        }
+        this.render();
+      }),
+    ]));
+
+    // ── 备份与恢复 ──
+    container.appendChild(group(t('备份与恢复'), t('备份为单个 JSON 文件（完整数据库 + 偏好）；导入后需重启应用完成恢复，将覆盖当前全部数据。'), [
+      row(t('导出备份'), t('生成包含全部订阅、文章、阅读状态与偏好的单文件快照。'), (() => {
+        const button = document.createElement('button');
+        button.className = 'btn-text bordered';
+        button.textContent = t('导出到文件…');
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const result = await window.robin.backupExport();
+            if (result && result.ok) {
+              await alertBox(t('导出完成'), t('备份已保存到：') + (result.data?.path || ''));
+            } else if (result && !result.ok) {
+              await alertBox(t('导出失败'), String(result.error || ''));
+            }
+          } finally {
+            button.disabled = false;
+          }
+        });
+        return button;
+      })()),
+      row(t('导入备份'), t('选择此前导出的备份文件；恢复在应用重启后生效。'), (() => {
+        const button = document.createElement('button');
+        button.className = 'btn-text bordered';
+        button.textContent = t('从文件恢复…');
+        button.addEventListener('click', async () => {
+          const ok = await confirmBox(t('导入备份并覆盖当前数据？'), {
+            message: t('导入会用备份替换本机的全部订阅、文章与偏好，且无法撤销。建议先导出当前数据作为备份。'),
+            okLabel: t('选择备份文件'),
+            danger: true,
+          });
+          if (!ok) return;
+          button.disabled = true;
+          try {
+            const result = await window.robin.backupImport();
+            if (result && result.ok) {
+              await alertBox(t('恢复已就绪'), t('将重启应用完成恢复。重启后订阅与偏好会被替换为备份内容。'));
+              window.robin.quitForRestore();
+            } else if (result && !result.ok) {
+              await alertBox(t('导入失败'), String(result.error || ''));
+            }
+          } finally {
+            button.disabled = false;
+          }
+        });
+        return button;
+      })()),
+    ]));
+
+    // ── 存储管理 ──
+    const statsGroup = group(t('存储管理'), t('数据保存在本机 %APPDATA%\\RobinRead。「立即清理」只移除孤儿 AI 产物与过期正文缓存，不触碰订阅与文章。'), []);
+    container.appendChild(statsGroup);
+    const statsHost = statsGroup.querySelector('.group-rows');
+    const statsLine = document.createElement('div');
+    statsLine.style.cssText = 'padding:12px 16px;font-size:12px;color:var(--text-secondary);line-height:1.9;';
+    statsLine.textContent = t('正在统计数据体积…');
+    statsHost.appendChild(statsLine);
+
+    const fmtBytes = (value) => {
+      const n = Number(value) || 0;
+      if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+      if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`;
+      return `${n} B`;
+    };
+    const renderStats = (s) => {
+      if (!s) return;
+      statsLine.innerHTML = '';
+      const lines = [
+        `${t('数据库')}：${fmtBytes(s.dbSize)}${s.walSize > 0 ? `（含 WAL ${fmtBytes(s.walSize)}）` : ''}`,
+        `${t('正文缓存')}：${s.cachesCount} ${t('篇')} · ${fmtBytes(s.cachesBytes)}`,
+        `${t('AI 产物')}：${s.artifactsCount} ${t('条')}`,
+        `${t('站点图标')}：${fmtBytes(s.iconsBytes)}`,
+      ];
+      for (const line of lines) {
+        const div = document.createElement('div');
+        div.textContent = line;
+        statsLine.appendChild(div);
+      }
+    };
+    window.robin.storageStats().then(renderStats);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:8px;padding:2px 16px 14px;';
+    const cleanBtn = document.createElement('button');
+    cleanBtn.className = 'btn-text bordered';
+    cleanBtn.textContent = t('立即清理');
+    cleanBtn.addEventListener('click', async () => {
+      cleanBtn.disabled = true;
+      cleanBtn.textContent = t('正在清理…');
+      try {
+        renderStats(await window.robin.storageCleanup());
+      } finally {
+        cleanBtn.disabled = false;
+        cleanBtn.textContent = t('立即清理');
+      }
+    });
+    const openBtn = document.createElement('button');
+    openBtn.className = 'btn-text bordered';
+    openBtn.textContent = t('打开数据目录');
+    openBtn.addEventListener('click', () => window.robin.openDataDir());
+    actions.append(cleanBtn, openBtn);
+    statsHost.appendChild(actions);
   }
 
   // MARK: 账号

@@ -22,6 +22,20 @@ const VISIBLE_BATCH = 24;
 const SCROLL_POSITIONS_KEY = 'robinread.scrollPositions';
 const SCROLL_POSITIONS_LIMIT = 300;
 
+// MARK: - TTS 朗读（听文章）常量
+// 引擎：window.speechSynthesis（Chromium 内置，Windows 本地语音，离线零成本）。
+// 长文本必须按句切块入队：Chromium 对超长 utterance 会截断/吞字。
+const TTS_CHUNK_MAX = 120;
+const TTS_RATES = [0.75, 1, 1.25, 1.5];
+const TTS_RATE_KEY = 'robinread.tts.rate';
+const TTS_VOICE_KEY = 'robinread.tts.voice';
+
+/** 内联 SVG（不依赖 icons.js，喇叭/播放/暂停/停止）。 */
+const TTS_SPEAKER_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 6.1v3.8h2.5L8.2 13V3L4.7 6.1H2.2z"/><path d="M10.6 5.4a3.7 3.7 0 0 1 0 5.2M12.6 3.6a6.3 6.3 0 0 1 0 8.8"/></svg>';
+const TTS_PLAY_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><path d="M5 3.2v9.6l7.6-4.8z"/></svg>';
+const TTS_PAUSE_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><path d="M4.6 3h2.3v10H4.6zM9.1 3h2.3v10H9.1z"/></svg>';
+const TTS_STOP_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><rect x="3.8" y="3.8" width="8.4" height="8.4" rx="1.2"/></svg>';
+
 export class ReaderView {
   constructor(scrollEl, refs, handlers) {
     this.scrollEl = scrollEl;
@@ -53,6 +67,22 @@ export class ReaderView {
     this._thumbState = 'idle';
     this._hideTimer = null;
 
+    // TTS 朗读：状态机在 _tts 内（null = 空闲）；_ttsGen 使在途 utterance 回调失效
+    this._tts = null;
+    this._ttsGen = 0;
+    this._ttsHeaderBtn = null;
+    // R（读/停）与 Esc（停止）在 reader 内部监听：仅在阅读器聚焦且无更高优先级弹层时消费
+    document.addEventListener('keydown', (event) => this._onTTSKeyDown(event));
+    // 语音列表异步加载（voiceschanged）：就绪后刷新头部「听」按钮可用态；
+    // 已触发过事件但仍为空 = 系统确认无语音 → 置灰
+    try {
+      const synth = window.speechSynthesis;
+      synth?.addEventListener?.('voiceschanged', () => {
+        try { this._ttsVoicesConfirmedEmpty = ((synth.getVoices?.() || []).length === 0); } catch (_) { /* 忽略 */ }
+        this._ttsRefreshButtonAvailability();
+      });
+    } catch (_) { /* mock/精简引擎无 addEventListener：点击时仍会兜底提示 */ }
+
     this.scrollEl.addEventListener('scroll', () => this._onScroll(), { passive: true });
     document.addEventListener('selectionchange', () => this._onSelectionChange());
     this.progressEl = document.getElementById('reading-progress');
@@ -75,6 +105,7 @@ export class ReaderView {
     this.bilingualActive = sameEntry ? this.bilingualActive : false;
     if (!sameEntry) this._translateMode = 'off';
     if (!sameEntry) {
+      this._ttsStop(); // 切换文章：朗读必须停止并清队（旧段落锚点已失效）
       this.visibleIDs = [];
       this.pendingIDs.clear();
       this.failedIDs.clear();
@@ -295,6 +326,7 @@ export class ReaderView {
   }
 
   clear() {
+    this._ttsStop(); // 清空阅读器：停朗读、清队、移除播放器
     if (this.entryID && this.scrollEl) {
       this._rememberScrollPosition(this.entryID, this.scrollEl.scrollTop);
     }
@@ -372,6 +404,7 @@ export class ReaderView {
   // MARK: - 渲染
 
   _render() {
+    this._ttsStop(); // 正文重排（打开新文/原文精读）：段落锚点重建，朗读必须先停
     this.scrollEl.scrollTop = 0;
     this.scrollEl.innerHTML = '';
 
@@ -445,36 +478,39 @@ export class ReaderView {
     if (entry.author) parts.push(escapeHTML(entry.author));
     if (entry.publishedAt) parts.push(escapeHTML(formatFullDate(entry.publishedAt)));
     meta.innerHTML = parts.join(' &bull; ');
-    // 原文操作：应用内精读（主）+ 浏览器打开（次）
-    if (entry.url) {
+    // 头部操作区：「听」（TTS 朗读，只要有正文就提供）+ 应用内精读 + 浏览器打开（次）
+    {
       const actions = document.createElement('span');
       actions.className = 'robin-header-original-actions';
-      const readBtn = document.createElement('button');
-      readBtn.className = 'btn-text bordered';
-      readBtn.innerHTML = `${icon('globe')}<span style="margin-left:4px">${escapeHTML(t('阅读原文'))}</span>`;
-      readBtn.title = t('在阅读器内打开原文：自动抓取 + 版面重排 + 翻译/摘要/划词全功能');
-      readBtn.addEventListener('click', () => this.openOriginal());
-      const browserBtn = document.createElement('button');
-      browserBtn.className = 'btn-text bordered';
-      browserBtn.innerHTML = icon('export');
-      browserBtn.title = t('在浏览器中打开');
-      browserBtn.addEventListener('click', () => window.robin.openLink(entry.url));
-      // 导出菜单（仅在有正文时显示）：复制 Markdown / 导出文件 / 打印 PDF
-      if (plainLen(this.html || '') > 0) {
-        const exportBtn = document.createElement('button');
-        exportBtn.className = 'btn-text bordered';
-        exportBtn.dataset.role = 'export';
-        exportBtn.innerHTML = `${icon('export')}<span style="margin-left:4px">${escapeHTML(t('导出'))}</span>`;
-        exportBtn.title = t('导出：复制 Markdown / 保存为文件 / 打印为 PDF');
-        exportBtn.addEventListener('click', () => {
-          const rect = exportBtn.getBoundingClientRect();
-          this._showExportMenu(rect.left, rect.bottom + 6);
-        });
-        actions.appendChild(exportBtn);
+      this._ttsAppendHeaderButton(actions);
+      if (entry.url) {
+        const readBtn = document.createElement('button');
+        readBtn.className = 'btn-text bordered';
+        readBtn.innerHTML = `${icon('globe')}<span style="margin-left:4px">${escapeHTML(t('阅读原文'))}</span>`;
+        readBtn.title = t('在阅读器内打开原文：自动抓取 + 版面重排 + 翻译/摘要/划词全功能');
+        readBtn.addEventListener('click', () => this.openOriginal());
+        const browserBtn = document.createElement('button');
+        browserBtn.className = 'btn-text bordered';
+        browserBtn.innerHTML = icon('export');
+        browserBtn.title = t('在浏览器中打开');
+        browserBtn.addEventListener('click', () => window.robin.openLink(entry.url));
+        // 导出菜单（仅在有正文时显示）：复制 Markdown / 导出文件 / 打印 PDF
+        if (plainLen(this.html || '') > 0) {
+          const exportBtn = document.createElement('button');
+          exportBtn.className = 'btn-text bordered';
+          exportBtn.dataset.role = 'export';
+          exportBtn.innerHTML = `${icon('export')}<span style="margin-left:4px">${escapeHTML(t('导出'))}</span>`;
+          exportBtn.title = t('导出：复制 Markdown / 保存为文件 / 打印为 PDF');
+          exportBtn.addEventListener('click', () => {
+            const rect = exportBtn.getBoundingClientRect();
+            this._showExportMenu(rect.left, rect.bottom + 6);
+          });
+          actions.appendChild(exportBtn);
+        }
+        actions.appendChild(readBtn);
+        actions.appendChild(browserBtn);
       }
-      actions.appendChild(readBtn);
-      actions.appendChild(browserBtn);
-      meta.appendChild(actions);
+      if (actions.childNodes.length > 0) meta.appendChild(actions);
     }
     header.appendChild(meta);
 
@@ -2958,6 +2994,401 @@ export class ReaderView {
     // textContent：不依赖布局（隐藏窗口 innerText 为空）
     return (this.body.textContent || '').trim();
   }
+
+  // MARK: - TTS 朗读（听文章）
+
+  /** 对外状态：idle / playing / paused（E2E 探测与调试用）。 */
+  get ttsState() {
+    return this._tts ? this._tts.state : 'idle';
+  }
+
+  _ttsSynth() {
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    return synth && typeof synth.speak === 'function' ? synth : null;
+  }
+
+  /**
+   * 键盘：R = 读/停切换；Esc = 停止朗读。
+   * 协调原则（app.js 全局键位禁改）：
+   * - R 全局未占用（全局仅 Ctrl+Shift+R 刷新，带修饰键，此处直接忽略一切修饰键）；
+   *   仅在阅读器栏聚焦（column-focused / 焦点在正文内）时消费，输入控件中绝不拦截。
+   * - Esc 优先级让位：禅模式（app 层消费）、图片灯箱 / 模态弹层（各自监听）、
+   *   以及任何已 preventDefault 的按键，本层一律不动手。
+   */
+  _onTTSKeyDown(event) {
+    if (!event || event.defaultPrevented) return;
+    const target = event.target;
+    if (target instanceof HTMLElement
+      && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+
+    if (event.key === 'Escape') {
+      if (this.ttsState === 'idle') return;
+      if (document.body.classList.contains('zen')) return; // 禅模式：Esc 归 app 层退出禅模式
+      if (document.querySelector('.nj-lightbox, .modal-overlay')) return; // 灯箱/模态优先
+      event.preventDefault();
+      event.stopPropagation();
+      this._ttsStop();
+      this.handlers.onFeedback?.(t('已停止朗读'));
+      return;
+    }
+
+    if (event.key !== 'r' && event.key !== 'R') return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return; // Ctrl+Shift+R 刷新等全局组合不碰
+    if (!this.entryID || !this._readerFocused()) return;
+    event.preventDefault();
+    this.toggleTTS();
+  }
+
+  /** 阅读器栏是否持有焦点（焦点在正文内，或 #reader 列处于 column-focused）。 */
+  _readerFocused() {
+    const active = document.activeElement;
+    if (active && (active === this.scrollEl || this.scrollEl.contains(active))) return true;
+    const column = this.scrollEl?.parentElement;
+    return !!(column && column.classList.contains('column-focused'));
+  }
+
+  /** 头部「听」按钮：无语音引擎 / 已确认无语音 / 无正文时置灰并给出 title 说明。 */
+  _ttsAppendHeaderButton(actions) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-text bordered nj-tts-header-btn';
+    btn.dataset.role = 'tts';
+    btn.innerHTML = `${TTS_SPEAKER_SVG}<span style="margin-left:4px">${escapeHTML(t('听'))}</span>`;
+    btn.addEventListener('click', () => this.toggleTTS());
+    this._ttsHeaderBtn = btn;
+    this._ttsRefreshButtonAvailability();
+    actions.appendChild(btn);
+  }
+
+  /** 头部按钮可用态（getVoices 异步：voiceschanged 后会再次刷新）。 */
+  _ttsRefreshButtonAvailability() {
+    const btn = this._ttsHeaderBtn;
+    if (!btn || !btn.isConnected) return;
+    const synth = this._ttsSynth();
+    const hasBody = plainLen(this.html || '') > 0;
+    if (!synth) {
+      btn.disabled = true;
+      btn.title = t('当前环境不支持语音朗读（speechSynthesis 不可用）');
+    } else if (!hasBody) {
+      btn.disabled = true;
+      btn.title = t('这篇文章没有可朗读的正文');
+    } else if (this._ttsVoicesConfirmedEmpty) {
+      btn.disabled = true;
+      btn.title = t('未检测到可用语音：请在系统设置中安装语音（如中文 Microsoft 语音）后重试。');
+    } else {
+      btn.disabled = false;
+      btn.title = t('听文章：本地语音朗读全文（快捷键 R 读/停，Esc 停止）');
+    }
+  }
+
+  /** 同步头部按钮文案（听 ↔ 停）。头部随正文重建，引用失效时静默跳过。 */
+  _ttsSyncHeaderButton() {
+    const btn = this._ttsHeaderBtn;
+    if (!btn || !btn.isConnected) return;
+    const label = btn.querySelector('span');
+    if (label) label.textContent = this.ttsState === 'idle' ? t('听') : t('停');
+    btn.classList.toggle('is-playing', this.ttsState !== 'idle');
+    if (this.ttsState === 'idle') {
+      this._ttsRefreshButtonAvailability();
+    } else {
+      btn.disabled = false; // 朗读中按钮 = 「停」，始终可点
+      btn.title = t('停止朗读（快捷键 R / Esc）');
+    }
+  }
+
+  toggleTTS() {
+    if (this.ttsState !== 'idle') {
+      this._ttsStop();
+      return;
+    }
+    this._ttsStart();
+  }
+
+  _ttsStart() {
+    const synth = this._ttsSynth();
+    if (!synth) {
+      this.handlers.onFeedback?.(t('当前环境不支持语音朗读（speechSynthesis 不可用）'));
+      return;
+    }
+    if (!this.entryID || !this.body) return;
+    const chunks = this._ttsCollectChunks();
+    if (chunks.length === 0) {
+      this.handlers.onFeedback?.(t('这篇文章没有可朗读的正文。'));
+      return;
+    }
+    const voices = this._ttsSortedVoices();
+    if (voices.length === 0) {
+      this.handlers.onFeedback?.(t('未检测到可用语音：请在系统设置中安装语音（如中文 Microsoft 语音）后重试。'));
+      return;
+    }
+    this._ttsStop(); // 幂等兜底：清掉可能残留的上一轮状态
+    this._ttsGen += 1;
+    this._tts = {
+      state: 'playing',
+      chunks,
+      index: 0,
+      gen: this._ttsGen,
+      utterances: [], // 保留 utterance 引用：Chromium 已知 GC 会吞掉在途 utterance 的回调
+      rate: this._ttsReadRate(),
+      player: null,
+    };
+    this._ttsBuildPlayer();
+    this.scrollEl.classList.add('nj-tts-open'); // 播放器悬浮正文底部：预留 padding 防遮最后一行
+    this._ttsEnqueueFrom(0);
+    this._ttsSyncHeaderButton();
+  }
+
+  /** 收集朗读块：标题 + 正文叶子段落（[data-nj-id]），每块切成 ≤120 字的句块。 */
+  _ttsCollectChunks() {
+    const chunks = [];
+    const title = String(this.entry?.title || '').trim();
+    for (const piece of ttsSplitChunks(title, TTS_CHUNK_MAX)) chunks.push({ text: piece, paraID: 'title' });
+    if (!this.body) return chunks;
+    for (const block of this.body.querySelectorAll('[data-nj-id]')) {
+      if (block.querySelector('[data-nj-id]')) continue; // 容器块：只读叶子
+      if (block.matches('pre')) continue; // 代码块不读
+      if (block.querySelector('pre, table, video, iframe')) continue;
+      const text = (block.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text) continue;
+      for (const piece of ttsSplitChunks(text, TTS_CHUNK_MAX)) {
+        chunks.push({ text: piece, paraID: block.dataset.njId });
+      }
+    }
+    return chunks;
+  }
+
+  /** 读取语速偏好（0.75/1/1.25/1.5，非法值回退 1）。 */
+  _ttsReadRate() {
+    try {
+      const raw = Number(localStorage.getItem(TTS_RATE_KEY));
+      return TTS_RATES.includes(raw) ? raw : 1;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  /**
+   * 语音列表：getVoices 异步（voiceschanged 后才非空），每次现取并缓存；
+   * 排序：中文语音优先（zh*），Microsoft 开头的高质量声音再优先。
+   */
+  _ttsSortedVoices() {
+    const synth = this._ttsSynth();
+    if (!synth || typeof synth.getVoices !== 'function') return [];
+    let voices = [];
+    try { voices = synth.getVoices() || []; } catch (_) { voices = []; }
+    return voices.slice().sort((a, b) => ttsVoiceScore(b) - ttsVoiceScore(a));
+  }
+
+  /** 按持久化偏好挑声音（存 name），无偏好/失效时取排序首位（中文优先）。 */
+  _ttsPickVoice(voices) {
+    if (!voices.length) return null;
+    let saved = null;
+    try { saved = localStorage.getItem(TTS_VOICE_KEY); } catch (_) { /* 忽略 */ }
+    if (saved) {
+      const hit = voices.find((v) => v.name === saved || v.voiceURI === saved);
+      if (hit) return hit;
+    }
+    return voices[0];
+  }
+
+  /** 从第 index 块起构建 utterance 入队（browser 内部按入队序连续播报）。 */
+  _ttsEnqueueFrom(startIndex) {
+    const tts = this._tts;
+    const synth = this._ttsSynth();
+    if (!tts || !synth) return;
+    const voices = this._ttsSortedVoices();
+    const voice = this._ttsPickVoice(voices);
+    if (!voice) {
+      this._ttsStop();
+      this.handlers.onFeedback?.(t('未检测到可用语音：请在系统设置中安装语音（如中文 Microsoft 语音）后重试。'));
+      return;
+    }
+    for (let i = startIndex; i < tts.chunks.length; i += 1) {
+      const chunk = tts.chunks[i];
+      let utterance;
+      try {
+        utterance = new SpeechSynthesisUtterance(chunk.text);
+      } catch (_) {
+        break;
+      }
+      try { utterance.voice = voice; } catch (_) { /* mock/plain object 赋值失败：lang 兜底 */ }
+      utterance.lang = voice.lang || 'zh-CN';
+      utterance.rate = tts.rate;
+      utterance.onend = () => this._ttsOnChunkEnd(i, tts.gen);
+      utterance.onerror = (event) => this._ttsOnChunkError(i, tts.gen, event);
+      tts.utterances.push(utterance);
+      synth.speak(utterance);
+    }
+    this._ttsHighlight(tts.chunks[startIndex]?.paraID);
+    this._ttsSyncPlayer();
+  }
+
+  /** 句块播完：推进高亮到下一块；最后一块播完则自然收尾。 */
+  _ttsOnChunkEnd(index, gen) {
+    const tts = this._tts;
+    if (!tts || tts.gen !== gen) return; // 过期回调（已停止 / 切文 / 换速重建）
+    if (index + 1 < tts.chunks.length) {
+      tts.index = index + 1;
+      this._ttsHighlight(tts.chunks[index + 1].paraID);
+    } else {
+      this._ttsStop();
+      this.handlers.onFeedback?.(t('朗读结束'));
+    }
+  }
+
+  _ttsOnChunkError(index, gen, event) {
+    const tts = this._tts;
+    if (!tts || tts.gen !== gen) return;
+    const reason = event?.error || '';
+    if (reason === 'interrupted' || reason === 'canceled' || reason === '') return; // 主动停止引起
+    this._ttsStop();
+    this.handlers.onFeedback?.(`${t('朗读遇到错误，已停止')}：${reason}`);
+  }
+
+  /** 段落跟随高亮：唯一 .nj-tts-active + 平滑居中滚动。 */
+  _ttsHighlight(paraID) {
+    this._ttsClearActive();
+    if (!paraID || !this.scrollEl) return;
+    const block = this.scrollEl.querySelector(`[data-nj-id="${cssEscape(paraID)}"]`);
+    if (!block) return;
+    block.classList.add('nj-tts-active');
+    if (this._tts) this._tts.activeEl = block;
+    block.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  _ttsClearActive() {
+    this.scrollEl?.querySelectorAll('.nj-tts-active').forEach((el) => el.classList.remove('nj-tts-active'));
+  }
+
+  /** 播放/暂停切换（迷你播放器主按钮）。 */
+  _ttsTogglePause() {
+    const tts = this._tts;
+    const synth = this._ttsSynth();
+    if (!tts || !synth) return;
+    if (tts.state === 'playing') {
+      try { synth.pause(); } catch (_) { /* 引擎不支持暂停：忽略 */ }
+      tts.state = 'paused';
+    } else if (tts.state === 'paused') {
+      try { synth.resume(); } catch (_) { /* 同上 */ }
+      tts.state = 'playing';
+    } else {
+      return;
+    }
+    this._ttsSyncPlayer();
+  }
+
+  /** 语速循环切换：写 localStorage；播放中则从当前句块重建队列（新语速即刻生效）。 */
+  _ttsCycleRate() {
+    const tts = this._tts;
+    const current = tts ? tts.rate : this._ttsReadRate();
+    const next = TTS_RATES[(TTS_RATES.indexOf(current) + 1) % TTS_RATES.length];
+    try { localStorage.setItem(TTS_RATE_KEY, String(next)); } catch (_) { /* 隐私模式：内存内仍生效 */ }
+    if (tts) {
+      tts.rate = next;
+      this._ttsRestartFrom(tts.index);
+    }
+    this.handlers.onFeedback?.(`${t('语速')} ${next}×`);
+    return next;
+  }
+
+  /** 声音切换：写 localStorage；播放中从当前句块重建队列。 */
+  _ttsSelectVoice(name) {
+    try { localStorage.setItem(TTS_VOICE_KEY, String(name || '')); } catch (_) { /* 忽略 */ }
+    const tts = this._tts;
+    if (tts) this._ttsRestartFrom(tts.index);
+  }
+
+  /** cancel + 丢弃旧 utterance + gen++（旧 onend 全部作废），再从 index 重灌队列。 */
+  _ttsRestartFrom(index) {
+    const tts = this._tts;
+    if (!tts) return;
+    const synth = this._ttsSynth();
+    if (synth?.cancel) {
+      try { synth.cancel(); } catch (_) { /* 忽略 */ }
+    }
+    tts.utterances = [];
+    tts.gen += 1;
+    tts.state = 'playing'; // 暂停中调语速/声音 → 直接以新参数继续播
+    this._ttsEnqueueFrom(index);
+    this._ttsSyncHeaderButton();
+  }
+
+  /** 停止：清队（cancel）+ 清高亮 + 撤播放器 + gen++ 使全部在途回调失效。幂等。 */
+  _ttsStop() {
+    const tts = this._tts;
+    this._ttsGen += 1;
+    this._tts = null;
+    const synth = this._ttsSynth();
+    if (synth?.cancel) {
+      try { synth.cancel(); } catch (_) { /* 忽略 */ }
+    }
+    if (tts) {
+      tts.utterances = [];
+      tts.player?.remove();
+    }
+    this._ttsClearActive();
+    this.scrollEl?.classList.remove('nj-tts-open');
+    this._ttsSyncHeaderButton();
+  }
+
+  // MARK: - TTS 迷你播放器（正文底部居中悬浮胶囊）
+
+  _ttsBuildPlayer() {
+    const tts = this._tts;
+    if (!tts) return;
+    const host = this.scrollEl?.parentElement || document.body;
+    const player = document.createElement('div');
+    player.className = 'nj-tts-player';
+    player.dataset.role = 'tts-player';
+    player.innerHTML = `
+      <button type="button" class="nj-tts-pbtn nj-tts-toggle" title="${attr(t('暂停 / 继续朗读'))}">${TTS_PAUSE_SVG}</button>
+      <button type="button" class="nj-tts-pbtn nj-tts-stop" title="${attr(t('停止朗读（Esc）'))}">${TTS_STOP_SVG}</button>
+      <button type="button" class="nj-tts-pbtn nj-tts-rate" title="${attr(t('点击切换语速（0.75 / 1 / 1.25 / 1.5）'))}"></button>
+      <select class="nj-tts-voice" title="${attr(t('朗读声音'))}"></select>`;
+    tts.player = player;
+    player.querySelector('.nj-tts-toggle').addEventListener('click', () => this._ttsTogglePause());
+    player.querySelector('.nj-tts-stop').addEventListener('click', () => this._ttsStop());
+    player.querySelector('.nj-tts-rate').addEventListener('click', () => this._ttsCycleRate());
+    const select = player.querySelector('.nj-tts-voice');
+    select.addEventListener('change', () => this._ttsSelectVoice(select.value));
+    host.appendChild(player);
+    this._ttsSyncPlayer();
+  }
+
+  /** 同步播放器 UI：播放/暂停图标、语速文案、声音下拉（每次现取 voices，兼容异步加载）。 */
+  _ttsSyncPlayer() {
+    const tts = this._tts;
+    const player = tts?.player;
+    if (!player || !player.isConnected) return;
+    const toggle = player.querySelector('.nj-tts-toggle');
+    if (toggle) {
+      toggle.innerHTML = tts.state === 'paused' ? TTS_PLAY_SVG : TTS_PAUSE_SVG;
+      toggle.title = tts.state === 'paused' ? t('继续朗读') : t('暂停朗读');
+    }
+    const rateBtn = player.querySelector('.nj-tts-rate');
+    if (rateBtn) rateBtn.textContent = `${tts.rate}×`;
+    const select = player.querySelector('.nj-tts-voice');
+    if (select) {
+      const voices = this._ttsSortedVoices();
+      const previous = select.value;
+      select.innerHTML = '';
+      if (voices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = t('无可用语音');
+        select.appendChild(opt);
+      } else {
+        voices.forEach((voice) => {
+          const opt = document.createElement('option');
+          opt.value = voice.name || voice.voiceURI || '';
+          opt.textContent = `${voice.name || 'voice'}（${String(voice.lang || '').toUpperCase()}）`;
+          select.appendChild(opt);
+        });
+      }
+      const current = this._ttsPickVoice(voices);
+      select.value = current ? (current.name || current.voiceURI || '') : previous;
+      if (!select.value && previous) select.value = previous; // voices 未就绪时保留旧选中项
+    }
+  }
 }
 
 // MARK: - 工具函数（1:1 对应 ArticleExtractor / HeaderBuilder 语义）
@@ -3030,6 +3461,53 @@ function sentenceBoundaries(text) {
   }
   // 尾部残余（无标点收尾的最后一句）不需要边界
   return merged.filter((end) => end < value.length);
+}
+
+/**
+ * TTS 切句：把任意文本切成 ≤max 字的朗读块。
+ * - 先按句末标点（。！？；.!?) 切句（标点保留在句尾，TTS 停顿更自然）
+ * - 短句并入相邻句，减少入队碎片
+ * - 超长句在次级标点（，,、：: 空格）处硬切，绝不产生超限块
+ * Chromium 对超长 utterance 会截断/吞字，逐句入队是可靠性前提。
+ */
+function ttsSplitChunks(text, max = TTS_CHUNK_MAX) {
+  const clean = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (!clean) return [];
+  const sentences = clean.split(/(?<=[。！？；!?;])/).map((s) => s.trim()).filter(Boolean);
+  /** 在 ≤max 内找最后的次级断点；找不到就硬切。返回切点（其后内容归下一块）。 */
+  const softCut = (piece) => {
+    const window = piece.slice(0, max);
+    let cut = -1;
+    for (const ch of ['，', ',', '、', '：', ':', ' ']) cut = Math.max(cut, window.lastIndexOf(ch));
+    return cut > Math.floor(max * 0.4) ? cut + 1 : max;
+  };
+  const chunks = [];
+  const pushMerged = (piece) => {
+    const last = chunks[chunks.length - 1];
+    if (last && last.length + piece.length + 1 <= max) chunks[chunks.length - 1] = `${last} ${piece}`;
+    else chunks.push(piece);
+  };
+  for (const sentence of sentences) {
+    if (sentence.length <= max) {
+      pushMerged(sentence);
+      continue;
+    }
+    let rest = sentence;
+    while (rest.length > max) {
+      const cut = softCut(rest);
+      chunks.push(rest.slice(0, cut).trim());
+      rest = rest.slice(cut).trim();
+    }
+    if (rest) pushMerged(rest);
+  }
+  return chunks.filter(Boolean);
+}
+
+/** 语音质量评分：中文（zh*）优先 +2；Microsoft 开头（Windows 高质量声音）+1。 */
+function ttsVoiceScore(voice) {
+  const lang = String(voice?.lang || '').toLowerCase();
+  const microsoft = /^microsoft/i.test(String(voice?.name || ''));
+  return (lang.startsWith('zh') ? 2 : 0) + (microsoft ? 1 : 0);
 }
 
 function plainText(html) {

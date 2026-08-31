@@ -193,8 +193,8 @@ const FS_EXTRA_STYLE = `
 `;
 
 export class FeedStore {
-  constructor({ onSubscribed }) {
-    this.handlers = { onSubscribed };
+  constructor({ onSubscribed, onOpenFeed }) {
+    this.handlers = { onSubscribed, onOpenFeed };
     this.category = 'all';
     this.topic = null;          // 当前专题（'daily' 等，null = 无专题）
     this.lang = 'all';          // 'all' | 'zh' | 'en'（目录 lang 统一 zh/en 口径）
@@ -212,6 +212,9 @@ export class FeedStore {
       note: null,
       error: null,
       domain: '',
+      strength: localStorage.getItem('robinread.explore.strength') === 'calm'
+        || localStorage.getItem('robinread.explore.strength') === 'bold'
+        ? localStorage.getItem('robinread.explore.strength') : 'balanced',
       subscribedUrls: new Set(),
       explanations: new Map(),  // feedURL → { status: queued|loading|done|error, text }
       explainQueue: [],
@@ -295,6 +298,23 @@ export class FeedStore {
       button.textContent = '✓ 已订阅';
       button.classList.add('subscribed');
       statusEl.textContent = '已加入 ' + (CATEGORY_FOLDER[entry.cat] || '订阅');
+      // 场景嵌入：订阅成功的瞬间是发现的第二个入口（Substack 模式）
+      const feedID = result.data?.id || null;
+      const actions = document.createElement('span');
+      actions.className = 'fs-post-actions';
+      const readFirst = document.createElement('button');
+      readFirst.className = 'btn-text';
+      readFirst.textContent = t('去读第一篇');
+      readFirst.addEventListener('click', () => {
+        this.dismiss();
+        this.handlers.onOpenFeed?.(feedID, result.data?.title || entry.name);
+      });
+      const similar = document.createElement('button');
+      similar.className = 'btn-text';
+      similar.textContent = t('发现类似源');
+      similar.addEventListener('click', () => this._enterExploreWithDomain(entry.url));
+      actions.append(readFirst, similar);
+      statusEl.appendChild(actions);
     } else {
       button.disabled = false;
       button.textContent = '订阅';
@@ -827,6 +847,12 @@ export class FeedStore {
         <button class="btn-text primary fs-explore-start">${escapeHTML(t('开始探索'))}</button>
         <button class="btn-text bordered fs-explore-basic">${escapeHTML(t('基础版探索'))}</button>
       </div>
+      <div class="fs-explore-row fs-explore-strength">
+        <span class="fs-strength-label">${escapeHTML(t('探索风格'))}</span>
+        <button class="btn-text fs-strength-chip" data-strength="calm">${escapeHTML(t('保守'))}</button>
+        <button class="btn-text fs-strength-chip" data-strength="balanced">${escapeHTML(t('平衡'))}</button>
+        <button class="btn-text fs-strength-chip" data-strength="bold">${escapeHTML(t('大胆'))}</button>
+      </div>
       <p class="fs-explore-privacy">${escapeHTML(t('探索通过你配置的 AI 服务商发送兴趣标签摘要，不含文章正文与账号信息'))}</p>`;
     const domainInput = trigger.querySelector('.fs-explore-domain');
     domainInput.value = ex.domain;
@@ -834,6 +860,15 @@ export class FeedStore {
     domainInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') this.startExplore('ai'); });
     trigger.querySelector('.fs-explore-start').addEventListener('click', () => this.startExplore('ai'));
     trigger.querySelector('.fs-explore-basic').addEventListener('click', () => this.startExplore('basic'));
+    // 探索风格：保守=只收高分新源；大胆=放宽门槛多看长尾（写入探索请求）
+    trigger.querySelectorAll('.fs-strength-chip').forEach((chip) => {
+      chip.classList.toggle('active', chip.dataset.strength === ex.strength);
+      chip.addEventListener('click', () => {
+        ex.strength = chip.dataset.strength;
+        localStorage.setItem('robinread.explore.strength', ex.strength);
+        trigger.querySelectorAll('.fs-strength-chip').forEach((c) => c.classList.toggle('active', c.dataset.strength === ex.strength));
+      });
+    });
     host.appendChild(trigger);
 
     // ── 状态区 ──
@@ -883,6 +918,17 @@ export class FeedStore {
     this.modal.appendChild(body);
   }
 
+  /** 从一个源进入探索视图并预填同域领域词（是否开始探索仍由用户手动点击）。 */
+  _enterExploreWithDomain(url) {
+    let domain = '';
+    try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch (_) { /* 非法地址就不预填 */ }
+    this.view = 'explore';
+    this.explore.domain = domain;
+    this._render();
+    const input = this.modal?.querySelector('.fs-explore-domain');
+    if (input) input.value = domain;
+  }
+
   /** 启动探索。mode='ai' 先做额度门槛（有 Key 才预扣，限额弹窗中止）；basic 不消耗额度。 */
   async startExplore(mode) {
     const ex = this.explore;
@@ -917,7 +963,7 @@ export class FeedStore {
 
     let result = null;
     try {
-      result = await window.robin.exploreRun({ mode, domain: ex.domain.trim() || undefined });
+      result = await window.robin.exploreRun({ mode, domain: ex.domain.trim() || undefined, strength: ex.strength || 'balanced' });
     } catch (err) {
       result = { ok: false, error: String((err && err.message) || err) };
     }

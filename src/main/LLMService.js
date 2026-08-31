@@ -39,37 +39,38 @@ class LLMService {
     });
   }
 
-  async complete({ prompt, system, configuration, apiKey, onDelta = null, forceDisableReasoning = false, overrideTemperature = null }) {
+  async complete({ prompt, system, configuration, apiKey, onDelta = null, forceDisableReasoning = false, overrideTemperature = null, signal = null }) {
     const stream = onDelta != null;
     const request = makeRequest({ prompt, system, configuration, apiKey, stream, forceDisableReasoning, overrideTemperature });
     if (stream) {
       try {
-        return await this._stream(request, onDelta);
+        return await this._stream(request, onDelta, signal);
       } catch (err) {
+        if (signal && signal.aborted) throw new Error('cancelled');
         if (err instanceof LLMServiceError && err.kind === 'emptyResponse') {
           // 部分 OpenAI 兼容服务接受 stream:true 却返回普通 JSON；仅此场景回退
           const fallback = makeRequest({ prompt, system, configuration, apiKey, stream: false, forceDisableReasoning, overrideTemperature });
-          const text = await this._nonStreaming(fallback);
+          const text = await this._nonStreaming(fallback, signal);
           await onDelta(text);
           return text;
         }
         throw err;
       }
     }
-    return this._nonStreaming(request);
+    return this._nonStreaming(request, signal);
   }
 
-  async summary(text, configuration, apiKey, onDelta = null) {
+  async summary(text, configuration, apiKey, onDelta = null, signal = null) {
     return this.complete({
       prompt: `Article:\n\n${ArticleChunker.truncate(text, 28000)}`,
       system: `Summarize the article in ${configuration.targetLanguage}. Start with one concise conclusion, then give 3 to 7 factual bullets. Do not invent sources or facts.`,
-      configuration, apiKey, onDelta,
+      configuration, apiKey, onDelta, signal,
       overrideTemperature: 0.1,
     });
   }
 
   /** 高质量中文摘要：结构化编辑级输出（总览/要点/数据/启示）。 */
-  async richSummary(text, configuration, apiKey, onDelta = null) {
+  async richSummary(text, configuration, apiKey, onDelta = null, signal = null) {
     return this.complete({
       prompt: `文章全文：\n\n${ArticleChunker.truncate(text, 60000)}`,
       system: `你是一位顶级中文科技编辑，为读者产出高质量的中文摘要。严格基于原文，禁止编造。用 Markdown 输出以下结构：
@@ -77,14 +78,14 @@ class LLMService {
 **核心要点**：5-8 条，每条以加粗小标题开头，后接 1-2 句说明；按重要性排序。
 **关键数据与事实**：列出文中出现的具体数字、名称、结论（没有则省略本节）。
 **结论与启示**：2-3 句，给出对读者的实际意义或行动建议。`,
-      configuration, apiKey, onDelta,
+      configuration, apiKey, onDelta, signal,
       forceDisableReasoning: true,
       overrideTemperature: 0.2,
     });
   }
 
   /** 一键精读：中文深读笔记（主旨/脉络/概念/证据/局限/金句/行动）。 */
-  async deepRead(text, configuration, apiKey, onDelta = null) {
+  async deepRead(text, configuration, apiKey, onDelta = null, signal = null) {
     return this.complete({
       prompt: `文章全文：\n\n${ArticleChunker.truncate(text, 60000)}`,
       system: `你是一位严谨的中文深度阅读助手，为读者做一次精读笔记。严格基于原文，禁止编造。用 Markdown 输出以下结构：
@@ -95,35 +96,35 @@ class LLMService {
 **局限与另一面**：作者未展开的假设、潜在反例或对立视角，2-3 句。
 **金句摘录**：≤3 条原文最有价值的句子（用引用格式）。
 **读后行动**：1-2 条可操作的下一步（阅读、实践或验证）。`,
-      configuration, apiKey, onDelta,
+      configuration, apiKey, onDelta, signal,
       forceDisableReasoning: true,
       overrideTemperature: 0.3,
     });
   }
 
   /** AI 探索：基于真实抓取的最近样章生成源解释（禁止编造未给出的信息）。 */
-  async explainFeed({ name, url, samples, interestTags }, configuration, apiKey) {
+  async explainFeed({ name, url, samples, interestTags }, configuration, apiKey, signal = null) {
     const sampleText = (samples || []).map((s) => `- 《${s.title || '无标题'}》：${s.snippet || ''}`).join('\n');
     const interest = (interestTags || []).length ? `读者兴趣标签：${interestTags.join('、')}。` : '';
     return this.complete({
       prompt: `订阅源：${name}\n地址：${url}\n最近文章样章：\n${sampleText}\n\n${interest}`,
       system: `你是一位严谨的中文阅读策展人。只依据给出的样章信息（不得编造未提供的细节），为这个订阅源写一段 80-150 字的中文推荐说明，依次覆盖：这个源讲什么、写作风格、适合谁订阅、更新节奏${interest ? '、为什么契合上述兴趣' : ''}。直接输出说明正文，不要标题和客套。`,
-      configuration, apiKey,
+      configuration, apiKey, signal,
       forceDisableReasoning: true,
       overrideTemperature: 0.3,
     });
   }
 
-  async articleContext(text, configuration, apiKey) {
+  async articleContext(text, configuration, apiKey, signal = null) {
     return this.complete({
       prompt: `Article:\n\n${ArticleChunker.contextualArticle(text, '', 60000)}`,
       system: `Create a compact reusable context memo for later questions about this article, in ${configuration.targetLanguage}. Preserve the thesis, section structure, key entities, definitions, evidence, and relationships between claims. State only what the article says. Use concise structured prose and keep the memo under 1,200 words.`,
-      configuration, apiKey,
+      configuration, apiKey, signal,
       overrideTemperature: 0.1,
     });
   }
 
-  async explainSelection({ selection, localContext, articleContext, configuration, apiKey, onDelta = null }) {
+  async explainSelection({ selection, localContext, articleContext, configuration, apiKey, onDelta = null, signal = null }) {
     let systemPrompt = `你是一位清晰、讲人话的阅读助手。读者在阅读文章时划选了一段文字（由于划词操作可能存在 1-2 行误差，请自动定位读者真正未理解的核心语句或名词概念），请用${configuration.targetLanguage}进行通俗解构。
 
 回答准则：
@@ -138,13 +139,13 @@ class LLMService {
     return this.complete({
       prompt: `Article context memo:\n${ArticleChunker.truncate(articleContext, 10000)}\n\nNearby paragraphs:\n${ArticleChunker.truncate(localContext, 5000)}\n\nSelected passage:\n${ArticleChunker.truncate(selection, 4000)}`,
       system: systemPrompt,
-      configuration, apiKey, onDelta,
+      configuration, apiKey, onDelta, signal,
       forceDisableReasoning: true,
       overrideTemperature: 0.2,
     });
   }
 
-  async askSelection({ selection, question, localContext, articleContext, history = null, configuration, apiKey, onDelta = null }) {
+  async askSelection({ selection, question, localContext, articleContext, history = null, configuration, apiKey, onDelta = null, signal = null }) {
     let systemPrompt = `你是一位渊博且贴心的阅读助手。读者正在阅读一篇文章，并针对划选的文本提出了具体问题。请结合划选内容与文章上下文，用${configuration.targetLanguage}进行针对性回答。
 
 回答准则：
@@ -162,23 +163,23 @@ class LLMService {
     return this.complete({
       prompt: `文章全局上下文:\n${ArticleChunker.truncate(articleContext, 10000)}\n\n划选段落上下文:\n${ArticleChunker.truncate(localContext, 5000)}\n\n划选文本:\n${ArticleChunker.truncate(selection, 4000)}\n\n读者的提问:\n${ArticleChunker.truncate(question, 1000)}${historyBlock}`,
       system: systemPrompt,
-      configuration, apiKey, onDelta,
+      configuration, apiKey, onDelta, signal,
       forceDisableReasoning: true,
       overrideTemperature: 0.2,
     });
   }
 
-  async translate(paragraph, configuration, apiKey, onDelta = null) {
+  async translate(paragraph, configuration, apiKey, onDelta = null, signal = null) {
     return this.complete({
       prompt: paragraph,
       system: `Translate the following passage into ${configuration.targetLanguage}. Preserve meaning, tone, numbers, names, links, and Markdown. Return only the translation.`,
-      configuration, apiKey, onDelta,
+      configuration, apiKey, onDelta, signal,
       forceDisableReasoning: true,
       overrideTemperature: 0.0,
     });
   }
 
-  async translateBatch(paragraphs, configuration, apiKey) {
+  async translateBatch(paragraphs, configuration, apiKey, signal = null) {
     if (paragraphs.length === 0) return [];
     if (paragraphs.length === 1) {
       return [await this.translate(paragraphs[0], configuration, apiKey)];
@@ -189,7 +190,7 @@ Return ONLY a valid JSON array of translated strings: no Markdown fence, no expl
 
 ${JSON.stringify(paragraphs)}`;
     const output = await this.complete({
-      prompt,
+      prompt, signal,
       system: 'You are a precise translation engine. The response must be valid JSON and must contain exactly one translated string for every input string.',
       configuration, apiKey,
       forceDisableReasoning: true,
@@ -205,7 +206,7 @@ ${JSON.stringify(paragraphs)}`;
     return translations;
   }
 
-  async _nonStreaming(request) {
+  async _nonStreaming(request, signal = null) {
     const { response, bump, finish } = await fetchWithTimeout(request);
     try {
       // 非流式同样按空闲计时：有字节到达就续期。长文上下文（6 万字 + reasoning）
@@ -227,6 +228,7 @@ ${JSON.stringify(paragraphs)}`;
       if (!text) throw new LLMServiceError('invalidResponse');
       return text;
     } catch (err) {
+      if (signal && signal.aborted) throw new Error('cancelled');
       if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.name === 'TimeoutError')) {
         throw new LLMServiceError('timeout');
       }
@@ -236,7 +238,7 @@ ${JSON.stringify(paragraphs)}`;
     }
   }
 
-  async _stream(request, onDelta) {
+  async _stream(request, onDelta, signal = null) {
     const { response, bump, finish } = await fetchWithTimeout(request);
     try {
       if (!response.ok) {
@@ -271,6 +273,8 @@ ${JSON.stringify(paragraphs)}`;
       if (!output) throw new LLMServiceError('emptyResponse');
       return output;
     } catch (err) {
+      // 外部取消（cancelAI 的 AbortController）优先于超时语义
+      if (signal && signal.aborted) throw new Error('cancelled');
       // 看门狗中止（连接卡死/半开）→ 转成可读错误，任务失败可见且 canceller 能释放
       if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || err.name === 'TimeoutError')) {
         throw new LLMServiceError('timeout');
@@ -289,12 +293,23 @@ const LLM_IDLE_TIMEOUT_MS = 90000;
  * LLM 网关中途卡死时流式读取会零超时挂起，且取消回调因不再有 delta 而失效）。
  * 流式场景每收到数据调用 bump() 续期——长文生成可持续远超 90s，空闲才计时。
  */
-async function fetchWithTimeout(request) {
+async function fetchWithTimeout(request, externalSignal = null) {
   const controller = new AbortController();
   let timer = null;
   const fire = () => controller.abort();
   const bump = () => { clearTimeout(timer); timer = setTimeout(fire, LLM_IDLE_TIMEOUT_MS); };
   const finish = () => clearTimeout(timer);
+  // 外部取消（cancelAI）：与空闲看门狗共用同一 controller，任一触发即中止
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      finish();
+      const err = new Error('cancelled');
+      err.name = 'CancelledError';
+      throw err;
+    }
+    externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+  }
   bump();
   try {
     const response = await fetch(request.url, {
@@ -306,8 +321,15 @@ async function fetchWithTimeout(request) {
     return { response, bump, finish };
   } catch (err) {
     finish();
+    if (externalSignal && externalSignal.aborted) {
+      const cancelErr = new Error('cancelled');
+      cancelErr.name = 'CancelledError';
+      throw cancelErr;
+    }
     if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR')) throw new LLMServiceError('timeout');
     throw err;
+  } finally {
+    if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
   }
 }
 

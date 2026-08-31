@@ -209,6 +209,21 @@ contextBridge.exposeInMainWorld('robin', {
   winClose: () => ipcRenderer.send('window:close'),
   winIsMaximized: () => invoke('window:isMaximized'),
   onWindowMaxChanged: (listener) => subscribe('window:maximized-changed', listener),
+
+  // 桌面通用（关闭到托盘 / 新文章通知 / 开机自启）
+  getGeneral: () => data('prefs:getGeneral'),
+  setGeneral: (patch) => invoke('prefs:setGeneral', patch),
+  loginItem: (enabled) => data('app:loginItem', enabled),
+
+  // 备份与恢复（导出对话框 / 导入校验+暂存 / alertBox 确认后重启恢复）
+  backupExport: () => invoke('backup:export'),
+  backupImport: () => invoke('backup:import'),
+  quitForRestore: () => ipcRenderer.send('backup:relaunch'),
+
+  // 存储管理（体积统计 / 立即清理 / 打开数据目录）
+  storageStats: () => data('storage:stats'),
+  storageCleanup: () => data('storage:cleanup'),
+  openDataDir: () => invoke('storage:openDataDir'),
 });
 
 function subscribe(channel, listener) {
