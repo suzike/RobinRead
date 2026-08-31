@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.3.0",
-  "name": "知更 RobinRead 2.3.0",
+  "tag_name": "v2.4.0",
+  "name": "知更 RobinRead 2.4.0",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-08-31T00:00:00Z",
-  "body": "知更 RobinRead v2.3.0 —— 性能与阅读体验跃升。正文提取迁入独立进程、打开文章 LRU 缓存与相邻预取（连续阅读瞬时呈现）、全文搜索升级 FTS5 索引并首次覆盖正文；新增代码语法高亮、数学公式（KaTeX）、多图画廊行、Markdown 源自动规范化、阅读位置跨会话记忆、列表排序、导出 Markdown / 打印存 PDF、订阅图标本地缓存；修复 13 项缺陷并加固安全。前往官网下载最新安装包。"
+  "body": "知更 RobinRead v2.4.0 —— AI 探索与全场景阅读。新增 AI 探索（一键发现目录之外的高质量订阅源，本地验证 + 样章预览 + AI 解释）、TTS 听文章（本地语音离线朗读）、稍后读队列、Miniflux 同步、系统托盘与备份恢复；商店治理与英文界面全量补齐。前往官网下载最新安装包。"
 }
