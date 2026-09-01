@@ -556,10 +556,18 @@ function normalizeHeadingText(text) {
   return String(text ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** 判断是否需要网页正文提取（feed 内容过短且存在链接）。 */
+/**
+ * 判断是否需要网页正文提取。两类命中：
+ * 1. feed 内容过短（摘要级）且存在原文链接；
+ * 2. 有一定篇幅但全文无任何富结构（图/代码块/表格/标题/列表/引用）——「贴网页地址订阅」
+ *    的页面转写产物就是这种纯文本堆砌，原图与排版都在原文页里，须抓原文补全。
+ */
 function needsExtraction(entry) {
+  if (entry.url == null) return false;
   const sourceText = entry.contentHTML ? plainText(entry.contentHTML) : plainText(entry.summary || '');
-  return sourceText.length < 500 && entry.url != null;
+  if (sourceText.length < 500) return true;
+  const html = entry.contentHTML || '';
+  return html.length > 0 && !/<(img|picture|video|pre|table|blockquote|h[2-6]|ul|ol|figure)[\s>]/i.test(html);
 }
 
 /** 网页字节流按真实编码解码：BOM → Content-Type → meta charset → UTF-8（坏字符超阈值时启发式回退）。 */
@@ -595,15 +603,20 @@ function decodeWebPage(buf, contentType) {
   return utf8;
 }
 
+let netFetchImpl = null; // main.js 注入 electron net.fetch（走系统代理）；空则回退全局 fetch
+function setNetFetch(fn) { netFetchImpl = fn; }
+function hasNetFetch() { return netFetchImpl != null; }
+
 /**
- * 抓取网页并提取正文（完整流程：30s 超时 fetch → 4MB 截断 → 多编码探测 → 双引擎提取 → 白名单消毒）。
- * 无外部进程依赖：主进程回退路径与 utilityProcess 工作进程共用本函数。
+ * 抓取网页字节流（30s 超时）。net.fetch（系统代理）优先，回退全局 fetch。
+ * 主进程预抓与主进程回退路径共用；utilityProcess worker 内无 electron，恒用全局 fetch。
  */
-async function extractInProcess(url) {
+async function fetchWebPage(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
-    const response = await fetch(url, {
+    const doFetch = netFetchImpl || fetch;
+    const response = await doFetch(url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'RobinRead/2.0 (+personal RSS reader)',
@@ -611,27 +624,53 @@ async function extractInProcess(url) {
       },
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const sliced = buffer.subarray(0, 4_000_000);
-    const html = decodeWebPage(sliced, response.headers.get('content-type'));
-    const sourceURL = response.url || url;
-    // 双引擎：Readability 通用提取优先（质量更好、能绕开 SPA/壳），容器启发式 fallback（如 ithome 等反爬壳）
-    const heuristic = content(html, sourceURL);
-    const readability = readabilityContent(html, sourceURL);
-    const result = readability.text.length >= heuristic.text.length ? readability : heuristic;
-    if (result.text.length < 120) throw new Error('noReadableContent');
     return {
-      entryID: '',
-      text: result.text,
-      html: result.html,
-      imageURLs: result.imageURLs,
-      fetchedAt: Date.now() / 1000,
-      sourceURL,
-      isSanitized: true,
+      buffer: Buffer.from(await response.arrayBuffer()),
+      contentType: response.headers.get('content-type'),
+      finalURL: response.url || url,
     };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** 仅当注入了 net.fetch 时执行主进程侧预抓（供 worker 免自抓）；未注入时抛错由调用方跳过。 */
+async function fetchViaNetFetch(url) {
+  if (!netFetchImpl) throw new Error('no-netfetch');
+  return fetchWebPage(url);
+}
+
+/** 字节流 → 编码探测 → 双引擎提取 → 消毒（CPU 部分，主进程与 worker 共用）。 */
+function extractFromBuffer(url, buffer, contentType) {
+  const sliced = buffer.subarray(0, 4_000_000);
+  const html = decodeWebPage(sliced, contentType);
+  // 双引擎：Readability 通用提取优先（质量更好、能绕开 SPA/壳），容器启发式 fallback（如 ithome 等反爬壳）
+  const heuristic = content(html, url);
+  const readability = readabilityContent(html, url);
+  const result = readability.text.length >= heuristic.text.length ? readability : heuristic;
+  if (result.text.length < 120) throw new Error('noReadableContent');
+  return {
+    entryID: '',
+    text: result.text,
+    html: result.html,
+    imageURLs: result.imageURLs,
+    fetchedAt: Date.now() / 1000,
+    sourceURL: url,
+    isSanitized: true,
+  };
+}
+
+/**
+ * 抓取网页并提取正文（完整流程：30s 超时 fetch → 4MB 截断 → 多编码探测 → 双引擎提取 → 白名单消毒）。
+ * 传入 preloaded（主进程已抓好的字节流）时跳过自抓；无外部进程依赖：主进程回退路径与
+ * utilityProcess 工作进程共用本函数。
+ */
+async function extractInProcess(url, preloaded = null) {
+  if (preloaded && preloaded.buffer) {
+    return extractFromBuffer(preloaded.finalURL || url, preloaded.buffer, preloaded.contentType || null);
+  }
+  const { buffer, contentType, finalURL } = await fetchWebPage(url);
+  return extractFromBuffer(finalURL, buffer, contentType);
 }
 
 // MARK: - Feed 正文格式规范化（转义 HTML / Markdown / 纯文本 → HTML）
@@ -765,5 +804,10 @@ module.exports = {
   isSameReaderParagraph,
   decodeWebPage,
   extractInProcess,
+  extractFromBuffer,
+  fetchWebPage,
+  fetchViaNetFetch,
+  setNetFetch,
+  hasNetFetch,
   normalizeFeedMarkup,
 };

@@ -111,14 +111,28 @@ function dispatch(worker, task) {
 }
 
 function sendTask(worker, task) {
-  try {
-    worker.postMessage({ type: 'extract', id: task.id, url: task.url });
-    task.sent = true;
-  } catch (error) {
-    clearTaskTimer(task);
-    pool.current = null;
-    runFallback(task, 'postMessage-failed: ' + String((error && error.message) || error));
+  const post = (payload) => {
+    // 派发前复核：主进程预抓（网络等待）期间任务可能已超时回退/被接管，此景下投递会被错路由
+    if (pool.current !== task || task.settled) return;
+    try {
+      worker.postMessage(payload);
+      task.sent = true;
+    } catch (error) {
+      clearTaskTimer(task);
+      pool.current = null;
+      runFallback(task, 'postMessage-failed: ' + String((error && error.message) || error));
+    }
+  };
+  // 主进程侧预抓：net.fetch 走系统代理（worker 内无 electron，自抓只能是直连）。
+  // 未注入 net.fetch（探针/异常环境）或预抓失败时，原样派发、worker 内自行抓取，行为不劣化。
+  if (!Core.hasNetFetch()) {
+    post({ type: 'extract', id: task.id, url: task.url });
+    return;
   }
+  Core.fetchViaNetFetch(task.url).then(
+    (pre) => post({ type: 'extract', id: task.id, url: task.url, buffer: pre.buffer, contentType: pre.contentType, finalURL: pre.finalURL }),
+    () => post({ type: 'extract', id: task.id, url: task.url }),
+  );
 }
 
 /** 懒启动 / 复用 worker。返回 null 表示本轮不可用（调用方走回退）。 */
@@ -259,6 +273,7 @@ function prewarm() {
 
 module.exports = {
   // —— 同步纯逻辑（RSS 正文消毒、翻译轨道等；行为与重构前逐字节一致）——
+  setNetFetch: Core.setNetFetch,
   content: Core.content,
   readabilityContent: Core.readabilityContent,
   sanitizedHTML: Core.sanitizedHTML,

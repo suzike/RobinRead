@@ -37,9 +37,14 @@ process.parentPort.on('message', (event) => {
     return;
   }
   handlingID = message.id;
+  // 主进程预抓的字节流（net.fetch 走系统代理）优先；缺省时 worker 内自行抓取（全局 fetch）。
+  // structured clone 传来的 buffer 是 Uint8Array，还原为 Buffer 供编码探测/4MB 截断使用。
+  const preloaded = message.buffer
+    ? { buffer: Buffer.from(message.buffer), contentType: message.contentType || null, finalURL: message.finalURL || null }
+    : null;
   // 独立微任务里跑，消息循环保持响应（jsdom 解析本身仍是同步的——这正是它被隔离进本进程的原因）
   Promise.resolve()
-    .then(() => extractInProcess(message.url))
+    .then(() => extractInProcess(message.url, preloaded))
     .then(
       (result) => {
         handlingID = null;
