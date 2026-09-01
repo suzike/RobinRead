@@ -1,7 +1,7 @@
 {
   "name": "robinread",
   "productName": "RobinRead",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "Reading First, AI Second — 知更 · 现代纸感 RSS 阅读器（Windows 版）",
   "main": "src/main/main.js",
   "type": "commonjs",
