@@ -16,11 +16,17 @@ const UA = { 'User-Agent': 'Mozilla/5.0 RobinRead', Accept: 'text/html,applicati
 const GUESS_PATHS = ['/feed', '/rss', '/atom.xml', '/feed.xml', '/index.xml', '/rss.xml', '/feed/', '/blog/feed', '/?feed=rss2'];
 const MAX_CANDIDATES = 8;
 
+// 可注入的抓取实现：main.js 注入 electron net.fetch（走系统代理）后，
+// 被墙站点经代理可达；未注入时回退 Node 全局 fetch（直连）。
+let netFetchImpl = null;
+function useNetFetch(fn) { netFetchImpl = fn; }
+
 async function fetchBuffer(url, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { headers: UA, signal: controller.signal, redirect: 'follow' });
+    const doFetch = netFetchImpl || fetch;
+    const res = await doFetch(url, { headers: UA, signal: controller.signal, redirect: 'follow' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return { buf: Buffer.from(await res.arrayBuffer()), finalURL: res.url || url };
   } finally {
@@ -95,4 +101,4 @@ async function discoverFeed(siteURL) {
   return { ok: false };
 }
 
-module.exports = { discoverFeed, extractAlternateLinks };
+module.exports = { discoverFeed, extractAlternateLinks, useNetFetch };

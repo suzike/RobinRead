@@ -13,7 +13,7 @@ const path = require('node:path');
 const FeedDiscovery = require('./FeedDiscovery');
 const FeedParser = require('./FeedParser');
 const { plainText } = require('./Models');
-const KnowledgeEngine = require('./KnowledgeEngine');
+const { KnowledgeEngine } = require('./KnowledgeEngine');
 
 const POOL = require(path.join(__dirname, 'data', 'feed-pool.json'));
 
@@ -24,22 +24,6 @@ const SAMPLES_PER_CARD = 3;
 const GENERATE_COUNT = 18;
 
 function nowSeconds() { return Date.now() / 1000; }
-
-async function fetchFeedBuffer(url, timeoutMs = VALIDATE_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 RobinRead', Accept: 'application/rss+xml, application/atom+xml, application/feed+json, application/xml, text/xml, application/json' },
-      signal: controller.signal,
-      redirect: 'follow',
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return Buffer.from(await res.arrayBuffer());
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 function parseFeedBuffer(buf, url) {
   return FeedParser.parse(buf, url);
@@ -70,6 +54,27 @@ function tagText(text) {
 class ExploreService {
   constructor(store) {
     this.store = store;
+    this.netFetch = null; // main.js 注入 electron net.fetch（走系统代理）；空则回退全局 fetch
+  }
+
+  setNetFetch(fn) { this.netFetch = fn; }
+
+  /** 统一 HTTP GET：net.fetch（系统代理）优先，回退全局 fetch；超时可中断。 */
+  async _httpGet(url, { timeoutMs = VALIDATE_TIMEOUT_MS, headers } = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const doFetch = this.netFetch || fetch;
+      const res = await doFetch(url, {
+        headers: headers || { 'User-Agent': 'Mozilla/5.0 RobinRead', Accept: 'text/html,application/xhtml+xml,application/xml,*/*' },
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return { buf: Buffer.from(await res.arrayBuffer()), finalURL: res.url || url };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /** 探索入口。mode: 'ai'（LLM 生成候选+解释）| 'basic'（本地池+验证，无解释）。
@@ -205,7 +210,7 @@ class ExploreService {
     let feedURL = candidate.feedURL;
     let parsed = null;
     try {
-      const buf = await fetchFeedBuffer(feedURL);
+      const { buf } = await this._httpGet(feedURL, { timeoutMs: VALIDATE_TIMEOUT_MS });
       parsed = parseFeedBuffer(buf, feedURL);
     } catch (_) { parsed = null; }
     if ((!parsed || !parsed.entries || !parsed.entries.length) && candidate.siteURL) {

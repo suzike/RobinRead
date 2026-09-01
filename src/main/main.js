@@ -180,7 +180,12 @@ if (!IS_PROBE) {
 
     // Feed 抓取注入 Electron net.fetch：走 Chromium 网络栈（系统代理），
     // 被屏蔽的源（公众号桥、境外源）在用户开启系统代理时即可达
-    try { FeedService.useNetFetch((url, options) => net.fetch(url, options)); } catch (_) { /* 静默回退全局 fetch */ }
+    try {
+      const netFetch = (url, options) => net.fetch(url, options);
+      FeedService.useNetFetch(netFetch);
+      require('./FeedDiscovery').useNetFetch(netFetch);
+      store.explore.setNetFetch(netFetch);
+    } catch (_) { /* 静默回退全局 fetch */ }
 
     buildMenu();
 
