@@ -249,9 +249,29 @@ const ATTRIBUTES_FOR_TAG = {
   td: new Set(['colspan', 'rowspan']),
 };
 
-/** srcset 逐候选 URL 解析为绝对地址；全部解析失败返回 null。 */
+/**
+ * srcset 逐候选 URL 解析为绝对地址；全部解析失败返回 null。
+ * 切分须感知描述符：Substack 型 CDN 的 URL 本身可能含逗号（…/1,2,3?w=640 640w），
+ * 只有「前一个候选已以宽/密度描述符（640w、2x…）结尾」时逗号才是候选分隔符。
+ */
+function splitSrcsetCandidates(value) {
+  const candidates = [];
+  let current = '';
+  for (const piece of String(value || '').split(',')) {
+    const trimmedCurrent = current.trim();
+    if (trimmedCurrent && /(?:^|\s)\d+(?:\.\d+)?[whx]$/i.test(trimmedCurrent)) {
+      candidates.push(trimmedCurrent);
+      current = piece;
+    } else {
+      current = current ? `${current},${piece}` : piece;
+    }
+  }
+  if (current.trim()) candidates.push(current.trim());
+  return candidates.filter(Boolean);
+}
+
 function sanitizeSrcset(value, baseURL) {
-  const parts = String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = splitSrcsetCandidates(value);
   const out = [];
   for (const part of parts) {
     const seg = part.split(/\s+/);

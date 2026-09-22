@@ -115,6 +115,11 @@ async function bootstrap() {
       const next = currentListSort() === 'unreadFirst' ? 'time' : 'unreadFirst';
       window.robin.setReaderLayout({ listSort: next });
     },
+    onToggleViewMode: () => {
+      // 列表 ⇄ 杂志；偏好经状态推送回流（applyReaderLayout 统一应用并重拉）
+      const next = window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine';
+      window.robin.setReaderLayout({ listViewMode: next });
+    },
   });
   views.reader = new ReaderView(
     document.getElementById('reader-scroll'),
@@ -178,6 +183,14 @@ function applyReaderLayout(layout) {
   if (listSort !== applyReaderLayout._lastSort) {
     const changed = applyReaderLayout._lastSort !== undefined;
     applyReaderLayout._lastSort = listSort;
+    if (changed && views.list) reloadList({ resetScroll: true }).catch(() => {});
+  }
+  // 时间线形态（列表 / 沉浸杂志）：切换后重拉并重渲染
+  const viewMode = layout?.listViewMode === 'magazine' ? 'magazine' : 'list';
+  if (views.list?.setViewMode) views.list.setViewMode(viewMode);
+  if (viewMode !== applyReaderLayout._lastViewMode) {
+    const changed = applyReaderLayout._lastViewMode !== undefined;
+    applyReaderLayout._lastViewMode = viewMode;
     if (changed && views.list) reloadList({ resetScroll: true }).catch(() => {});
   }
   // 注意：translateMode 是「打开文章时的默认模式」，由 reader.open 自行读取；
@@ -814,6 +827,9 @@ function currentListSort() {
   return window.__robinReaderLayout?.listSort === 'unreadFirst' ? 'unreadFirst' : 'time';
 }
 
+/** 下一篇文章打开的翻页方向（'fwd' 正翻 / 'back' 回翻），由打开动作设置、handleEntrySelect 消费。 */
+let pendingPageTurn = null;
+
 async function handleEntrySelect(entryID, item) {
   state.selectedEntryID = entryID;
   if (state.scope.kind === 'unread') {
@@ -828,7 +844,9 @@ async function handleEntrySelect(entryID, item) {
   }
   views.list.markSelected(entryID);
   updateToolbarState();
-  await views.reader.open(entryID);
+  const turn = pendingPageTurn || (item ? 'fwd' : null);
+  pendingPageTurn = null;
+  await views.reader.open(entryID, { turn });
   // 自动精读可能在 open 内改变翻译模式：确定性刷新胶囊状态
   updateToolbarState();
   if (item && !item.isRead) window.robin.markRead(entryID, true);
@@ -849,6 +867,7 @@ function requestAdjacentArticle(direction) {
       return result.ok ? result.data : null;
     },
     boundary,
+    isPrev ? 'back' : 'fwd',
   );
 }
 
@@ -865,6 +884,7 @@ function selectNextEntry() {
       return result.ok ? result.data : null;
     },
     t('列表已经阅读完毕'),
+    'fwd',
   );
 }
 
@@ -872,7 +892,7 @@ function selectNextEntry() {
  * 1:1 对应 confirmNavigation：同一 key 在有效期内第二次触发才执行；
  * toast 展示剩余时间后自动过期取消。
  */
-async function runWithConfirmation(key, prompt, resolveTarget, boundaryMessage) {
+async function runWithConfirmation(key, prompt, resolveTarget, boundaryMessage, turn = null) {
   const now = Date.now();
   const active = navConfirmation && navConfirmation.key === key
     && navConfirmation.entryID === state.selectedEntryID
@@ -895,6 +915,7 @@ async function runWithConfirmation(key, prompt, resolveTarget, boundaryMessage) 
     showToast(boundaryMessage);
     return;
   }
+  pendingPageTurn = turn;
   await handleEntrySelect(target.id, target);
   views.list.scrollToEntry(target.id);
 }
@@ -1006,6 +1027,21 @@ function bindKeyboard() {
     if (event.key === '/' && state.activeColumn <= 1) {
       event.preventDefault();
       views.list?.focusSearch();
+      return;
+    }
+
+    // 连按 O O：在浏览器/应用内打开原文（借鉴上游 v1.4.2，防误触双击确认）
+    if (event.code === 'KeyO' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      const now = Date.now();
+      const last = window.__robinLastOPress || 0;
+      window.__robinLastOPress = now;
+      if (state.selectedEntryID && now - last < 600) {
+        window.__robinLastOPress = 0;
+        event.preventDefault();
+        views.reader?.openOriginal?.();
+        return;
+      }
+      if (state.selectedEntryID) showToast(t('再按一次 O 打开原文'), 700);
       return;
     }
 
@@ -1247,6 +1283,11 @@ function onFeedContext(event, { feed, selectedFeedIDs }) {
     } },
     { label: t('全部已读'), icon: 'checkAll', onClick: () => window.robin.markAllRead({ kind: 'feed', feedID: feed.id }) },
     { label: t('复制订阅'), icon: 'copy', onClick: () => navigator.clipboard.writeText(feed.feedURL) },
+    { label: t('AI 精读翻译'), icon: 'spark', children: [
+      { label: t('跟随默认'), onClick: async () => { await window.robin.setTranslateFeedMode(feed.id, 'auto'); showToast(t('此源翻译已改为跟随默认')); } },
+      { label: t('总是翻译'), onClick: async () => { await window.robin.setTranslateFeedMode(feed.id, 'always'); showToast(t('打开此源文章将自动 AI 精读翻译')); } },
+      { label: t('从不翻译'), onClick: async () => { await window.robin.setTranslateFeedMode(feed.id, 'never'); showToast(t('此源文章不再自动翻译')); } },
+    ] },
     { type: 'separator' },
     { label: t('移动到文件夹'), icon: 'folder', children: folderMenuItems([feed.id], feedFolderName(feed)) },
     { type: 'separator' },

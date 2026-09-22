@@ -2874,3 +2874,159 @@ body.dark .robin-header-original-actions .nj-later-header-btn.active {
   background: rgba(151, 178, 134, 0.10);
 }
 .nj-later-header-btn svg { width: 11px; height: 11px; }
+
+/* ── 存储治理设置按钮 ── */
+.nj-settings-button {
+  padding: 4px 14px;
+  border: 1px solid var(--border, rgba(0,0,0,0.14));
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 88px;
+}
+.nj-settings-button:hover:not(:disabled) { background: rgba(0,0,0,0.04); }
+.nj-settings-button:disabled { opacity: 0.6; cursor: default; }
+body.dark .nj-settings-button { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); }
+body.dark .nj-settings-button:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+
+/* ── 沉浸杂志视图（借鉴上游 PaperRss v1.4.0 Magazine View）── */
+.nj-mag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+  gap: 14px;
+  padding: 4px 18px 28px;
+  outline: none;
+}
+.nj-mag-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(60, 50, 36, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface, #fbf8f1);
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  min-width: 0;
+}
+.nj-mag-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(60, 50, 36, 0.14);
+  border-color: rgba(60, 50, 36, 0.22);
+}
+.nj-mag-card:focus-visible,
+.nj-mag-card.selected {
+  border-color: #c26a1d;
+  box-shadow: 0 0 0 2px rgba(228, 96, 11, 0.28);
+}
+.nj-mag-card .mag-cover {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(111, 138, 90, 0.14), rgba(242, 145, 61, 0.16));
+  position: relative;
+  overflow: hidden;
+}
+.nj-mag-card .mag-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.nj-mag-card .mag-cover .mag-cover-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(96, 84, 62, 0.35);
+}
+.nj-mag-card .mag-cover .mag-cover-fallback svg { width: 30px; height: 30px; }
+.nj-mag-card .mag-body {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  position: relative;
+}
+.nj-mag-card .mag-title {
+  margin: 0;
+  font: 600 14px/1.45 var(--font-serif, serif);
+  color: var(--ink, #2c2618);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nj-mag-card.read .mag-title { font-weight: 400; color: rgba(44, 38, 24, 0.72); }
+.nj-mag-card .mag-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(96, 84, 62, 0.85);
+  min-width: 0;
+}
+.nj-mag-card .mag-feed {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.nj-mag-card .entry-unread-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e4600b;
+  display: none;
+}
+.nj-mag-card.unread .entry-unread-dot { display: block; }
+.nj-mag-card .star-mini, .nj-mag-card .later-mini { display: inline-flex; }
+.nj-mag-card .star-mini svg, .nj-mag-card .later-mini svg { width: 12px; height: 12px; }
+
+/* ── 拟真翻页（杂志⇄文章、上一篇/下一篇；CSS 3D 纸页翻转）── */
+.reader-scroll { perspective: 1600px; }
+@keyframes njPageTurnFwd {
+  0%   { opacity: 0.25; transform: perspective(1600px) rotateY(-14deg) translateX(3%); transform-origin: left center; }
+  100% { opacity: 1;    transform: perspective(1600px) rotateY(0deg) translateX(0); transform-origin: left center; }
+}
+@keyframes njPageTurnBack {
+  0%   { opacity: 0.25; transform: perspective(1600px) rotateY(14deg) translateX(-3%); transform-origin: right center; }
+  100% { opacity: 1;    transform: perspective(1600px) rotateY(0deg) translateX(0); transform-origin: right center; }
+}
+.nj-page-turn-fwd { animation: njPageTurnFwd 0.32s cubic-bezier(0.22, 0.8, 0.3, 1); }
+.nj-page-turn-back { animation: njPageTurnBack 0.32s cubic-bezier(0.22, 0.8, 0.3, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .nj-page-turn-fwd, .nj-page-turn-back { animation: none; }
+  .nj-mag-card { transition: none; }
+}
+
+/* 深色纸面 */
+body.dark .nj-mag-card {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+body.dark .nj-mag-card:hover {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+body.dark .nj-mag-card:focus-visible,
+body.dark .nj-mag-card.selected { border-color: #f2913d; box-shadow: 0 0 0 2px rgba(242, 145, 61, 0.3); }
+body.dark .nj-mag-card .mag-cover {
+  background: linear-gradient(135deg, rgba(111, 138, 90, 0.2), rgba(242, 145, 61, 0.14));
+}
+body.dark .nj-mag-card .mag-title { color: rgba(246, 240, 226, 0.92); }
+body.dark .nj-mag-card.read .mag-title { color: rgba(246, 240, 226, 0.6); }
+body.dark .nj-mag-card .mag-meta { color: rgba(246, 240, 226, 0.55); }
+body.dark .nj-mag-card .mag-cover .mag-cover-fallback { color: rgba(246, 240, 226, 0.3); }
+
+/* ── 深色纸面插图反相：白底线稿/图表/公式（借鉴上游 v1.4.3-beta.1，亮度反转+色相回旋保彩）── */
+body.dark .reader-article img.nj-invert-art {
+  filter: invert(1) hue-rotate(180deg);
+}

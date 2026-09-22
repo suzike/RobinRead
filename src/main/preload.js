@@ -51,6 +51,18 @@ contextBridge.exposeInMainWorld('robin', {
   // 正文提取
   extractArticle: (entryID) => invoke('extract:run', entryID),
 
+  // 存储治理
+  getMaintenance: () => invoke('maintenance:get'),
+  setRetentionDays: (days) => invoke('maintenance:set', days),
+  cleanupNow: () => invoke('maintenance:cleanup'),
+
+  // 每源翻译模式 + 单篇自动翻译记忆
+  setTranslateFeedMode: (feedID, mode) => invoke('translate:setFeedMode', feedID, mode),
+  skipArticleTranslate: (entryID) => invoke('translate:skipArticle', entryID),
+
+  // 图片字节抓取（深色插图反相分析）
+  fetchImageBytes: (url) => invoke('net:fetchImage', url),
+
   // 账户
   addFreshRSSAccount: (payload) => invoke('accounts:addFreshRSS', payload),
   validateFreshRSS: (payload) => invoke('accounts:validate', payload),

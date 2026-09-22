@@ -139,6 +139,7 @@ class AppStore extends EventEmitter {
     this.apiClients = new Map(); // accountID -> ReaderAPIClient
     this.refreshStatus = { state: 'idle' };
     this.syncStatus = new Map(); // accountID -> {state, message}
+    this._pruneAtByFeed = new Map(); // 存储治理：单源顺手淘汰的节流时间戳
     this.aiStatus = new Map(); // key -> {state, message}
     this.activeAICancellers = new Map();
     this.lastRefreshOutcome = null;
@@ -175,8 +176,43 @@ class AppStore extends EventEmitter {
     this._repairAihotArticles();
     this._cleanupDuplicates();
     this._repairAggregatorMeta();
+    this._repairEncodedEntities(); // 存量标题/摘要 HTML 实体一次性自愈（借鉴上游 v1.4.2）
     // 全文索引回填（存量文章一次性，分批让出事件循环；FTS 不可用时内部自动跳过）
     setTimeout(() => { this._ftsBackfill().catch(() => {}); }, 8000);
+  }
+
+  /**
+   * 存量标题/摘要实体自愈（幂等，独立标记）：早期版本入库的 title/summary 可能残留
+   * `&amp;` `&lt;` `&#39;` 等实体，阅读列表原样显示。只重写真正变化的行；含裸 `&`
+   * 的普通标题（如 R&D）解码后不变、不写库。
+   */
+  _repairEncodedEntities() {
+    if (this.preferences.get('RobinRead.repair.encodedEntities', false) === true) return;
+    try {
+      const decode = (value) => String(value ?? '')
+        .replace(/&#(\d+);/g, (m, d) => { const code = Number(d); return code > 31 && code < 65536 ? String.fromCodePoint(code) : m; })
+        .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"')
+        .replace(/&apos;/gi, "'").replace(/&#39;/gi, "'")
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&'); // & 必须最后解，避免二次解码
+      const rows = this.database.prepare(
+        "SELECT item_id, title, summary FROM articles WHERE title LIKE '%&%' OR summary LIKE '%&%'"
+      ).all();
+      const update = this.database.prepare('UPDATE articles SET title = ?, summary = ? WHERE item_id = ?');
+      let fixed = 0;
+      this.database.transaction(() => {
+        for (const row of rows) {
+          const title = decode(row.title);
+          const summary = decode(row.summary);
+          if (title !== row.title || summary !== row.summary) {
+            update.run(title, summary, row.item_id);
+            fixed += 1;
+          }
+        }
+      });
+      if (fixed > 0) console.log(`[repair] encoded entities fixed: ${fixed}`);
+    } catch (_) { /* 自愈失败不阻塞启动 */ }
+    this.preferences.set('RobinRead.repair.encodedEntities', true);
   }
 
   /**
@@ -717,10 +753,13 @@ class AppStore extends EventEmitter {
     const cutoff = nowSeconds() - 90 * 24 * 3600; // 90 天保留窗口
     let newUnread = [];
     const toPrefetch = [];
+    // 存储治理墓碑：被保留期限淘汰过的文章，源站刷新时不再灌回来
+    const tombstoneQuery = this.database.prepare('SELECT 1 FROM pruned_articles WHERE item_id = ?');
     for (const parsed of parsedEntries) {
       const publishedAt = parsed.publishedAt ?? nowSeconds();
       if (publishedAt < cutoff) continue;
       const entryID = `local:${feed.id}:${stableDigest(parsed.id)}`;
+      if (tombstoneQuery.get(entryID)) continue;
       const existing = this.articlesRepo.entry(entryID);
       if (existing) continue;
       // 按规范化 url 兜底去重：wechat2rss 等源无稳定 guid（stable 落到 url），
@@ -1070,8 +1109,101 @@ class AppStore extends EventEmitter {
       lastRefreshedAt: nowSeconds(),
     }));
     this._invalidatePrepared(); // 单源刷新可能新增文章：宁可多失效
+    this._maybePruneFeed(feedID); // 存储治理：保留期限开启时顺手淘汰该源超期已读（节流）
     this._emitState();
     return { newEntries: newIDs.length };
+  }
+
+  // MARK: - 存储治理（保留期限 + 墓碑防复活 + 空间回收；借鉴上游 PaperRss v1.4.0）
+
+  /** 历史文章保留天数；0 = 永久保留（默认关闭，治理需用户显式开启）。 */
+  getRetentionDays() {
+    const value = Number(this.preferences.get('RobinRead.retentionDays', 0));
+    return [0, 180, 365, 730].includes(value) ? value : 0;
+  }
+
+  getMaintenance() {
+    return { retentionDays: this.getRetentionDays() };
+  }
+
+  setRetentionDays(days) {
+    const value = Number(days);
+    if (![0, 180, 365, 730].includes(value)) throw new Error(i18n.localized('不支持的保留期限。'));
+    this.preferences.set('RobinRead.retentionDays', value);
+    let pruned = 0;
+    if (value > 0) pruned = this._pruneExpired();
+    this._emitState();
+    return { retentionDays: value, pruned };
+  }
+
+  /**
+   * 淘汰超期历史文章（仅本地账号；Reader 账号保留期由服务端治理）。
+   * 铁律：未读、收藏、稍后读绝对保留；以拉取到达时间（items.created_at）为准。
+   * 删除前写墓碑（pruned_articles），源站刷新时老文章不再复活为未读。
+   */
+  _pruneExpired() {
+    const days = this.getRetentionDays();
+    if (!days) return 0;
+    const cutoff = nowSeconds() - days * 24 * 3600;
+    const rows = this.database.prepare(`
+      SELECT i.id, i.feed_id FROM items i
+      JOIN article_states s ON s.item_id = i.id
+      JOIN feeds f ON f.id = i.feed_id
+      WHERE f.account_id = ?
+        AND s.is_read = 1 AND s.is_starred = 0 AND IFNULL(s.is_later, 0) = 0
+        AND i.created_at < ?
+    `).all(LOCAL_ACCOUNT_ID, cutoff);
+    return this._deleteWithTombstones(rows);
+  }
+
+  _deleteWithTombstones(rows) {
+    if (!rows || !rows.length) return 0;
+    const writeTomb = this.database.prepare(
+      'INSERT OR IGNORE INTO pruned_articles (item_id, feed_id, pruned_at) VALUES (?, ?, ?)'
+    );
+    const deleteItem = this.database.prepare('DELETE FROM items WHERE id = ?');
+    this.database.transaction(() => {
+      for (const row of rows) {
+        writeTomb.run(row.id, row.feed_id, nowSeconds());
+        deleteItem.run(row.id); // FK 级联清 articles/states/caches/highlights/notes
+      }
+    });
+    return rows.length;
+  }
+
+  /** 单源刷新后的顺手淘汰：每源 10 分钟至多一次，避免每次刷新都全表扫。 */
+  _maybePruneFeed(feedID) {
+    if (this.getRetentionDays() <= 0) return;
+    const last = this._pruneAtByFeed.get(feedID) || 0;
+    if (Date.now() - last < 10 * 60 * 1000) return;
+    this._pruneAtByFeed.set(feedID, Date.now());
+    const cutoff = nowSeconds() - this.getRetentionDays() * 24 * 3600;
+    const rows = this.database.prepare(`
+      SELECT i.id, i.feed_id FROM items i
+      JOIN article_states s ON s.item_id = i.id
+      WHERE i.feed_id = ?
+        AND s.is_read = 1 AND s.is_starred = 0 AND IFNULL(s.is_later, 0) = 0
+        AND i.created_at < ?
+    `).all(feedID, cutoff);
+    if (rows.length) this._deleteWithTombstones(rows);
+  }
+
+  /** 立即清理：按保留期限淘汰 + WAL 截断 + VACUUM 物理回收磁盘碎片。 */
+  cleanupNow() {
+    const pruned = this._pruneExpired();
+    let freedBytes = 0;
+    try {
+      const before = Number(this.database.prepare('PRAGMA page_count').get().page_count);
+      const pageSize = Number(this.database.prepare('PRAGMA page_size').get().page_size);
+      this.database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      this.database.exec('VACUUM');
+      const after = Number(this.database.prepare('PRAGMA page_count').get().page_count);
+      freedBytes = Math.max(0, (before - after) * pageSize);
+    } catch (_) { /* 回收失败不致命：淘汰已完成 */ }
+    this._bumpListSet();
+    this._invalidatePrepared();
+    this._emitState();
+    return { pruned, freedBytes };
   }
 
   /** 全文搜索：标题/摘要/作者 + 正文内容。FTS5(trigram) 即时路径 + LIKE 回退。 */
@@ -2511,6 +2643,55 @@ class AppStore extends EventEmitter {
     this._emitState();
   }
 
+  // MARK: - 每源翻译模式 + 单篇自动翻译记忆（借鉴上游 PaperRss v1.3.3-beta.5）
+
+  _prefJSONMap(key) {
+    try {
+      const value = JSON.parse(this.preferences.get(key, '{}') || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (_) { return {}; }
+  }
+
+  _setPrefJSONMap(key, map) {
+    this.preferences.set(key, JSON.stringify(map || {}));
+  }
+
+  getTranslateFeedModes() { return this._prefJSONMap('RobinRead.translate.feedModes'); }
+
+  /** mode: 'auto'（删除键，跟随全局）/ 'always' / 'never'。 */
+  setTranslateFeedMode(feedID, mode) {
+    const map = this.getTranslateFeedModes();
+    if (mode === 'auto') delete map[feedID];
+    else if (mode === 'always' || mode === 'never') map[feedID] = mode;
+    else throw new Error(i18n.localized('不支持的翻译模式。'));
+    this._setPrefJSONMap('RobinRead.translate.feedModes', map);
+    this._emitState();
+    return map;
+  }
+
+  getTranslateSkipped() { return this._prefJSONMap('RobinRead.translate.skippedArticles'); }
+
+  /**
+   * 抓取图片字节（深色纸面插图反相的像素分析用）。
+   * 走 ArticleExtractCore.fetchWebPage（注入时即 net.fetch 系统代理）；≤3MB，防滥用。
+   */
+  async fetchImageBytes(url) {
+    const clean = String(url || '');
+    if (!/^https?:\/\//i.test(clean)) throw new Error('bad-url');
+    const Core = require('./ArticleExtractCore');
+    const { buffer } = await Core.fetchWebPage(clean);
+    if (!buffer || buffer.length > 3_000_000) throw new Error('image-too-large');
+    return buffer.toString('base64');
+  }
+
+  skipArticleTranslate(entryID) {
+    const map = this.getTranslateSkipped();
+    map[entryID] = true;
+    const ids = Object.keys(map);
+    if (ids.length > 500) for (const old of ids.slice(0, ids.length - 500)) delete map[old];
+    this._setPrefJSONMap('RobinRead.translate.skippedArticles', map);
+  }
+
   readerLayout() {
     return {
       fontFamily: this.preferences.get('RobinRead.readerFontFamily', 'serif'),
@@ -2518,7 +2699,13 @@ class AppStore extends EventEmitter {
       lineHeight: this.preferences.get('RobinRead.readerLineHeight', 'standard'),
       listDensity: this.preferences.get('RobinRead.listDensity', 'comfortable'),
       listSort: this.preferences.get('RobinRead.listSort', 'time'),
+      // 时间线展现形态：list 经典列表 / magazine 沉浸杂志（封面卡片网格）
+      listViewMode: this.preferences.get('RobinRead.listViewMode', 'list'),
       translateMode: this.preferences.get('RobinRead.translateMode', 'off'),
+      // 每源翻译模式（借鉴上游 v1.3.3 白/黑名单）：auto 跟随全局 / always 总是翻 / never 从不
+      translateFeedModes: this.getTranslateFeedModes(),
+      // 用户手动关掉自动翻译的文章：之后打开不再自动翻（单篇记忆，封顶 500）
+      translateSkipped: this.getTranslateSkipped(),
       // 默认关闭：文章打开不自动翻译，由用户手动触发（设置里可开启自动精读）
       autoTranslateEnglish: this.preferences.get('RobinRead.autoTranslateEnglish', false) === true,
     };
@@ -2531,6 +2718,7 @@ class AppStore extends EventEmitter {
       lineHeight: ['compact', 'standard', 'loose'],
       listDensity: ['compact', 'comfortable'],
       listSort: ['time', 'unreadFirst'],
+      listViewMode: ['list', 'magazine'],
       translateMode: ['off', 'bilingual', 'zh'],
       autoTranslateEnglish: [true, false],
     };

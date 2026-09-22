@@ -484,6 +484,18 @@ function registerIPCHandlers(store, window) {
   // MARK: 正文提取
   handle('extract:run', (entryID) => store.extractArticle(entryID));
 
+  // MARK: 存储治理（保留期限 + 立即清理）
+  handle('maintenance:get', () => store.getMaintenance());
+  handle('maintenance:set', (days) => store.setRetentionDays(days));
+  handle('maintenance:cleanup', () => store.cleanupNow());
+
+  // MARK: 每源翻译模式 + 单篇自动翻译记忆
+  handle('translate:setFeedMode', (feedID, mode) => store.setTranslateFeedMode(feedID, mode));
+  handle('translate:skipArticle', (entryID) => store.skipArticleTranslate(entryID));
+
+  // MARK: 图片字节抓取（深色纸面插图反相的像素分析）
+  handle('net:fetchImage', (url) => store.fetchImageBytes(url));
+
   // MARK: 账户
   handle('accounts:addFreshRSS', (payload) => store.addFreshRSSAccount(payload));
   handle('accounts:validate', ({ endpointURL, username, password }) => store.validateFreshRSSCredentials(endpointURL, username, password));

@@ -125,7 +125,7 @@ export class SettingsView {
 
   // MARK: 外观
 
-  _appearance(container, prefs) {
+  async _appearance(container, prefs) {
     container.appendChild(group(t('颜色主题'), t('选择浅色、深色或自动跟随系统的外观风格。'), [
       row(t('外观模式'), null, segmented(
         [['system', t('自动')], ['light', t('浅色')], ['dark', t('深色')]],
@@ -253,6 +253,37 @@ export class SettingsView {
         layout.translateMode && layout.translateMode !== 'off' ? layout.translateMode : 'bilingual',
         async (value) => { await window.robin.setReaderLayout({ translateMode: value }); this.handlers.onRefreshState?.(); },
       )),
+    ]));
+
+    // ── 存储与历史记录 ──（保留期限淘汰超期已读；未读/收藏/稍后读永不清理）
+    const maintenance = (await window.robin.getMaintenance().catch(() => null)) || { retentionDays: 0 };
+    const cleanupButton = document.createElement('button');
+    cleanupButton.className = 'nj-settings-button';
+    cleanupButton.textContent = t('立即清理');
+    cleanupButton.addEventListener('click', async () => {
+      cleanupButton.disabled = true;
+      cleanupButton.textContent = t('清理中…');
+      try {
+        const result = await window.robin.cleanupNow();
+        const mb = (result.freedBytes || 0) / (1024 * 1024);
+        cleanupButton.textContent = mb >= 0.1
+          ? t(`已清理 ${result.pruned} 篇，释放 ${mb.toFixed(1)} MB`)
+          : t(`已清理 ${result.pruned} 篇`);
+      } catch (_) {
+        cleanupButton.textContent = t('清理失败，请重试');
+      }
+      setTimeout(() => { cleanupButton.disabled = false; cleanupButton.textContent = t('立即清理'); }, 4000);
+    });
+    container.appendChild(group(t('存储与历史记录'), t('按保留期限自动淘汰超期的已读文章（以拉取时间计）；未读、收藏与稍后读永远保留，源站刷新也不会把清理过的文章重新灌回。'), [
+      row(t('历史文章保留期限'), t('默认永久保留。开启后每次刷新自动清理超期已读。'), selectControl(
+        [['0', t('永久保留')], ['180', t('保留 180 天')], ['365', t('保留 1 年')], ['730', t('保留 2 年')]],
+        String(maintenance.retentionDays || 0),
+        async (value) => {
+          const result = await window.robin.setRetentionDays(Number(value));
+          if (result && result.pruned > 0) this.handlers.onFeedback?.(t(`已按新期限清理 ${result.pruned} 篇历史文章`));
+        },
+      )),
+      row(t('回收磁盘空间'), t('清理历史文章后立即压缩数据库并归还磁盘空间。'), cleanupButton),
     ]));
 
     // ── 过滤与降噪 ──（注意路径：filterRules 在 snapshot.preferences 下）

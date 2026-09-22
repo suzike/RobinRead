@@ -41,6 +41,7 @@ const LIST_SELECT = `
       COALESCE(a.title, '') AS title,
       a.url AS url,
       COALESCE(a.summary, '') AS summary,
+      substr(COALESCE(a.content_html, ''), 1, 1600) AS content_head,
       f.title AS feed_title,
       f.stored_icon_url AS stored_icon_url,
       f.site_url AS site_url,

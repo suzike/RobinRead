@@ -45,6 +45,8 @@ export class ReaderView {
     this.scrollbar = refs.scrollbar;
     this.thumb = refs.thumb;
     this.handlers = handlers;
+    // 深色⇄浅色切换：清掉/重算插图反相（切换到浅色必须移除 filter）
+    document.addEventListener('robinread:theme-applied', () => this._applyDarkPaperInversion(true));
 
     this.entryID = null;
     this.entry = null;
@@ -95,8 +97,10 @@ export class ReaderView {
 
   // MARK: - 打开 / 清空
 
-  async open(entryID) {
+  async open(entryID, { turn = null } = {}) {
     const sameEntry = this.entryID === entryID;
+    // 拟真翻页：仅真实换文时触发（启动自动选中/重开同篇不翻）
+    if (turn && this.entryID && !sameEntry) this._pageTurn = turn;
     // 切换文章前记住当前阅读位置，回来时恢复
     if (!sameEntry && this.entryID && this.scrollEl) {
       this._rememberScrollPosition(this.entryID, this.scrollEl.scrollTop);
@@ -201,7 +205,9 @@ export class ReaderView {
     if (this.entryID !== entryID) return;
     this._render();
 
-    // 翻译策略：默认不翻译（手动点击翻译按钮触发）；仅当设置里显式开启「自动精读」才自动翻译
+    // 翻译策略：默认不翻译（手动点击翻译按钮触发）；仅当设置里显式开启「自动精读」才自动翻译。
+    // 每源模式（右键订阅源 → AI 精读翻译）：always 总是翻 / never 从不 / auto 跟随全局；
+    // 单篇手动关闭过自动翻译的文章不再自动翻（上游 v1.3.3 白/黑名单 + 单篇记忆）。
     {
       const layout = window.__robinReaderLayout || {};
       const defaultMode = layout.translateMode && layout.translateMode !== 'off'
@@ -209,13 +215,23 @@ export class ReaderView {
       const autoOn = layout.autoTranslateEnglish === true;
       const aiReady = window.__robinLLM?.__hasKey !== false;
       const isEn = this._isEnglishArticle();
-      if (isEn && autoOn && !aiReady) {
+      const feedMode = (layout.translateFeedModes || {})[this.feed?.id] || 'auto';
+      const skipped = (layout.translateSkipped || {})[this.entryID] === true;
+      this._autoTranslateApplied = false;
+      if (feedMode === 'never' || skipped) {
+        // 源级从不 / 单篇已手动关闭：不自动翻
+      } else if (feedMode === 'always' && aiReady && this.translateMode === 'off') {
+        this._setTranslateMode(defaultMode, { silent: true });
+        this._autoTranslateApplied = true;
+        this.handlers.onFeedback?.(t('此订阅源已设为总是 AI 精读翻译（可在右键菜单更改）'));
+      } else if (feedMode !== 'always' && isEn && autoOn && !aiReady) {
         // 设置开了自动精读但 AI 未就绪（当前服务商未配置 Key）：给出明确指引
         this.handlers.onFeedback?.(t('已开启自动精读，但 AI 尚未配置 API Key。请到 设置 → AI 填写后重试。'));
-      } else if (isEn && autoOn && aiReady && this.translateMode === 'off') {
+      } else if (feedMode !== 'always' && isEn && autoOn && aiReady && this.translateMode === 'off') {
         this._setTranslateMode(defaultMode, { silent: true });
+        this._autoTranslateApplied = true;
         this.handlers.onFeedback?.(t('检测到英文文章，已开启 AI 精读翻译（点击翻译按钮可切换模式）'));
-      } else if (!isEn && this.translateMode !== 'off') {
+      } else if (!isEn && this.translateMode !== 'off' && feedMode !== 'always') {
         // 换到非英文文章：翻译模式跟随文章语言，重置为关闭
         this._setTranslateMode('off', { silent: true });
       }
@@ -414,6 +430,14 @@ export class ReaderView {
     this.body = document.createElement('div');
     article.appendChild(this.body);
     this.scrollEl.appendChild(article);
+    this._articleEl = article; // 翻页动效挂载点
+    // 拟真翻页：方向性纸页翻转（杂志⇄文章、上一篇/下一篇共用），动画结束自清理
+    if (this._pageTurn) {
+      const turnClass = this._pageTurn === 'back' ? 'nj-page-turn-back' : 'nj-page-turn-fwd';
+      this._pageTurn = null;
+      article.classList.add(turnClass);
+      article.addEventListener('animationend', () => article.classList.remove(turnClass), { once: true });
+    }
 
     // 正文：注入段落 ID + 版面重排 + 句子包裹 + 缓存译文 + 恢复划词注释锚点
     this._setBodyHTML(this.html);
@@ -434,6 +458,7 @@ export class ReaderView {
     this._bindImages();
 
     this._buildTOC();
+    this._applyDarkPaperInversion(); // 深色纸面：线稿/公式图自动反相（借鉴上游 v1.4.3-beta.1）
     requestAnimationFrame(() => {
       this._onScroll();
       this._publishVisible();
@@ -1082,9 +1107,83 @@ export class ReaderView {
     });
   }
 
+  /**
+   * 深色纸面插图反相：白底低饱和（线稿/图表/公式）在深色纸面上刺眼，反相明度保留色相；
+   * 照片与彩色插图不动。判定按需且有界（每篇 ≤12 张、并发 3、失败一律不反相），
+   * 同源图 canvas 直析，跨域图经主进程代理抓字节后 createImageBitmap 分析。
+   */
+  _applyDarkPaperInversion(force = false) {
+    const dark = document.body.classList.contains('dark');
+    if (!this.body) return;
+    const imgs = Array.from(this.body.querySelectorAll('img')).slice(0, 12);
+    if (!dark) {
+      for (const img of imgs) { img.classList.remove('nj-invert-art'); delete img.dataset.njInvert; }
+      return;
+    }
+    this._invertCache = this._invertCache || new Map(); // src -> bool
+    let cursor = 0;
+    let inFlight = 0;
+    const pump = () => {
+      while (inFlight < 3 && cursor < imgs.length) {
+        const img = imgs[cursor++];
+        if (!force && img.dataset.njInvert !== undefined) continue;
+        inFlight += 1;
+        this._invertOneImage(img).finally(() => { inFlight -= 1; pump(); });
+      }
+    };
+    pump();
+  }
+
+  async _invertOneImage(img) {
+    const src = img.currentSrc || img.src || '';
+    if (!/^https?:/i.test(src) && !src.startsWith('data:')) { img.dataset.njInvert = 'no'; return; }
+    let verdict = this._invertCache.get(src);
+    if (verdict === undefined) {
+      verdict = await this._looksLikeLineArt(src, img);
+      if (this._invertCache.size < 200) this._invertCache.set(src, verdict);
+    }
+    img.dataset.njInvert = verdict ? 'yes' : 'no';
+    img.classList.toggle('nj-invert-art', verdict === true && document.body.classList.contains('dark'));
+  }
+
+  async _looksLikeLineArt(src, img) {
+    const analyze = (source) => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 24; canvas.height = 24;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(source, 0, 0, 24, 24);
+        const { data } = ctx.getImageData(0, 0, 24, 24);
+        let lumSum = 0, satSum = 0, n = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          lumSum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          satSum += max === 0 ? 0 : (max - min) / max;
+          n += 1;
+        }
+        if (!n) return false;
+        return (lumSum / n) > 0.72 && (satSum / n) < 0.28;
+      } catch (_) { return null; } // 画布污染/解码失败 → 走代理抓取回退
+    };
+    let verdict = null;
+    if (img.complete && img.naturalWidth > 0) verdict = analyze(img);
+    if (verdict !== null) return verdict;
+    try {
+      const result = await window.robin.fetchImageBytes(src);
+      if (!result?.ok || !result.data) return false;
+      const blob = await (await fetch(`data:application/octet-stream;base64,${result.data}`)).blob();
+      const bitmap = await createImageBitmap(blob);
+      verdict = analyze(bitmap);
+      bitmap.close?.();
+      return verdict === true;
+    } catch (_) {
+      return false; // 抓取失败：按不反相处理，不阻塞阅读
+    }
+  }
+
   _bindImages() {
-    this._imgObserver?.disconnect();
-    // 懒加载策略：前 4 张（首屏）立即加载，其余用 IntersectionObserver 在接近视口时预加载——
+    this._imgObserver?.disconnect();    // 懒加载策略：前 4 张（首屏）立即加载，其余用 IntersectionObserver 在接近视口时预加载——
     // 避免全部 eager 导致几十张图并发请求（wechat2rss 等代理慢时反而更卡）
     if (!('IntersectionObserver' in window)) {
       this.body.querySelectorAll('img').forEach((img) => { img.loading = 'eager'; this._decorateImage(img); });
@@ -1349,6 +1448,11 @@ export class ReaderView {
     const labels = { off: t('翻译：关闭'), bilingual: t('翻译：双语对照'), zh: t('翻译：仅中文') };
     this.handlers.onFeedback?.(labels[mode]);
     if (mode === 'off') {
+      // 本文由自动翻译打开、用户又手动关掉：记住这一篇，之后不再自动翻
+      if (this._autoTranslateApplied && this.entryID) {
+        this._autoTranslateApplied = false;
+        window.robin.skipArticleTranslate?.(this.entryID);
+      }
       this._translateAll = false;
       this.body?.querySelectorAll('.nj-translation, .nj-t').forEach((el) => el.remove());
       this.body?.classList.remove('translate-zh', 'translate-active');

@@ -29,6 +29,7 @@ export class ListView {
     this.topInset.innerHTML = `
       <div class="list-top-title"></div>
       <div class="tb-spring"></div>
+      <button class="digest-btn" id="view-mode-btn" title="${escapeHTML(t('切换列表 / 杂志视图'))}"><span></span></button>
       <button class="digest-btn" id="list-sort-btn" title="${escapeHTML(t('切换排序方式'))}"><span></span></button>
       <button class="digest-btn" id="digest-btn" title="${escapeHTML(t('AI 汇总今日全部文章'))}">${icon('spark')}<span></span></button>
       <div class="list-search" id="list-search">
@@ -56,6 +57,9 @@ export class ListView {
       this.handlers.onSearch?.('');
     });
     this.topInset.querySelector('#digest-btn').addEventListener('click', () => this.handlers.onDigest?.());
+    this.viewMode = 'list';
+    this.viewBtn = this.topInset.querySelector('#view-mode-btn');
+    this.viewBtn.addEventListener('click', () => this.handlers.onToggleViewMode?.());
     this.scrollEl.appendChild(this.topInset);
     this.rowsHost = document.createElement('div');
     this.scrollEl.appendChild(this.rowsHost);
@@ -68,6 +72,13 @@ export class ListView {
     const unreadFirst = listSort === 'unreadFirst';
     this.sortBtn.innerHTML = `<span>${escapeHTML(unreadFirst ? t('未读优先') : t('时间序'))}</span>`;
     this.sortBtn.classList.toggle('active', unreadFirst);
+  }
+
+  /** 时间线形态（list 经典列表 / magazine 沉浸杂志），切换后下一次 render 生效。 */
+  setViewMode(mode) {
+    this.viewMode = mode === 'magazine' ? 'magazine' : 'list';
+    this.viewBtn.innerHTML = `<span>${escapeHTML(this.viewMode === 'magazine' ? t('杂志') : t('列表'))}</span>`;
+    this.viewBtn.classList.toggle('active', this.viewMode === 'magazine');
   }
 
   render(items, scope, selectedID, hasUnread) {
@@ -101,6 +112,10 @@ export class ListView {
     }
 
     const fragment = document.createDocumentFragment();
+    if (this.viewMode === 'magazine') {
+      this._renderMagazine(items, selectedID);
+      return;
+    }
     const clusters = clusterSimilar(items);
     for (const entry of clusters) {
       if (entry.type === 'cluster') {
@@ -207,9 +222,104 @@ export class ListView {
   appendRows(items) {
     const empty = this.rowsHost.querySelector('.list-empty');
     if (empty) empty.remove();
+    if (this.viewMode === 'magazine') {
+      const grid = this.rowsHost.querySelector('.nj-mag-grid');
+      if (!grid) { this._renderMagazine(items, this.selectedID); return; }
+      for (const item of items) grid.appendChild(this.magCard(item));
+      return;
+    }
     const fragment = document.createDocumentFragment();
     for (const item of items) fragment.appendChild(this.rowFor(item));
     this.rowsHost.appendChild(fragment);
+  }
+
+  /** 沉浸杂志：封面卡片网格（借鉴上游 PaperRss v1.4.0 Magazine View，Web 版本）。 */
+  _renderMagazine(items, selectedID) {
+    const grid = document.createElement('div');
+    grid.className = 'nj-mag-grid';
+    grid.tabIndex = 0;
+    for (const item of items) grid.appendChild(this.magCard(item));
+    // 方向键就近移动：只在一侧没有卡片时才翻滚加载（与杂志遥控式导航一致）
+    grid.addEventListener('keydown', (event) => {
+      const dirs = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+      if (!dirs.includes(event.key)) {
+        if ((event.key === 'Enter' || event.key === ' ') && event.target?.dataset?.entryId) {
+          event.preventDefault();
+          const item = this.items.find((it) => it.id === event.target.dataset.entryId);
+          if (item) this.handlers.onSelect(item.id, item);
+        }
+        return;
+      }
+      event.preventDefault();
+      const cards = Array.from(grid.querySelectorAll('.nj-mag-card'));
+      const current = event.target.classList?.contains('nj-mag-card')
+        ? event.target
+        : (this.rowForEntry(this.selectedID) || cards[0]);
+      const next = nearestMagCard(cards, current, event.key);
+      if (next) {
+        next.focus();
+        next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else {
+        this.handlers.onLoadMore?.(); // 已到页面边缘：加载更多再移动
+      }
+    });
+    this.rowsHost.appendChild(grid);
+    this.markSelected(selectedID);
+  }
+
+  magCard(item) {
+    const card = document.createElement('article');
+    card.className = `entry-row nj-mag-card ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''}`;
+    card.dataset.entryId = item.id;
+    card.dataset.isLater = item.isLater ? '1' : '0';
+    card.tabIndex = -1;
+
+    const cover = document.createElement('div');
+    cover.className = 'mag-cover';
+    const imageURL = firstImageURL(item.contentHead);
+    if (imageURL) {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.alt = '';
+      img.addEventListener('error', () => {
+        cover.classList.add('no-image');
+        img.remove();
+        cover.appendChild(Object.assign(document.createElement('span'), { className: 'mag-cover-fallback' }));
+        cover.querySelector('.mag-cover-fallback').innerHTML = icon('newspaper');
+      }, { once: true });
+      img.src = imageURL;
+      cover.appendChild(img);
+    } else {
+      cover.classList.add('no-image');
+      const fallback = document.createElement('span');
+      fallback.className = 'mag-cover-fallback';
+      fallback.innerHTML = icon('newspaper');
+      cover.appendChild(fallback);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'mag-body';
+    body.innerHTML = `
+      <span class="entry-unread-dot"></span>
+      <h3 class="mag-title"></h3>
+      <div class="mag-meta">
+        <span class="mag-feed"></span>
+        ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
+        ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
+        <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
+      </div>`;
+    body.querySelector('.mag-title').textContent = item.title || t('未命名文章');
+    body.querySelector('.mag-feed').textContent = item.sourceTitle || '';
+
+    card.appendChild(cover);
+    card.appendChild(body);
+    card.addEventListener('click', () => this.handlers.onSelect(item.id, item));
+    card.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      this.handlers.onContext(event, item);
+    });
+    return card;
   }
 
   markSelected(entryID) {
@@ -402,4 +512,36 @@ function escapeHTML(value) {
 
 function attr(value) {
   return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+/** 从 content_head（正文前 1600 字节）提取第一张封面图；仅接受 http(s) 绝对地址。 */
+function firstImageURL(contentHead) {
+  const match = /<img\b[^>]*?\bsrc\s*=\s*["']?([^"'\s>]+)/i.exec(String(contentHead || ''));
+  if (!match) return '';
+  const url = match[1].replace(/&amp;/g, '&');
+  return /^https?:\/\//i.test(url) ? url : '';
+}
+
+/** 杂志网格遥控式就近移动：目标方向没有卡片时返回 null（由调用方翻页/加载更多）。 */
+function nearestMagCard(cards, from, key) {
+  if (!from || cards.length < 2) return null;
+  const rect = from.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const horizontal = key === 'ArrowLeft' || key === 'ArrowRight';
+  const sign = key === 'ArrowRight' || key === 'ArrowDown' ? 1 : -1;
+  let best = null;
+  let bestScore = Infinity;
+  for (const card of cards) {
+    if (card === from) continue;
+    const r = card.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const primary = (horizontal ? (x - cx) : (y - cy)) * sign;
+    if (primary <= 4) continue; // 只朝按键方向移动，不折返
+    const cross = horizontal ? Math.abs(y - cy) : Math.abs(x - cx);
+    const score = primary + cross * 2;
+    if (score < bestScore) { bestScore = score; best = card; }
+  }
+  return best;
 }

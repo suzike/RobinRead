@@ -336,6 +336,23 @@ const MIGRATIONS = [
       `);
     },
   },
+
+  {
+    id: 'v7-pruned-articles',
+    up: (db) => {
+      // 存储治理「墓碑」：按保留期限淘汰已读历史文章时记录被删身份，
+      // 防止源站刷新把老文章重新灌回来变成未读（上游 v1.4.0 同款机制）。
+      // item_id 与 items 主键同构（local:<feedID>:<digest> / gr:<account>:<digest>），故可作主键。
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS pruned_articles (
+            item_id   TEXT PRIMARY KEY NOT NULL,
+            feed_id   TEXT NOT NULL,
+            pruned_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_pruned_articles_feed ON pruned_articles(feed_id);
+      `);
+    },
+  },
 ];
 
 /** 应用所有未执行的迁移（等价 GRDB DatabaseMigrator.migrate）。 */
