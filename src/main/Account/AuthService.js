@@ -20,8 +20,11 @@ const DEFAULT_API_BASE = 'https://ronbinread-d9gmsqi2vc0a18f04.service.tcloudbas
 const PREF_KEY_API_BASE = 'NanJuPaper.apiBase';
 const STATE_FILE = 'account-state.json';
 
-const FREE_FEED_LIMIT = 30;   // 免费版订阅源上限（会员无限）
-const FREE_AI_PER_DAY = 3;    // 免费版 AI 生成次数/天（会员无限）
+const FREE_FEED_LIMIT = 30;   // 免费版订阅源上限（会员无限；当前因 UNLIMITED_FOR_ALL 不生效）
+const FREE_AI_PER_DAY = 3;    // 免费版 AI 生成次数/天（会员无限；当前因 UNLIMITED_FOR_ALL 不生效）
+
+// v2.4.7：完整功能默认对所有用户开放（登录与否均等同会员）。改回 false 即恢复免费/会员门控。
+const UNLIMITED_FOR_ALL = true;
 
 const CACHE_TTL_MS = 12 * 3600 * 1000;   // 会员状态正常刷新间隔
 const GRACE_TTL_MS = 72 * 3600 * 1000;   // 断网宽限：超过则按免费处理并提示
@@ -222,6 +225,15 @@ class AuthService {
       limits: { feeds: FREE_FEED_LIMIT, aiPerDay: FREE_AI_PER_DAY },
       quota: this._quotaView(),
     };
+    // v2.4.7：完整功能默认开放——渲染层视角统一上报会员态（徽标/门控/额度全链路一致）。
+    // 登录用户保留真实身份信息；未登录以匿名会员身份呈现。
+    if (UNLIMITED_FOR_ALL) {
+      const cached = this._state.user;
+      const identity = token && cached
+        ? { ...cached, is_member: true, member_until: cached.member_until === 'lifetime' ? 'lifetime' : (cached.member_until || null) }
+        : { uid: 'anonymous', nickname: '', avatar_url: null, is_member: true, member_until: 'lifetime', plan: 'open' };
+      return { ...base, user: identity, quota: this._quotaView(), guest: !token };
+    }
     if (!token) return { ...base, guest: true };
 
     const cached = this._state.user;
@@ -258,7 +270,13 @@ class AuthService {
     return cached;
   }
 
+  /**
+   * v2.4.7 起完整功能对所有人默认开放：无论登录与否都等同会员（订阅源数量与 AI 次数
+   * 不再受限）。账号、登录与激活码体系完整保留——未来如需恢复门控，把
+   * UNLIMITED_FOR_ALL 改回 false 即可，服务端 is_member 语义不变。
+   */
   isMember() {
+    if (UNLIMITED_FOR_ALL) return true;
     const user = this.userNow();
     return !!(user && user.is_member);
   }

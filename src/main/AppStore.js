@@ -394,7 +394,7 @@ class AppStore extends EventEmitter {
     return {
       appTheme: this.preferences.get(PreferenceKey.appTheme, 'system'),
       articleFontSize: this.preferences.get(PreferenceKey.articleFontSize, 17),
-      refreshInterval: this.preferences.get(PreferenceKey.refreshInterval, 'manual'),
+      refreshInterval: this.preferences.get(PreferenceKey.refreshInterval, 'thirtyMinutes'),
       refreshOnLaunch: this.preferences.get(PreferenceKey.refreshOnLaunch, true),
       appLanguage: this.preferences.get(PreferenceKey.appLanguage, 'zh'),
       aiOutputLanguage: this.preferences.get(PreferenceKey.aiOutputLanguage, null),
@@ -1511,7 +1511,9 @@ class AppStore extends EventEmitter {
             ).all().map((r) => r.feed_id));
             feeds = allFeeds.filter((f) => !dead.has(f.id));
           }
-          const results = await Promise.allSettled(feeds.map((feed) => this._refreshLocalFeed(feed)));
+          // 并发限流：几十个源同时打出会挤爆代理/连接池（52 源全并发实测随机挂 18 个），
+          // 改 6 路 worker 串行消费，整体耗时依旧远低于串行
+          const results = await this._mapWithConcurrency(feeds, 6, (feed) => this._refreshLocalFeed(feed));
           for (const result of results) {
             if (result.status === 'fulfilled') {
               updatedFeeds += 1;
@@ -1550,13 +1552,43 @@ class AppStore extends EventEmitter {
     this._emitState();
   }
 
+  /** 有界并发 map：保持结果与输入同序（等价 Promise.allSettled，worker 池消费）。 */
+  async _mapWithConcurrency(items, limit, task) {
+    const results = new Array(items.length);
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < items.length) {
+        const index = cursor++;
+        try {
+          results[index] = { status: 'fulfilled', value: await task(items[index]) };
+        } catch (error) {
+          results[index] = { status: 'rejected', reason: error };
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, () => worker()));
+    return results;
+  }
+
   async _refreshLocalFeed(feed) {
     let result;
     try {
       result = await fetchFeed(feed);
     } catch (err) {
-      this.evolution.recordFetch({ feedID: feed.id, ok: false, error: err?.message || String(err) });
-      throw err;
+      // 瞬时网络抖动（连接重置/超时等非 HTTP 状态错误）自动重试一次，再失败才计入失败
+      const message = err?.message || String(err);
+      if (!/^HTTP /.test(message)) {
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        try {
+          result = await fetchFeed(feed);
+        } catch (retryErr) {
+          this.evolution.recordFetch({ feedID: feed.id, ok: false, error: retryErr?.message || String(retryErr) });
+          throw retryErr;
+        }
+      } else {
+        this.evolution.recordFetch({ feedID: feed.id, ok: false, error: message });
+        throw err;
+      }
     }
     if (result.notModified) {
       this.feedsRepo.updateFeed(feed.id, (f) => ({
@@ -1584,7 +1616,9 @@ class AppStore extends EventEmitter {
       clearInterval(this._refreshTimer);
       this._refreshTimer = null;
     }
-    const raw = this.preferences.get(PreferenceKey.refreshInterval, 'manual');
+    // 默认每 30 分钟自动刷新（v2.4.7 起；「仅手动」的旧默认导致订阅内容不及时更新）。
+    // 已显式保存过偏好的用户保留自己的设置。
+    const raw = this.preferences.get(PreferenceKey.refreshInterval, 'thirtyMinutes');
     const seconds = refreshIntervalSeconds(raw);
     if (seconds) {
       this._refreshTimer = setInterval(() => {

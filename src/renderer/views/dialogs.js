@@ -838,7 +838,7 @@ export class SettingsView {
     container.appendChild(group(t('自动刷新'), t('应用保持打开时按此频率检查订阅；系统后台刷新时间可能会有所延迟。'), [
       row(t('刷新频率'), null, selectControl(
         FEED_REFRESH_INTERVALS_META.map(([value]) => [value, t(value === 'manual' ? '仅手动' : intervalLabel(value))]),
-        prefs.refreshInterval || 'manual',
+        prefs.refreshInterval || 'thirtyMinutes',
         async (value) => { await window.robin.setRefreshInterval(value); this.handlers.onRefreshState?.(); },
       )),
       toggleRow(t('打开应用时刷新'), null, Boolean(prefs.refreshOnLaunch), async (v) => {
