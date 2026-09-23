@@ -2,38 +2,69 @@
 /**
  * RobinRead（知更）— 更新检查
  *
- * 更新源托管在官网静态托管（website/update.json，随发版更新）。
- * 需要停用在线检查时，将 UPDATE_FEED 置空即可。
+ * 双更新源互为兜底：官网静态托管（website/update.json）优先；
+ * 官网不可达（托管冻结/欠费/被墙）时回退 GitHub Releases API。
+ * 需要停用在线检查时，将 UPDATE_FEED 与 GITHUB_RELEASES_API 同时置空即可。
  */
 const { app } = require('electron');
 
-// 自建更新源（JSON: { tag_name, name, html_url, published_at, body }）。
-// 留空 = 禁用在线更新检查。
+// 自建更新源（JSON: { tag_name, name, html_url, published_at, body }）。留空 = 跳过该源。
 const UPDATE_FEED = 'https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/update.json';
+// GitHub 兜底源：latest release（tag_name/assets 与官网 JSON 同形字段可映射）。
+const GITHUB_RELEASES_API = 'https://api.github.com/repos/suzike/RobinRead/releases/latest';
 
-async function fetchLatestRelease() {
-  if (!UPDATE_FEED) return null;
+let fetchImpl = null; // main.js 注入 net.fetch（走系统代理）；空则回退全局 fetch
+function setFetch(fn) { fetchImpl = fn; }
+
+/** 单源抓取：15s 超时，非 2xx / 解析失败一律返回 null（由调用方走下一源）。 */
+async function fetchJSON(url, headers) {
+  if (!url) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(UPDATE_FEED, {
-      headers: { 'User-Agent': 'RobinRead', Accept: 'application/json' },
+    const doFetch = fetchImpl || fetch;
+    const response = await doFetch(url, {
+      headers: { 'User-Agent': 'RobinRead', Accept: 'application/json', ...headers },
       signal: controller.signal,
     });
     if (!response.ok) return null;
-    const payload = await response.json();
-    return {
-      tagName: payload.tag_name ?? null,
-      name: payload.name ?? null,
-      htmlURL: payload.html_url ?? null,
-      publishedAt: payload.published_at ?? null,
-      body: (payload.body || '').slice(0, 2000),
-    };
+    return await response.json();
   } catch (_) {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** 统一 release 形状；官网源与 GitHub 兜底源各自映射。 */
+function normalizeWebsitePayload(payload) {
+  if (!payload) return null;
+  return {
+    tagName: payload.tag_name ?? null,
+    name: payload.name ?? null,
+    htmlURL: payload.html_url ?? null,
+    publishedAt: payload.published_at ?? null,
+    body: (payload.body || '').slice(0, 2000),
+  };
+}
+
+function normalizeGitHubPayload(payload) {
+  if (!payload || !payload.tag_name) return null;
+  return {
+    tagName: payload.tag_name,
+    name: payload.name ?? null,
+    htmlURL: payload.html_url ?? null,
+    publishedAt: payload.published_at ?? null,
+    body: (payload.body || '').slice(0, 2000),
+    source: 'github',
+  };
+}
+
+async function fetchLatestRelease() {
+  // 官网优先；失败或 payload 不完整时走 GitHub 兜底（GitHub API 直连失败即整体放弃）
+  const fromSite = normalizeWebsitePayload(await fetchJSON(UPDATE_FEED));
+  if (fromSite && fromSite.tagName) return fromSite;
+  return normalizeGitHubPayload(await fetchJSON(GITHUB_RELEASES_API));
 }
 
 function normalizeVersion(tag) {
@@ -97,4 +128,4 @@ async function checkForUpdate(ignoredVersion) {
   };
 }
 
-module.exports = { checkForUpdate };
+module.exports = { checkForUpdate, setFetch };

@@ -55,6 +55,7 @@ class ExploreService {
   constructor(store) {
     this.store = store;
     this.netFetch = null; // main.js 注入 electron net.fetch（走系统代理）；空则回退全局 fetch
+    this._genCache = new Map(); // 领域词 -> { at, candidates }（24h 内换一批不重花 LLM token）
   }
 
   setNetFetch(fn) { this.netFetch = fn; }
@@ -116,7 +117,9 @@ class ExploreService {
     };
 
     if (useAI) {
-      const generated = await this._llmGenerateCandidates(topic, excluded, seenDomains || []).catch(() => []);
+      // 同领域候选 24h 缓存：换一批只做本地排除过滤轮换，不再重复生成（LLM 候选
+      // 本身与已订阅/已看过集合无关，排除统一在 push() 处执行）
+      const generated = await this._candidatesForTopic(topic);
       let added = 0;
       for (const g of generated) if (push(g)) added += 1;
       // 池内关键词命中作为补充（最多 12 条）
@@ -328,6 +331,19 @@ class ExploreService {
    * 幻觉 URL 在验证阶段自然淘汰，红线不变：验证不过不展示。
    * seenDomains：本轮会话已展示过的域名（「换一批」时避免重复提议）。
    */
+  /** 领域候选（带 24h 缓存）：缓存存「生成时的原始全量」，排除交给 push() 的本地过滤。 */
+  async _candidatesForTopic(topic) {
+    const key = String(topic || '').trim();
+    const hit = this._genCache.get(key);
+    if (hit && (Date.now() - hit.at) < 24 * 3600 * 1000 && hit.candidates.length) return hit.candidates;
+    const generated = await this._llmGenerateCandidates(topic, [], []).catch(() => []);
+    if (generated.length) {
+      if (this._genCache.size >= 8) this._genCache.delete(this._genCache.keys().next().value);
+      this._genCache.set(key, { at: Date.now(), candidates: generated });
+    }
+    return generated;
+  }
+
   async _llmGenerateCandidates(topic, excludedDomains, seenDomains) {
     const { config, apiKey } = this.store._requireAIReady();
     const avoid = [...new Set([...excludedDomains, ...seenDomains].map((d) => String(d || '').toLowerCase()))].slice(0, 60);

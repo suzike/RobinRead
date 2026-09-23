@@ -26,10 +26,14 @@ export class SidebarView {
     this.lastData = null;
     this.lastCounts = null;
     this.lastScope = null;
+    this.healthByURL = {}; // 源健康（reloadSidebar 注入）：失败源显示警示徽标
     this._buildFooter();
   }
 
   // MARK: - 渲染
+
+  /** 注入源健康映射（key=feed_url），下次 render 生效。 */
+  setHealth(map) { this.healthByURL = map || {}; }
 
   render(sidebar, counts, scope) {
     this.lastData = sidebar;
@@ -224,6 +228,20 @@ export class SidebarView {
     row.innerHTML = `${iconHTML}<span class="sidebar-label"></span><span class="sidebar-count" style="visibility:hidden"></span>`;
     row.querySelector('.sidebar-label').textContent = feed.title;
     this._bindCount(row, counts?.unreadByFeed?.[feed.id] ?? 0);
+
+    // 源健康警示：连续失败 ≥3 次或已判死 → 标题旁小徽标，悬停看原因
+    const health = this.healthByURL[feed.feedURL];
+    if (health && (health.isDead || (health.recentFailures || 0) >= 3)) {
+      const warn = document.createElement('span');
+      warn.className = 'sidebar-health-warn' + (health.isDead ? ' dead' : '');
+      warn.textContent = '!';
+      const parts = [health.isDead
+        ? t('连续多次刷新失败，已暂停自动刷新（手动刷新成功后自动恢复）')
+        : t(`连续 ${health.recentFailures} 次刷新失败`)];
+      if (health.lastError) parts.push(String(health.lastError).slice(0, 80));
+      warn.title = parts.join('\n');
+      row.appendChild(warn);
+    }
 
     row.addEventListener('click', (event) => {
       if (event.ctrlKey || event.metaKey) {

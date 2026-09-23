@@ -186,6 +186,7 @@ if (!IS_PROBE) {
       require('./FeedDiscovery').useNetFetch(netFetch);
       store.explore.setNetFetch(netFetch);
       require('./ArticleExtractor').setNetFetch(netFetch); // 全文提取主进程预抓同样走系统代理
+      require('./UpdateCheckService').setFetch(netFetch); // 更新检查（官网+GitHub 兜底）走系统代理
     } catch (_) { /* 静默回退全局 fetch */ }
 
     buildMenu();

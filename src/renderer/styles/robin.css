@@ -3030,3 +3030,23 @@ body.dark .nj-mag-card .mag-cover .mag-cover-fallback { color: rgba(246, 240, 22
 body.dark .reader-article img.nj-invert-art {
   filter: invert(1) hue-rotate(180deg);
 }
+
+/* ── 侧栏源健康警示徽标 ── */
+.sidebar-row .sidebar-health-warn {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-left: auto;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: #d97a2b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  cursor: help;
+}
+.sidebar-row .sidebar-health-warn.dead { background: #b4372f; }
+body.dark .sidebar-row .sidebar-health-warn { background: #e08a3c; color: #20180c; }
+body.dark .sidebar-row .sidebar-health-warn.dead { background: #d0554a; color: #fff; }

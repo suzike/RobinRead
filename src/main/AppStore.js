@@ -2653,10 +2653,10 @@ class AppStore extends EventEmitter {
     return result;
   }
 
-  /** 订阅源健康状态（商店卡片标注用）。key = feed_url。 */
+  /** 订阅源健康状态（商店卡片标注 + 侧栏警示徽标用）。key = feed_url。 */
   healthByFeedURL() {
     const rows = this.database.prepare(`
-      SELECT f.feed_url AS url, h.is_dead, h.consecutive_failures, h.last_success_at
+      SELECT f.feed_url AS url, h.is_dead, h.consecutive_failures, h.last_success_at, h.last_error
       FROM feed_health h JOIN feeds f ON f.id = h.feed_id
     `).all();
     const map = {};
@@ -2665,6 +2665,7 @@ class AppStore extends EventEmitter {
         isDead: Boolean(r.is_dead),
         recentFailures: r.consecutive_failures,
         lastSuccessAt: r.last_success_at ?? null,
+        lastError: r.last_error ?? null,
       };
     }
     return map;

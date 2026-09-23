@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  windows-offline-suite:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax checks (main + preload + renderer entries)
+        shell: bash
+        run: |
+          for f in src/main/*.js src/main/Persistence/*.js src/main/Account/*.js src/main/workers/*.js src/main/preload.js; do
+            node --check "$f"
+          done
+          npx esbuild src/renderer/app.js --bundle --outfile=/dev/null --format=esm
+          npx esbuild src/renderer/views/reader.js --bundle --outfile=/dev/null --format=esm
+          npx esbuild src/renderer/views/list.js --bundle --outfile=/dev/null --format=esm
+          npx esbuild src/renderer/views/sidebar.js --bundle --outfile=/dev/null --format=esm
+      - name: Offline probe suite
+        run: node scripts/run-all.js --ci

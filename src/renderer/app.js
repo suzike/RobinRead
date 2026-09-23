@@ -552,6 +552,9 @@ async function reloadSidebar() {
   state.sidebar = result.data;
   window.__robinSidebar = result.data;
   window.__robinLanguage = state.snapshot?.language || 'zh';
+  // 源健康：失败源在侧栏显示警示徽标（is_dead 或连续失败 ≥3）
+  const health = await window.robin.storeHealth?.();
+  views.sidebar.setHealth?.(health?.ok ? health.data : {});
   views.sidebar.render(state.sidebar, state.snapshot?.sidebarCounts, state.scope);
 }
 
