@@ -179,14 +179,46 @@ if (!IS_PROBE) {
     setTimeout(() => { try { ArticleExtractor.prewarm(); } catch (_) { /* 静默 */ } }, 2500);
 
     // Feed 抓取注入 Electron net.fetch：走 Chromium 网络栈（系统代理），
-    // 被屏蔽的源（公众号桥、境外源）在用户开启系统代理时即可达
+    // 被屏蔽的源（公众号桥、境外源）在用户开启系统代理时即可达。
+    // 代理→直连回退：连接级失败（典型：系统代理开着但 Clash 没在监听）时，
+    // 绕过系统代理直连重试——国内可达源不再因死代理而全军覆没。
+    // 直连成功而代理刚失败 → 标记代理不可用 5 分钟，期间直连优先（省去反复撞死代理）。
     try {
-      const netFetch = (url, options) => net.fetch(url, options);
-      FeedService.useNetFetch(netFetch);
-      require('./FeedDiscovery').useNetFetch(netFetch);
-      store.explore.setNetFetch(netFetch);
-      require('./ArticleExtractor').setNetFetch(netFetch); // 全文提取主进程预抓同样走系统代理
-      require('./UpdateCheckService').setFetch(netFetch); // 更新检查（官网+GitHub 兜底）走系统代理
+      let directSession = null;
+      let proxyDeadUntil = 0;
+      const ensureDirectSession = async () => {
+        if (!directSession) {
+          const { session } = require('electron');
+          directSession = session.fromPartition('robin-direct-fetch', { cache: false });
+          await directSession.setProxy({ mode: 'direct' });
+        }
+        return directSession;
+      };
+      const netFetchWithFallback = async (url, options) => {
+        if (Date.now() < proxyDeadUntil) {
+          // 代理刚被判定不可用：直连优先；直连也失败再回试代理
+          try {
+            return await (await ensureDirectSession()).fetch(url, options);
+          } catch (_) {
+            proxyDeadUntil = 0;
+            return net.fetch(url, options);
+          }
+        }
+        try {
+          return await net.fetch(url, options);
+        } catch (err) {
+          const message = String((err && err.message) || err);
+          if (/^HTTP \d/.test(message)) throw err; // HTTP 状态错误（4xx/5xx）直连也无济于事
+          const result = await (await ensureDirectSession()).fetch(url, options);
+          proxyDeadUntil = Date.now() + 5 * 60 * 1000; // 代理败而直连成 → 5 分钟内直连优先
+          return result;
+        }
+      };
+      FeedService.useNetFetch(netFetchWithFallback);
+      require('./FeedDiscovery').useNetFetch(netFetchWithFallback);
+      store.explore.setNetFetch(netFetchWithFallback);
+      require('./ArticleExtractor').setNetFetch(netFetchWithFallback); // 全文提取主进程预抓同享回退
+      require('./UpdateCheckService').setFetch(netFetchWithFallback); // 更新检查（官网+GitHub 兜底）同享回退
     } catch (_) { /* 静默回退全局 fetch */ }
 
     buildMenu();
