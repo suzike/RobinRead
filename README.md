@@ -224,6 +224,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.8.0 — 继续阅读与导出矩阵](https://github.com/suzike/RobinRead/releases/tag/v2.8.0)**（2026-09-26）：「继续阅读」卡片一键恢复未读完的文章；灯箱滚轮缩放/拖拽平移/保存图片；单篇 HTML 导出；文章头部标签 chips；稍后读超龄行标与快读标记；阅读进度百分比
 - **[v2.7.0 — 知识图谱与文章内搜索](https://github.com/suzike/RobinRead/releases/tag/v2.7.0)**（2026-09-26）：知识图谱可视化、问知识库（高亮+笔记 RAG 问答）、文章内搜索（Ctrl+F）、朗读段落点击跳播、自动滚动、短文优先排序、标签筛选列表
 - **[v2.6.0 — 神经语音电台](https://github.com/suzike/RobinRead/releases/tag/v2.6.0)**（2026-09-26）：微软 Neural 真人情感朗读（8 款中文音色）+ 连播放列表，自定义 TTS 服务接入；智能稍后读（超龄一键清理）；纸刊级打印精排
 - **[v2.5.0 — 排版引擎与每日刊](https://github.com/suzike/RobinRead/releases/tag/v2.5.0)**（2026-09-26）：报纸级中文排版引擎（盘古之白/标点挤压/缩进/首字下沉）、内置霞鹜文楷与得意黑、每日刊头与整期 EPUB 导出、同题 AI 对比速读、精读卡片导出、命令面板、聚焦模式、自定义 CSS
