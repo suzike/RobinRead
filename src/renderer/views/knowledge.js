@@ -66,6 +66,7 @@ export class KnowledgeCenter {
   }
 
   dismiss() {
+    this._cleanupSession();
     document.removeEventListener('keydown', this._esc);
     this.overlay?.remove();
     this.overlay = null;
@@ -102,6 +103,7 @@ export class KnowledgeCenter {
   }
 
   _render() {
+    this._cleanupSession();
     if (!this.modal) return;
     this.modal.innerHTML = '';
     const sidebar = document.createElement('div');
@@ -560,7 +562,7 @@ export class KnowledgeCenter {
         </div>
         ${item.highlightText ? `<div class="kb-hl-text"></div>` : ''}
         <div class="kb-review-actions">
-          <button class="btn-text" data-q="0">😅 忘了</button>
+          <button class="btn-text" data-q="1">😅 忘了</button>
           <button class="btn-text" data-q="3">🤔 想起来了</button>
           <button class="btn-text primary" data-q="5">😎 简单</button>
           <button class="btn-text danger kb-review-remove" title="${attr(t('移出复习队列'))}">${escapeHTML(t('移除'))}</button>
@@ -616,7 +618,7 @@ export class KnowledgeCenter {
     if (!session) return;
     if (event.key === 'Escape') {
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation(); // 抢在知识中心 modal 的 Esc 关闭之前
       this._endReviewSession();
       return;
     }
@@ -634,10 +636,15 @@ export class KnowledgeCenter {
     }
   }
 
-  _endReviewSession() {
-    if (this._sessionKeys) document.removeEventListener('keydown', this._sessionKeys);
+  /** 仅清理会话态与监听（不触发渲染）。 */
+  _cleanupSession() {
+    if (this._sessionKeys) document.removeEventListener('keydown', this._sessionKeys, true);
     this._sessionKeys = null;
     this._reviewSession = null;
+  }
+
+  _endReviewSession() {
+    this._cleanupSession();
     this.tab = 'review';
     this._render();
     this._load();
@@ -646,9 +653,9 @@ export class KnowledgeCenter {
   _renderSession() {
     const session = this._reviewSession;
     if (!session) return;
-    if (this._sessionKeys) document.removeEventListener('keydown', this._sessionKeys);
+    if (this._sessionKeys) document.removeEventListener('keydown', this._sessionKeys, true);
     this._sessionKeys = (event) => this._sessionKeyHandler(event);
-    document.addEventListener('keydown', this._sessionKeys);
+    document.addEventListener('keydown', this._sessionKeys, true /* capture：抢在知识中心 modal 冒泡 Esc 之前 */);
     this.contentHost.innerHTML = '';
     const total = session.cards.length;
     const done = session.index;
