@@ -315,6 +315,7 @@ function buildToolbar() {
   set('cap-read', icon('envelopeClosed'));
   set('cap-star', icon('star'));
   set('cap-zen', icon('expand'));
+  set('cap-autoscroll', icon('chevronDown'), t('自动滚动阅读'));
   set('cap-focus', icon('eye'), t('聚焦模式：非当前段落渐暗（F）'));
   set('cap-highlight', icon('marker'), t('高亮：选中文字快速高亮（H）；无选区打开批注面板'));
   set('cap-note', icon('noteSticky'), t('批注面板：本篇高亮与笔记'));
@@ -394,6 +395,7 @@ function bindToolbar() {
   document.getElementById('cap-rsummary').addEventListener('click', () => dispatchReaderAction('richSummary'));
   document.getElementById('cap-star').addEventListener('click', () => toggleStarWithGuide());
   document.getElementById('cap-zen').addEventListener('click', toggleZenMode);
+  document.getElementById('cap-autoscroll').addEventListener('click', () => views.reader?.toggleAutoScroll?.());
   document.getElementById('cap-focus').addEventListener('click', toggleFocusMode);
 
   // 批注按钮：高亮（有选区 → 快速高亮；无选区 → 批注面板）/ 笔记（批注面板）
@@ -578,6 +580,7 @@ function buildPaletteCommands() {
     { label: t('打开：稍后读'), keywords: 'later 稍后读 read later', icon: 'clock', action: () => handleScopeSelect({ kind: 'later' }) },
     { label: t('切换：杂志视图 / 列表视图'), keywords: 'magazine list view 杂志 列表 视图', icon: 'newspaper', action: () => window.robin.setReaderLayout({ listViewMode: window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine' }) },
     { label: t('切换：浅色 / 深色主题'), keywords: 'theme dark light 主题 深色 浅色', icon: 'appearance', action: () => window.robin.setTheme(document.body.classList.contains('dark') ? 'light' : 'dark') },
+    { label: t('自动滚动阅读'), keywords: 'auto scroll 自动滚动 悦读', icon: 'chevronDown', action: () => views.reader?.toggleAutoScroll?.() },
     { label: t('切换：聚焦模式'), keywords: 'focus 聚焦 渐暗', icon: 'eye', hint: 'F', action: toggleFocusMode },
     { label: t('切换：禅模式'), keywords: 'zen 禅 全屏', icon: 'expand', action: toggleZenMode },
     { label: t('打开：今日简报'), keywords: 'digest 简报 日报 ai', icon: 'spark', action: () => showTodayDigest() },
@@ -1284,6 +1287,27 @@ function bindKeyboard() {
     if (event.code === 'KeyF' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
       event.preventDefault();
       toggleFocusMode();
+      return;
+    }
+    // Shift+G 跳到文末；g g 双击跳到文首（vim 惯例）
+    if (event.code === 'KeyG' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      const el = views.reader?.scrollEl;
+      if (el) el.scrollTop = el.scrollHeight;
+      return;
+    }
+    if (event.code === 'KeyG' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      const now = Date.now();
+      const last = window.__robinLastGPress || 0;
+      window.__robinLastGPress = now;
+      if (now - last < 600) {
+        window.__robinLastGPress = 0;
+        event.preventDefault();
+        const el = views.reader?.scrollEl;
+        if (el) el.scrollTop = 0;
+      } else {
+        showToast(t('再按一次 G 回到顶部'), 700);
+      }
       return;
     }
     if (event.code === 'KeyK' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {

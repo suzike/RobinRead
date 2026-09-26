@@ -80,6 +80,7 @@ export class ReaderView {
     this._ttsGen = 0;
     this._ttsCfg = null; // 朗读引擎配置缓存（engine/neuralVoice/custom…，主进程 prefs 下发）
     this._ttsStarting = false; // 防重入：_ttsStart 异步分派期间的快速二次触发
+    this._autoScroll = null; // 自动滚动（知更悦读）：{ speed, raf }，speed = px/帧*/1000
     this._neuralVoices = null; // 神经音色清单（预取，播放器声音下拉用）
     // 朗读引擎配置变更（设置页/播放器切换）：失效缓存，下次朗读按新引擎走
     document.addEventListener('robinread:tts-config', () => { this._ttsCfg = null; });
@@ -3075,7 +3076,10 @@ export class ReaderView {
     {
       const max0 = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
       const ratio0 = max0 > 0 ? this.scrollEl.scrollTop / max0 : 0;
-      if (this.progressEl) this.progressEl.style.width = `${ratio0 * 100}%`;
+      if (this.progressEl) {
+        this.progressEl.style.width = `${ratio0 * 100}%`;
+        this.progressEl.dataset.pct = `${Math.round(ratio0 * 100)}%`; // 端点气泡显示阅读百分比
+      }
     }
     if (this._scrollTick) return;
     this._scrollTick = true;
@@ -3463,6 +3467,56 @@ export class ReaderView {
     }
   }
 
+  // MARK: - 自动滚动（知更悦读）：无操作双手阅读，速度三档循环
+
+  _autoScrollSpeeds() { return [0.4, 0.9, 1.8]; }
+
+  toggleAutoScroll() {
+    if (this._autoScroll) {
+      cancelAnimationFrame(this._autoScroll.raf);
+      this._autoScroll = null;
+      this._syncAutoScrollUI();
+      this.handlers.onFeedback?.(t('自动滚动已关闭'));
+      return;
+    }
+    const speed = this._autoScrollSpeeds()[0];
+    this._ttsStop(); // 与 TTS 跟随高亮互斥：开自动滚动先停朗读
+    this._autoScroll = { speed, raf: 0 };
+    this._syncAutoScrollUI();
+    this.handlers.onFeedback?.(t('自动滚动已开启（无操作双手阅读）；再次点击换速或关闭'));
+    const step = () => {
+      if (!this._autoScroll) return;
+      const el = this.scrollEl;
+      if (!el) return;
+      const max = el.scrollHeight - el.clientHeight;
+      if (max > 0 && el.scrollTop >= max - 1) {
+        this.toggleAutoScroll(); // 到底自动停
+        this.handlers.onFeedback?.(t('已读到底，自动滚动结束'));
+        return;
+      }
+      el.scrollTop = Math.min(max, el.scrollTop + this._autoScroll.speed);
+      this._autoScroll.raf = requestAnimationFrame(step);
+    };
+    this._autoScroll.raf = requestAnimationFrame(step);
+  }
+
+  _cycleAutoScrollSpeed() {
+    if (!this._autoScroll) { this.toggleAutoScroll(); return; }
+    const speeds = this._autoScrollSpeeds();
+    const next = speeds[(speeds.indexOf(this._autoScroll.speed) + 1) % speeds.length];
+    this._autoScroll.speed = next;
+    this._syncAutoScrollUI();
+    this.handlers.onFeedback?.(`${t('自动滚动速度')} ${next}×`);
+  }
+
+  _syncAutoScrollUI() {
+    const btn = this._autoScrollBtn;
+    if (!btn) return;
+    const on = !!this._autoScroll;
+    btn.classList.toggle('active', on);
+    if (on) btn.textContent = `${this._autoScroll.speed}×`;
+  }
+
   /** 朗读中点击段落：从该段继续播（选区拖选中不触发）。 */
   _onParagraphClickJump(event) {
     if (!this._tts) return;
@@ -3491,6 +3545,7 @@ export class ReaderView {
   }
 
   async _ttsStart() {
+    if (this._autoScroll) this.toggleAutoScroll(); // 自动滚动与 TTS 跟随互斥
     if (!this.entryID || !this.body) return;
     const chunks = this._ttsCollectChunks();
     if (chunks.length === 0) {

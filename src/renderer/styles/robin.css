@@ -229,6 +229,16 @@ body.sidebar-collapsed .tb-zone-list { width: var(--list-width, 340px); }
 }
 .reader-capsule .cap-btn:hover { background: var(--row-selected); }
 .reader-capsule .cap-btn.active { color: var(--accent); background: rgba(97, 115, 87, 0.18); }
+/* 自动滚动胶囊：激活显示速度文本，加宽防溢出 */
+.reader-capsule .cap-btn#cap-autoscroll {
+  width: auto;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .reader-capsule .cap-btn svg { width: 14px; height: 14px; }
 
 /* 禅模式 */
