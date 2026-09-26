@@ -1268,6 +1268,14 @@ document.addEventListener('rc-focus-toggle', () => toggleFocusMode());
 document.addEventListener('rc-zen-toggle', () => toggleZenMode());
 function bindKeyboard() {
   document.addEventListener('keydown', (event) => {
+    // 阅读控制中心开启：屏蔽全部全局键（Esc 关闭由面板自身处理）
+    if (document.querySelector('.rc-overlay')) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        readingControls?.close();
+      }
+      return;
+    }
     const target = event.target;
     const typing = target instanceof HTMLElement && (
       target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable
