@@ -221,6 +221,31 @@ export class SettingsView {
       })()),
     ]));
 
+    // ── 版式主题预设包（方向 3）：刊物级一键排版 ──
+    const presetMap = {
+      default: { label: t('知更纸刊（默认）'), patch: { fontFamily: 'serif', lineHeight: 'standard', pageWidth: 'standard', paraStyle: 'spacing', textAlign: 'left', microTypography: 'on', dropCap: 'off' } },
+      evening: { label: t('新闻晚报'), patch: { fontFamily: 'serif', lineHeight: 'compact', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'justify', microTypography: 'on', dropCap: 'off' } },
+      minimal: { label: t('极简留白'), patch: { fontFamily: 'sans', lineHeight: 'loose', pageWidth: 'wide', paraStyle: 'spacing', textAlign: 'left', microTypography: 'off', dropCap: 'off' } },
+      eink: { label: t('墨水屏'), patch: { fontFamily: 'serif', lineHeight: 'loose', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'left', microTypography: 'on', dropCap: 'on' } },
+    };
+    const presetGroup = group(t('版式预设'), t('刊物级一键排版：整组参数（字体/行距/页宽/段落/对齐/微排版/首字下沉）即时生效，可再手动微调。'), []);
+    container.appendChild(presetGroup);
+    const presetHost = presetGroup.querySelector('.group-rows');
+    const presetRow = document.createElement('div');
+    presetRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;';
+    for (const [key, preset] of Object.entries(presetMap)) {
+      const btn = document.createElement('button');
+      btn.className = 'btn-text bordered';
+      btn.textContent = preset.label;
+      btn.addEventListener('click', async () => {
+        await window.robin.setReaderLayout(preset.patch);
+        this.handlers.onRefreshState?.();
+        showToast(t('已应用版式预设') + '：' + preset.label);
+      });
+      presetRow.appendChild(btn);
+    }
+    presetHost.appendChild(presetRow);
+
     // ── 阅读排版 ──
     const layout = prefs.readerLayout || { fontFamily: 'serif', pageWidth: 'standard', lineHeight: 'standard', listDensity: 'comfortable' };
     container.appendChild(group(t('阅读排版'), t('字体、页宽、行距与列表密度，即刻生效并跨重启保持。'), [

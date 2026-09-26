@@ -568,6 +568,21 @@ function toggleZenMode() {
   requestAnimationFrame(() => views.reader?.refreshScrollMetrics());
 }
 
+// ── 版式主题预设包（方向 3）：刊物级一键排版 ──
+const PRESETS = {
+  default: { fontFamily: 'serif', lineHeight: 'standard', pageWidth: 'standard', paraStyle: 'spacing', textAlign: 'left', microTypography: 'on', dropCap: 'off' },
+  evening: { fontFamily: 'serif', lineHeight: 'compact', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'justify', microTypography: 'on', dropCap: 'off' },
+  minimal: { fontFamily: 'sans', lineHeight: 'loose', pageWidth: 'wide', paraStyle: 'spacing', textAlign: 'left', microTypography: 'off', dropCap: 'off' },
+  eink: { fontFamily: 'serif', lineHeight: 'loose', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'left', microTypography: 'on', dropCap: 'on' },
+};
+
+function applyPreset(name) {
+  const preset = PRESETS[name];
+  if (!preset) return;
+  window.robin.setReaderLayout(preset);
+  showToast(t('已应用版式预设') + '：' + ({ default: t('知更纸刊'), evening: t('新闻晚报'), minimal: t('极简留白'), eink: t('墨水屏') }[name] || name));
+}
+
 let readingControls = null;
 function openReadingControls() {
   if (!state.selectedEntryID) { showToast(t('先打开一篇文章')); return; }
@@ -596,6 +611,10 @@ function buildPaletteCommands() {
     { label: t('打开：稍后读'), keywords: 'later 稍后读 read later', icon: 'clock', action: () => handleScopeSelect({ kind: 'later' }) },
     { label: t('切换：杂志视图 / 列表视图'), keywords: 'magazine list view 杂志 列表 视图', icon: 'newspaper', action: () => window.robin.setReaderLayout({ listViewMode: window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine' }) },
     { label: t('切换：浅色 / 深色主题'), keywords: 'theme dark light 主题 深色 浅色', icon: 'appearance', action: () => window.robin.setTheme(document.body.classList.contains('dark') ? 'light' : 'dark') },
+    { label: t('版式预设：知更纸刊（默认）'), keywords: 'preset 版式 预设 纸刊 默认', icon: 'bookOpen', action: () => applyPreset('default') },
+    { label: t('版式预设：新闻晚报'), keywords: 'preset 版式 报纸 晚报 紧凑', icon: 'newspaper', action: () => applyPreset('evening') },
+    { label: t('版式预设：极简留白'), keywords: 'preset 版式 极简 留白', icon: 'circle', action: () => applyPreset('minimal') },
+    { label: t('版式预设：墨水屏'), keywords: 'preset 版式 墨水屏 高对比', icon: 'info', action: () => applyPreset('eink') },
     { label: t('阅读控制中心'), keywords: 'reading controls 控制中心 阅读面板 aa', icon: 'textLarger', action: () => openReadingControls() },
     { label: t('自动滚动阅读'), keywords: 'auto scroll 自动滚动 悦读', icon: 'chevronDown', action: () => views.reader?.toggleAutoScroll?.() },
     { label: t('切换：聚焦模式'), keywords: 'focus 聚焦 渐暗', icon: 'eye', hint: 'F', action: toggleFocusMode },
