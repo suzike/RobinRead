@@ -3173,6 +3173,34 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
   transform: translateY(-2px);
   box-shadow: 0 10px 28px rgba(20, 17, 12, 0.18);
 }
+
+/* 杂志封面渐显：加载完成淡入，避免跳变 */
+.nj-mag-card .mag-cover img {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.nj-mag-card .mag-cover img.nj-cover-loaded { opacity: 1; }
+
+/* 文章进入动画：正文块轻量上移淡入（前 8 块错峰；尊重 reduced-motion） */
+@media (prefers-reduced-motion: no-preference) {
+  .reader-article .robin-body > * {
+    animation: article-rise 0.45s ease both;
+  }
+  .reader-article .robin-body > *:nth-child(1) { animation-delay: 0.03s; }
+  .reader-article .robin-body > *:nth-child(2) { animation-delay: 0.06s; }
+  .reader-article .robin-body > *:nth-child(3) { animation-delay: 0.09s; }
+  .reader-article .robin-body > *:nth-child(4) { animation-delay: 0.12s; }
+  .reader-article .robin-body > *:nth-child(5) { animation-delay: 0.15s; }
+  .reader-article .robin-body > *:nth-child(6) { animation-delay: 0.18s; }
+  .reader-article .robin-body > *:nth-child(7) { animation-delay: 0.21s; }
+  .reader-article .robin-body > *:nth-child(8) { animation-delay: 0.24s; }
+  .reader-article .robin-body > *:nth-child(n + 9) { animation-delay: 0.27s; }
+}
+@keyframes article-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.robin-read-time { color: var(--text-secondary); }
 .nj-tts-pbtn:hover { background: var(--row-hover); color: var(--accent); }
 .nj-tts-pbtn svg { width: 12px; height: 12px; pointer-events: none; }
 .nj-tts-pbtn.nj-tts-rate { width: auto; min-width: 24px; padding: 0 7px; border-radius: 999px; }

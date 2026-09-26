@@ -106,6 +106,19 @@ app.whenReady().then(async () => {
     if (!mast.brandFont.includes('Smiley Sans')) throw new Error(`刊头报头未吃到标题字体: ${mast.brandFont}`);
     log(`PASS 每日刊头渲染：封面「${mast.coverTitle}」+ 目录 ${mast.tocRows} 行 / ${mast.sections} 栏目`);
 
+    // 3b. 预计阅读时长：打开一篇文章，头部 meta 应含「分钟」估算
+    const readTime = await run(`
+      const list = await window.robin.getList({ kind: 'today' }, { limit: 1 });
+      if (!list.ok || !list.data.length) return { text: '', empty: true };
+      await window.__robinReader.open(list.data[0].id);
+      await new Promise((r) => setTimeout(r, 1800));
+      return { text: document.querySelector('.robin-header-meta')?.textContent || '' };
+    `);
+    if (!readTime || readTime.empty || !String(readTime.text).includes('分钟')) {
+      throw new Error(`阅读时长未展示: ${JSON.stringify(readTime)?.slice(0, 120)}`);
+    }
+    log(`PASS 预计阅读时长展示「${String(readTime.text).match(/约 \d+ 分钟/)?.[0] || '分钟'}」`);
+
     // 4. 同题对比速读：无 API Key 的受控失败路径（不崩溃、错误信息可读）
     const single = await run(`return await window.robin.clusterBrief([{ id: 'a', title: '只有一篇' }]);`);
     if (!single || single.ok !== false) throw new Error(`单篇入参应受控拒绝: ${JSON.stringify(single)}`);

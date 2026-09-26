@@ -281,7 +281,7 @@ const STRINGS = {
   "清理超龄": { zh: "清理超龄", en: "Clean Overdue" },
   "把入队超过 14 天的稍后读标记已读并移出队列": { zh: "把入队超过 14 天的稍后读标记已读并移出队列", en: "Marks read-later items queued over 14 days as read and removes them" },
   "已清理 %lld 篇超龄稍后读": { zh: "已清理 %lld 篇超龄稍后读", en: "Cleaned %lld overdue read-later items" },
-  "知识图谱": { zh: "知识图谱", en: "Knowledge Graph" },
+  "约 %lld 分钟": { zh: "约 %lld 分钟", en: "≈ %lld min read" },  "知识图谱": { zh: "知识图谱", en: "Knowledge Graph" },
   "问知识库": { zh: "问知识库", en: "Ask My Knowledge" },
   "图谱": { zh: "图谱", en: "Graph" },
   "大节点 = 高频标签 · 悬停高亮关联 · 点击文章节点直达": { zh: "大节点 = 高频标签 · 悬停高亮关联 · 点击文章节点直达", en: "Bigger nodes = high-frequency tags · hover to highlight links · click article nodes to open" },

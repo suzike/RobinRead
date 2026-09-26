@@ -441,6 +441,8 @@ export class ListView {
       img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
       img.alt = '';
+      img.addEventListener('load', () => img.classList.add('nj-cover-loaded'), { once: true });
+      if (img.complete && img.naturalWidth > 0) img.classList.add('nj-cover-loaded'); // 缓存图：load 事件可能已错过
       img.addEventListener('error', () => {
         cover.classList.add('no-image');
         img.remove();

@@ -9,7 +9,7 @@
  * - 图片灯箱、TOC 轨道（悬停波峰/视线重心）、浮动滚动条（透明度 0/.18/.28/.36）
  * - 空格：滚动 38.2% 视口；到底后翻下一篇（由 app 层做双击确认）
  */
-import { t } from '../i18n.js';
+import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 import { formatFullDate } from './list.js';
 import { renderMarkdown } from '../markdown.js';
@@ -552,6 +552,9 @@ export class ReaderView {
     if (this.feed?.title) parts.push(escapeHTML(this.feed.title));
     if (entry.author) parts.push(escapeHTML(entry.author));
     if (entry.publishedAt) parts.push(escapeHTML(formatFullDate(entry.publishedAt)));
+    // 预计阅读时长（中文 400 字/分钟、英文 220 词/分钟混合估算）
+    const minutes = this._estimateReadingMinutes();
+    if (minutes > 0) parts.push(`<span class="robin-read-time">${escapeHTML(tf('约 %lld 分钟', minutes))}</span>`);
     meta.innerHTML = parts.join(' &bull; ');
     // 头部操作区：「听」（TTS 朗读，只要有正文就提供）+ 稍后读 + 应用内精读 + 浏览器打开（次）
     {
@@ -622,6 +625,20 @@ export class ReaderView {
     divider.className = 'robin-header-divider';
     header.appendChild(divider);
     return header;
+  }
+
+  /**
+   * 预计阅读时长（分钟）：CJK 400 字/分钟 + 拉丁文 220 词/分钟，向下取整后至少 1 分钟。
+   * 无法估算（无正文）返回 0，头部不展示。
+   */
+  _estimateReadingMinutes() {
+    const html = this.html || '';
+    if (!html) return 0;
+    const text = html.replace(/<[^>]+>/g, ' ');
+    const cjk = (text.match(/[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+    const latinWords = (text.replace(/[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, ' ').match(/[A-Za-z][A-Za-z'’-]*/g) || []).length;
+    const minutes = cjk / 400 + latinWords / 220;
+    return minutes > 0 ? Math.max(1, Math.round(minutes)) : 0;
   }
 
   _setBodyHTML(html) {
