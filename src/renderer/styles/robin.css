@@ -1252,6 +1252,73 @@ body.dark .robin-summary-card { background: color-mix(in srgb, #302d28 97%, tran
 .nj-resume-meta { font-size: 0.76em; color: var(--text-secondary); }
 .nj-resume-pct { font-size: 1.05em; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 
+/* 灯箱画廊（R8）：左右导航 / 计数 / 缩略图条 */
+.nj-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px; height: 44px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.nj-lightbox-nav:hover { background: rgba(255, 255, 255, 0.3); }
+.nj-lightbox-prev { left: 22px; }
+.nj-lightbox-next { right: 22px; }
+.nj-lightbox-count {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+}
+.nj-lightbox-thumbs {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  max-width: 80vw;
+  overflow-x: auto;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+}
+.nj-lightbox-thumbs:empty { display: none; }
+.nj-lightbox-thumb {
+  width: 64px; height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.55;
+  border: 2px solid transparent;
+}
+.nj-lightbox-thumb.active { opacity: 1; border-color: #fff; }
+.nj-lightbox-save {
+  position: absolute; top: 26px; right: 68px;
+  background: rgba(255, 255, 255, 0.22);
+  border: none; color: #fff;
+  height: 32px; border-radius: 16px;
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-family: inherit;
+}
+.nj-lightbox-save:hover { background: rgba(255, 255, 255, 0.32); }
+.nj-lightbox-save:disabled { opacity: 0.6; cursor: default; }
+
 .nj-lightbox-close {
   position: absolute; top: 26px; right: 26px;
   background: rgba(255, 255, 255, 0.22);
