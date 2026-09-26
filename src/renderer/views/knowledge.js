@@ -73,7 +73,14 @@ export class KnowledgeCenter {
 
   async _load() {
     const loads = {
-      dashboard: async () => window.robin.kbDashboard(),
+      dashboard: async () => {
+        const [dash, heat, tags] = await Promise.all([
+          window.robin.kbDashboard(),
+          window.robin.kbHeatmap(30),
+          window.robin.kbTags(),
+        ]);
+        return { ...dash, heat: heat?.map || {}, tags };
+      },
       highlights: async () => (await window.robin.kbAllHighlights()).slice(0, 100),
       notes: async () => (await window.robin.kbNotes()).slice(0, 80),
       review: async () => window.robin.kbDueReviews(),
@@ -198,6 +205,92 @@ export class KnowledgeCenter {
       cta.textContent = t('去复习（有 ' + d.due + ' 张卡片到期）');
       cta.addEventListener('click', () => { this.tab = 'review'; this._render(); this._load(); });
       el.appendChild(cta);
+    }
+
+    // ── 30 天趋势 sparkline（R4）：阅读篇数 + 知识产出双序列 ──
+    const heat = d.heat || {};
+    const dates = Object.keys(heat).sort().slice(-30);
+    if (dates.length >= 2) {
+      const sparkWrap = document.createElement('div');
+      sparkWrap.className = 'kb-spark-wrap';
+      const sparkHead = document.createElement('div');
+      sparkHead.className = 'kb-graph-head';
+      sparkHead.innerHTML = `<span class="kb-daily-title">${escapeHTML(t('近 30 天趋势'))}</span><span class="kb-graph-legend"><span class="kb-legend-dot kb-legend-read"></span>${escapeHTML(t('阅读'))}  <span class="kb-legend-dot kb-legend-know"></span>${escapeHTML(t('知识产出'))}</span>`;
+      sparkWrap.appendChild(sparkHead);
+      const canvas = document.createElement('canvas');
+      canvas.className = 'kb-spark-canvas';
+      sparkWrap.appendChild(canvas);
+      el.appendChild(sparkWrap);
+
+      requestAnimationFrame(() => {
+        const css = getComputedStyle(document.documentElement);
+        const readColor = css.getPropertyValue('--accent').trim() || '#617357';
+        const knowColor = css.getPropertyValue('--warm-accent').trim() || '#a3573d';
+        const gridColor = css.getPropertyValue('--note-border').trim() || '#ddd';
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.parentElement.clientWidth || 700;
+        const H = 120;
+        canvas.width = W * dpr; canvas.height = H * dpr;
+        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        // 补全日期序列（缺日补 0）
+        const seq = [];
+        const base = new Date(); base.setDate(base.getDate() - 29);
+        for (let i = 0; i < 30; i++) {
+          const dt = new Date(base); dt.setDate(base.getDate() + i);
+          const key = dt.toISOString().slice(0, 10);
+          const day = heat[key] || { read: 0, highlights: 0, notes: 0 };
+          seq.push({ read: day.read || 0, know: (day.highlights || 0) + (day.notes || 0) });
+        }
+        const maxV = Math.max(1, ...seq.map((x) => Math.max(x.read, x.know)));
+        const px = (i) => 8 + (i / 29) * (W - 16);
+        const py = (v) => H - 14 - (v / maxV) * (H - 30);
+        // 网格基线
+        ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(8, H - 14); ctx.lineTo(W - 8, H - 14); ctx.stroke();
+        // 双序列面积+折线
+        const series = [
+          { key: 'read', color: readColor },
+          { key: 'know', color: knowColor },
+        ];
+        for (const ser of series) {
+          ctx.beginPath();
+          seq.forEach((x, i) => {
+            const X = px(i), Y = py(ser.key === 'read' ? x.read : x.know);
+            if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+          });
+          ctx.strokeStyle = ser.color; ctx.lineWidth = 1.8; ctx.stroke();
+          ctx.lineTo(px(29), H - 14); ctx.lineTo(px(0), H - 14); ctx.closePath();
+          ctx.globalAlpha = 0.10; ctx.fillStyle = ser.color; ctx.fill(); ctx.globalAlpha = 1;
+        }
+        // 图例点
+        ctx.font = '10px system-ui';
+        ctx.fillStyle = gridColor;
+      });
+    }
+
+    // ── 标签 top5 横条（知识结构）──
+    if (d.tags?.length) {
+      const tagWrap = document.createElement('div');
+      tagWrap.className = 'kb-spark-wrap';
+      const tagHead = document.createElement('div');
+      tagHead.className = 'kb-graph-head';
+      tagHead.innerHTML = `<span class="kb-daily-title">${escapeHTML(t('知识结构 · 标签 Top 5'))}</span>`;
+      tagWrap.appendChild(tagHead);
+      const max = d.tags[0].count || 1;
+      for (const tg of d.tags.slice(0, 5)) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'kb-tag-bar-row';
+        rowEl.innerHTML = `
+          <span class="kb-tag-bar-label"></span>
+          <span class="kb-tag-bar-track"><span class="kb-tag-bar-fill"></span></span>
+          <span class="kb-tag-bar-num">${tg.count}</span>`;
+        rowEl.querySelector('.kb-tag-bar-label').textContent = tg.tag;
+        rowEl.querySelector('.kb-tag-bar-fill').style.width = Math.max(6, Math.round((tg.count / max) * 100)) + '%';
+        tagWrap.appendChild(rowEl);
+      }
+      el.appendChild(tagWrap);
     }
     this.contentHost.appendChild(el);
   }

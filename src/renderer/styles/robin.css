@@ -3839,3 +3839,44 @@ body.dark .sidebar-row .sidebar-health-warn.dead { background: #d0554a; color: #
   color: #fff;
 }
 .rc-tts-row { display: flex; gap: 8px; }
+
+/* ── 知识中心仪表盘可视化（R4）── */
+.kb-spark-wrap {
+  margin-top: var(--space-5);
+  border: 1px solid var(--note-border);
+  border-radius: var(--radius-xl);
+  background: var(--note-background);
+  padding: var(--space-4);
+}
+.kb-legend-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: var(--radius-full);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.kb-legend-read { background: var(--accent); }
+.kb-legend-know { background: var(--warm-accent); }
+.kb-spark-canvas { display: block; }
+.kb-tag-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 0;
+}
+.kb-tag-bar-label { width: 90px; flex-shrink: 0; font-size: 0.85em; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.kb-tag-bar-track {
+  flex: 1;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--row-selected);
+  overflow: hidden;
+}
+.kb-tag-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--warm-accent)));
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.kb-tag-bar-num { width: 32px; flex-shrink: 0; font-size: 0.8em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
