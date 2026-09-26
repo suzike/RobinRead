@@ -23,7 +23,7 @@ app.setPath('userData', userData);
 setTimeout(() => { log('WATCHDOG 退出'); app.exit(3); }, 5 * 60 * 1000).unref();
 
 const NOW = new Date().toUTCString();
-const item = (i, cover) => `<item><title>字体与刊头烟雾测试 ${i}</title><link>https://example.com/p/${i}</link><pubDate>${new Date(Date.now() - i * 3600e3).toUTCString()}</pubDate>
+const item = (i, cover) => `<item><title>字体与刊头烟雾测试 ${i}</title><link>https://example.com/p/${i}</link><pubDate>${new Date().toUTCString()}</pubDate>
 <content:encoded><![CDATA[${cover ? `<p><img src="https://example.com/cover${i}.jpg" alt=""></p>` : ''}<p>霞鹜文楷屏读版用于正文的中文排印烟雾验证：交笔楷意，纸感长文。</p>]]></content:encoded></item>`;
 const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>字体烟雾测试</title><link>https://example.com/</link>

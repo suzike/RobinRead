@@ -131,6 +131,10 @@ app.whenReady().then(async () => {
       assert.ok(kbSrc.includes(token), `knowledge.js 应含 ${token}`);
     }
     const cssSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles', 'robin.css'), 'utf8');
+    // R1 设计令牌体系：token 层存在且被消费
+    assert.ok(cssSrc.includes('--radius-md') && cssSrc.includes('--dur-base') && cssSrc.includes('--ease-out') && cssSrc.includes('--shadow-3'), 'css 应含设计令牌层');
+    assert.ok(!/border-radius: (?:4|6|7|8|10|12|14)px/.test(cssSrc), 'radius 硬编码应已系统化替换');
+
     for (const token of ['.kb-graph-canvas', '.kb-graph-panel', '.kb-ask-answer', '.nj-reveal-pending', 'kb-pop', '.nj-edition-cover:hover', '.read-min', '.nj-code-copy', '.nj-lightbox-zoom', '.nj-find-bar']) {
       assert.ok(cssSrc.includes(token), `robin.css 应含 ${token}`);
     }
