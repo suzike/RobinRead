@@ -264,9 +264,6 @@ export class KnowledgeCenter {
           ctx.lineTo(px(29), H - 14); ctx.lineTo(px(0), H - 14); ctx.closePath();
           ctx.globalAlpha = 0.10; ctx.fillStyle = ser.color; ctx.fill(); ctx.globalAlpha = 1;
         }
-        // 图例点
-        ctx.font = '10px system-ui';
-        ctx.fillStyle = gridColor;
       });
     }
 
