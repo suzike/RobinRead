@@ -398,6 +398,30 @@ app.whenReady().then(async () => {
     })()`);
     check('e5 禁用场景：无正文/无语音 → 「听」按钮置灰 + title，恢复后可用', eDisabled.ok === true, JSON.stringify(eDisabled));
 
+    // 连播（方向 18 · 知更电台）：最后块播完 → onTTSAdvance 触发（app 层接列表下一篇）
+    const eQueue = await run(`(async () => {
+      try {
+        const r = window.__robinReader;
+        localStorage.setItem('robinread.tts.queue', '1');
+        let advanced = false;
+        r.handlers.onTTSAdvance = () => { advanced = true; };
+        r.toggleTTS();
+        let queue = window.__ttsQueue || [];
+        for (let i = 0; i < 20 && queue.length === 0; i++) {
+          await new Promise((res) => setTimeout(res, 150));
+          queue = window.__ttsQueue || [];
+        }
+        if (!queue.length) { localStorage.setItem('robinread.tts.queue', '0'); return { ok: false, why: 'no-enqueue' }; }
+        queue[queue.length - 1].onend(); // 手动触发最后一块播完
+        await new Promise((res) => setTimeout(res, 300));
+        const ok = advanced === true && window.__robinReader.ttsState === 'idle';
+        localStorage.setItem('robinread.tts.queue', '0');
+        window.__robinReader._ttsStop();
+        return { ok, advanced };
+      } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+    })()`);
+    check('e6 连播：最后块播完触发 onTTSAdvance（知更电台）', eQueue.ok === true, JSON.stringify(eQueue));
+
     code = results.every(Boolean) ? 0 : 1;
     console.log(code === 0 ? 'PHASE5 TTS PROBE: ALL PASSED' : 'PHASE5 TTS PROBE: FAILED');
   } catch (err) {

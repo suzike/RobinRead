@@ -65,7 +65,7 @@ export class ContextMenu {
     list.unshift({
       label,
       icon: 'clock',
-      onClick: () => { window.robin?.toggleLater(entryID, !isLater); },
+      onClick: () => { (window.__robinMarkLater || ((id, on) => window.robin?.toggleLater(id, on)))(entryID, !isLater); },
     });
     return list;
   }

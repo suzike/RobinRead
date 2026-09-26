@@ -504,6 +504,22 @@ export class ReaderView {
           if (max > 0) this.scrollEl.scrollTop = Math.min(saved, max);
         }
       });
+      // 知更电台连播：连播切来的新文渲染完毕 → 自动续播（标记 8 秒内有效，防误触）
+      if (this._ttsAutoResume && Date.now() - this._ttsAutoResume < 8000) {
+        this._ttsAutoResume = 0;
+        // 等正文就绪（下一篇可能需先抓取重排）：loading 消失即开读，最长等 40 秒
+        const waitAndRead = async (attempt = 0) => {
+          if (this.ttsState !== 'idle' || !this.entryID) return;
+          const loading = !!document.querySelector('.reader-loading');
+          const hasBody = !!this.body?.querySelector('p');
+          if (!loading && hasBody) {
+            this._ttsStart();
+            return;
+          }
+          if (attempt < 80) setTimeout(() => waitAndRead(attempt + 1), 500);
+        };
+        setTimeout(() => waitAndRead(), 700);
+      }
     });
   }
 
@@ -3200,7 +3216,7 @@ export class ReaderView {
       const next = !entry.isLater;
       entry.isLater = next; // 乐观更新：state:changed 重拉后由 updateEntryState 校正
       this._refreshLaterHeaderButton();
-      window.robin.toggleLater(entry.id, next);
+      (window.__robinMarkLater || ((id, on) => window.robin.toggleLater(id, on)))(entry.id, next);
     });
     this._laterHeaderBtn = btn;
     this._refreshLaterHeaderButton();
@@ -3417,6 +3433,10 @@ export class ReaderView {
     const chunk = tts.chunks[index];
     if (!chunk) {
       this._ttsStop();
+      if (this._ttsQueueOn()) {
+        this.handlers.onTTSAdvance?.(); // 连播：接列表下一篇
+        return;
+      }
       this.handlers.onFeedback?.(t('朗读结束'));
       return;
     }
@@ -3612,7 +3632,7 @@ export class ReaderView {
     this._ttsSyncPlayer();
   }
 
-  /** 句块播完：推进高亮到下一块；最后一块播完则自然收尾。 */
+  /** 句块播完：推进高亮到下一块；最后一块播完则自然收尾（连播开启时自动切下一篇续读）。 */
   _ttsOnChunkEnd(index, gen) {
     const tts = this._tts;
     if (!tts || tts.gen !== gen) return; // 过期回调（已停止 / 切文 / 换速重建）
@@ -3621,8 +3641,24 @@ export class ReaderView {
       this._ttsHighlight(tts.chunks[index + 1].paraID);
     } else {
       this._ttsStop();
+      if (this._ttsQueueOn()) {
+        this.handlers.onTTSAdvance?.(); // 知更电台：连播下一篇（app 层打开并触发自动续播）
+        return;
+      }
       this.handlers.onFeedback?.(t('朗读结束'));
     }
+  }
+
+  /** 连播开关（知更电台）：读完整篇自动接列表下一篇。持久化到 localStorage。 */
+  _ttsQueueOn() {
+    try { return localStorage.getItem('robinread.tts.queue') === '1'; } catch (_) { return false; }
+  }
+
+  _ttsToggleQueue() {
+    const on = !this._ttsQueueOn();
+    try { localStorage.setItem('robinread.tts.queue', on ? '1' : '0'); } catch (_) { /* 忽略 */ }
+    this._ttsSyncPlayer();
+    this.handlers.onFeedback?.(on ? t('连播已开启：本篇读完自动接列表下一篇') : t('连播已关闭'));
   }
 
   _ttsOnChunkError(index, gen, event) {
@@ -3791,12 +3827,14 @@ export class ReaderView {
       <button type="button" class="nj-tts-pbtn nj-tts-toggle" title="${attr(t('暂停 / 继续朗读'))}">${TTS_PAUSE_SVG}</button>
       <button type="button" class="nj-tts-pbtn nj-tts-stop" title="${attr(t('停止朗读（Esc）'))}">${TTS_STOP_SVG}</button>
       <button type="button" class="nj-tts-pbtn nj-tts-rate" title="${attr(t('点击切换语速（0.75 / 1 / 1.25 / 1.5）'))}"></button>
+      <button type="button" class="nj-tts-pbtn nj-tts-queue" title="${attr(t('连播：本篇读完自动接列表下一篇'))}"></button>
       <button type="button" class="nj-tts-pbtn nj-tts-engine" title="${attr(t('切换朗读引擎：神经语音（需联网，真人情感）↔ 本地语音'))}"></button>
       <select class="nj-tts-voice" title="${attr(t('朗读声音'))}"></select>`;
     tts.player = player;
     player.querySelector('.nj-tts-toggle').addEventListener('click', () => this._ttsTogglePause());
     player.querySelector('.nj-tts-stop').addEventListener('click', () => this._ttsStop());
     player.querySelector('.nj-tts-rate').addEventListener('click', () => this._ttsCycleRate());
+    player.querySelector('.nj-tts-queue').addEventListener('click', () => this._ttsToggleQueue());
     player.querySelector('.nj-tts-engine').addEventListener('click', () => this._ttsCycleEngine());
     const select = player.querySelector('.nj-tts-voice');
     select.addEventListener('change', () => this._ttsSelectVoice(select.value));
@@ -3817,6 +3855,11 @@ export class ReaderView {
     }
     const rateBtn = player.querySelector('.nj-tts-rate');
     if (rateBtn) rateBtn.textContent = `${tts.rate}×`;
+    const queueBtn = player.querySelector('.nj-tts-queue');
+    if (queueBtn) {
+      queueBtn.textContent = t('连播');
+      queueBtn.classList.toggle('active', this._ttsQueueOn());
+    }
     const engineBtn = player.querySelector('.nj-tts-engine');
     if (engineBtn) {
       const cfgEngine = neural ? (this._ttsCfg?.engine === 'custom' ? 'custom' : 'edge') : 'local';

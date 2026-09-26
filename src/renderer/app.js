@@ -114,6 +114,7 @@ async function bootstrap() {
     onDigest: showTodayDigest,
     onClusterBrief: showClusterBrief,
     onExportEdition: showEditionExport,
+    onCleanupLater: (ids) => cleanupOverdueLater(ids),
     onToggleSort: () => {
       const next = currentListSort() === 'unreadFirst' ? 'time' : 'unreadFirst';
       window.robin.setReaderLayout({ listSort: next });
@@ -137,6 +138,18 @@ async function bootstrap() {
       onFeedback: showToast,
       onSelectNext: () => selectNextEntry(),
       onFocusList: () => setActiveColumn(1),
+      // 知更电台连播（方向 18）：本篇读完自动接列表下一篇（getAdjacent 取向，不触发空格双击确认）
+      onTTSAdvance: async () => {
+        if (!state.selectedEntryID) return;
+        const result = await window.robin.getAdjacent(state.scope, state.selectedEntryID, 'next');
+        const next = result.ok ? result.data : null;
+        if (!next) {
+          showToast(t('连播：列表已读完'));
+          return;
+        }
+        views.reader._ttsAutoResume = Date.now(); // 8 秒内有效：open 完成后自动续播
+        await handleEntrySelect(next.id, next);
+      },
     },
   );
   window.__robinReader = views.reader; // E2E 测试句柄
@@ -662,6 +675,9 @@ async function reloadList({ resetScroll = false } = {}) {
   state.listItems = result.data;
   views.list.render(state.listItems, state.scope, state.selectedEntryID, currentHasUnread());
   views.list.setDigestVisible(state.scope?.kind === 'today' || state.scope?.kind === 'unread');
+  // 智能稍后读（方向 23）：稍后读视野下出现「清理超龄」入口（入队超 14 天）
+  const overdue = state.scope?.kind === 'later' ? laterOverdueIDs() : [];
+  views.list.setLaterCleanup(overdue);
   updateToolbarState();
   if (resetScroll) views.list.scrollTop();
 }
@@ -987,6 +1003,49 @@ async function loadMoreEntries() {
   if (fresh.length === 0) return;
   state.listItems.push(...fresh);
   views.list.appendRows(fresh);
+}
+
+// MARK: - 智能稍后读（方向 23）：入队时间记录 + 超龄清理（14 天）
+
+const LATER_AGE_KEY = 'robinread.later.addedAt';
+const LATER_OVERDUE_DAYS = 14;
+
+function laterAgeMap() {
+  try { return JSON.parse(localStorage.getItem(LATER_AGE_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+
+/** 稍后读唯一入口：切状态的同时记录入队时间（退出时清除），供超龄判定与清理。 */
+function __robinMarkLater(entryID, on) {
+  const map = laterAgeMap();
+  if (on) map[entryID] = Math.floor(Date.now() / 1000);
+  else delete map[entryID];
+  const entries = Object.entries(map);
+  if (entries.length > 500) {
+    entries.sort((a, b) => a[1] - b[1]);
+    for (const [id] of entries.slice(0, entries.length - 500)) delete map[id];
+  }
+  try { localStorage.setItem(LATER_AGE_KEY, JSON.stringify(map)); } catch (_) { /* 忽略 */ }
+  window.robin.toggleLater(entryID, on);
+}
+
+function laterOverdueIDs() {
+  const cutoff = Math.floor(Date.now() / 1000) - LATER_OVERDUE_DAYS * 86400;
+  const map = laterAgeMap();
+  return state.listItems.filter((it) => it.isLater && map[it.id] && map[it.id] < cutoff).map((it) => it.id);
+}
+
+window.__robinMarkLater = __robinMarkLater;
+
+/** 批量清理超龄稍后读：标记已读并移出队列。 */
+async function cleanupOverdueLater(ids) {
+  if (!ids?.length) return;
+  for (const id of ids) {
+    await window.robin.markRead(id, true);
+    await window.robin.toggleLater(id, false);
+  }
+  showToast(tf('已清理 %lld 篇超龄稍后读', ids.length));
+  await reloadList({ resetScroll: true });
+  reloadSidebar();
 }
 
 // MARK: - 选择

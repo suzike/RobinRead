@@ -32,12 +32,15 @@ export class ListView {
       <button class="digest-btn" id="view-mode-btn" title="${escapeHTML(t('切换列表 / 杂志视图'))}"><span></span></button>
       <button class="digest-btn" id="list-sort-btn" title="${escapeHTML(t('切换排序方式'))}"><span></span></button>
       <button class="digest-btn" id="digest-btn" title="${escapeHTML(t('AI 汇总今日全部文章'))}">${icon('spark')}<span></span></button>
+      <button class="digest-btn" id="later-clean-btn" title="${escapeHTML(t('把入队超过 14 天的稍后读标记已读并移出队列'))}" style="display:none"></button>
       <div class="list-search" id="list-search">
         ${icon('search')}
         <input type="text" placeholder="${escapeHTML(t('搜索…'))}" id="list-search-input" spellcheck="false"/>
         <button class="clear" id="list-search-clear">${icon('close')}</button>
       </div>`;
     this.topInset.querySelector('#digest-btn span').textContent = t('今日简报');
+    const cleanBtn = this.topInset.querySelector('#later-clean-btn');
+    cleanBtn.addEventListener('click', () => this.handlers.onCleanupLater?.(this._overdueIDs || []));
     this.sortBtn = this.topInset.querySelector('#list-sort-btn');
     this.sortBtn.addEventListener('click', () => this.handlers.onToggleSort?.());
     this.searchInput = this.topInset.querySelector('#list-search-input');
@@ -512,6 +515,17 @@ export class ListView {
   setDigestVisible(visible) {
     const btn = this.topInset?.querySelector('#digest-btn');
     if (btn) btn.style.display = visible ? '' : 'none';
+  }
+
+  /** 智能稍后读（方向 23）：稍后读视野且存在超龄项时显示「清理超龄」。 */
+  setLaterCleanup(overdueIDs) {
+    this._overdueIDs = overdueIDs || [];
+    const btn = this.topInset?.querySelector('#later-clean-btn');
+    if (!btn) return;
+    const show = this.scope?.kind === 'later' && this._overdueIDs.length > 0;
+    btn.style.display = show ? '' : 'none';
+    if (show) btn.innerHTML = `${icon('clock')}<span></span>`;
+    if (show) btn.querySelector('span').textContent = `${t('清理超龄')} ${this._overdueIDs.length}`;
   }
 
   setSearchMode(active) {

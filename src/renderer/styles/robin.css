@@ -3105,6 +3105,7 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
   font-family: var(--font-sans);
   flex: 0 0 auto;
 }
+.nj-tts-pbtn.nj-tts-queue.active { color: var(--accent); border-color: var(--accent); }
 .nj-tts-pbtn:hover { background: var(--row-hover); color: var(--accent); }
 .nj-tts-pbtn svg { width: 12px; height: 12px; pointer-events: none; }
 .nj-tts-pbtn.nj-tts-rate { width: auto; min-width: 24px; padding: 0 7px; border-radius: 999px; }
@@ -3135,6 +3136,33 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
     background: transparent !important;
     box-shadow: none !important;
   }
+}
+
+/* ── 纸刊级打印精排（方向 19）：书刊页边距、深色强制转墨、防孤块断页 ── */
+@media print {
+  @page { margin: 16mm 14mm; }
+  .reader-article {
+    max-width: 100% !important;
+    padding: 0 !important;
+    color: #14110c !important;
+  }
+  /* 深色纸面打印时强制回墨（黑字白底） */
+  body.dark .reader-article,
+  body.dark { background: #fff !important; color: #14110c !important; }
+  .reader-article a { color: #14110c !important; border-bottom: none !important; }
+  .reader-article .robin-header-title { font-size: 20pt; line-height: 1.25; break-after: avoid; }
+  .reader-article .robin-header-meta,
+  .reader-article figcaption { color: #4a463c !important; }
+  .robin-header-container .robin-header-original-actions,
+  .nj-tts-header-btn { display: none !important; }
+  /* 排版细节：两端对齐 + 孤行寡行控制 + 块级防截断 */
+  .reader-article p { text-align: justify; orphans: 2; widows: 2; }
+  .reader-article h2, .reader-article h3, .reader-article h4 { break-after: avoid; }
+  .reader-article img,
+  .reader-article figure,
+  .reader-article blockquote,
+  .reader-article table,
+  .reader-article pre { break-inside: avoid; }
 }
 
 /* ==========================================================================
