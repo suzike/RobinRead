@@ -250,6 +250,10 @@ contextBridge.exposeInMainWorld('robin', {
   // 备份与恢复（导出对话框 / 导入校验+暂存 / alertBox 确认后重启恢复）
   backupExport: () => invoke('backup:export'),
   backupImport: () => invoke('backup:import'),
+  backupGetConfig: () => data('backup:getConfig'),
+  backupSetConfig: (patch) => data('backup:setConfig', patch),
+  backupAutoNow: () => data('backup:autoNow'),
+  backupOpenFolder: () => data('backup:openFolder'),
   quitForRestore: () => ipcRenderer.send('backup:relaunch'),
 
   // 存储管理（体积统计 / 立即清理 / 打开数据目录）

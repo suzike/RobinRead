@@ -860,6 +860,76 @@ function registerIPCHandlers(store, window) {
   });
 
   // MARK: 备份与恢复（单文件 JSON：VACUUM INTO 快照 + 偏好）
+// MARK: - 自动备份（数据安全）：每日一次全量快照到 userData/backups，滚动保留
+const AUTO_BACKUP_DIR = () => path.join(app.getPath('userData'), 'backups');
+const AUTO_BACKUP_KEEP_KEY = 'RobinRead.autoBackup.keep';
+
+function autoBackupKeep() {
+  const v = Number(store.preferences.get(AUTO_BACKUP_KEEP_KEY, 7));
+  return [3, 7, 14, 30].includes(v) ? v : 7;
+}
+
+function autoBackupEnabled() {
+  return store.preferences.get('RobinRead.autoBackup.enabled', true) !== false;
+}
+
+function autoBackupDue() {
+  try {
+    const dir = AUTO_BACKUP_DIR();
+    const files = fs.readdirSync(dir).filter((f) => f.startsWith('RobinRead-auto-backup-'));
+    if (files.length === 0) return true;
+    const latest = files.sort().at(-1);
+    const stamp = latest.match(/(\d{8})/);
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return !stamp || stamp[1] !== today;
+  } catch (_) {
+    return true;
+  }
+}
+
+/** 每日自动备份：到期才写；写完按保留份数滚动删除。返回备份路径，未到期返回 null。 */
+async function autoBackupIfDue(force = false) {
+  if (!autoBackupEnabled() && !force) return null;
+  if (!force && !autoBackupDue()) return null;
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const dir = AUTO_BACKUP_DIR();
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, `RobinRead-auto-backup-${stamp}.json`);
+  if (!force && fs.existsSync(filePath)) return null; // 当日已有自动备份：非强制直接跳过
+  await backupExportTo(store, filePath);
+  pruneAutoBackups(dir);
+  return filePath;
+}
+
+function pruneAutoBackups(dir) {
+  try {
+    const keep = autoBackupKeep();
+    const files = fs.readdirSync(dir)
+      .filter((f) => f.startsWith('RobinRead-auto-backup-'))
+      .sort()
+      .reverse();
+    for (const f of files.slice(keep)) fs.rmSync(path.join(dir, f), { force: true });
+  } catch (_) { /* 忽略 */ }
+}
+
+
+  // 自动备份：启动 20 秒后首查；应用常开时每 6 小时复查（跨天补备）
+  setTimeout(() => { autoBackupIfDue().catch(() => {}); }, 20_000).unref();
+  setInterval(() => { autoBackupIfDue().catch(() => {}); }, 6 * 3600 * 1000).unref();
+
+  handle('backup:autoNow', async () => await autoBackupIfDue(true));
+  handle('backup:getConfig', () => ({
+    enabled: autoBackupEnabled(),
+    keep: autoBackupKeep(),
+    dir: AUTO_BACKUP_DIR(),
+  }));
+  handle('backup:setConfig', ({ enabled, keep } = {}) => {
+    if (typeof enabled === 'boolean') store.preferences.set('RobinRead.autoBackup.enabled', enabled);
+    if ([3, 7, 14, 30].includes(Number(keep))) store.preferences.set(AUTO_BACKUP_KEEP_KEY, Number(keep));
+    return { enabled: autoBackupEnabled(), keep: autoBackupKeep(), dir: AUTO_BACKUP_DIR() };
+  });
+  handle('backup:openFolder', () => { shell.openPath(AUTO_BACKUP_DIR()); });
+
   handle('backup:export', async () => {
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const result = await dialog.showSaveDialog(window, {

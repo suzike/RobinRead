@@ -379,6 +379,58 @@ export class SettingsView {
     const g = general || { closeToTray: false, newArticleNotify: true };
     const l = login || { supported: false, enabled: false, message: '' };
 
+    // ── 自动备份（数据安全）──
+    const backupCfg = await window.robin.backupGetConfig?.().catch(() => null) || { enabled: true, keep: 7, dir: '' };
+    const backupGroup = group(t('自动备份'), t('每天首次启动时自动把全部数据（数据库+偏好）快照到本地备份目录，滚动保留最近 N 份。恢复时选择备份文件导入即可。'), []);
+    container.appendChild(backupGroup);
+    const backupHost = backupGroup.querySelector('.group-rows');
+    const saveCfg = (patch) => window.robin.backupSetConfig?.(patch);
+    backupHost.appendChild(row(t('每日自动备份'), t('默认开启。备份写入本地 backups 目录，不含 API Key。'), (() => {
+      const wrap = document.createElement('div');
+      wrap.className = 'setting-control';
+      const sel = document.createElement('select');
+      sel.className = 'nj-typo-select';
+      sel.style.maxWidth = '140px';
+      for (const [val, label] of [['0', t('关闭')], ['3', t('保留 3 份')], ['7', t('保留 7 份')], ['14', t('保留 14 份')], ['30', t('保留 30 份')]]) {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      }
+      sel.value = String(backupCfg.enabled ? backupCfg.keep : 0);
+      sel.addEventListener('change', async () => {
+        const v = Number(sel.value);
+        await saveCfg({ enabled: v > 0, keep: v > 0 ? v : backupCfg.keep });
+        showToast(v > 0 ? t('自动备份已开启') : t('自动备份已关闭'));
+      });
+      wrap.appendChild(sel);
+      return wrap;
+    })()));
+    backupHost.appendChild(row(t('备份操作'), t('立即创建一份备份，或打开备份文件夹查看/恢复。'), (() => {
+      const wrap = document.createElement('div');
+      wrap.className = 'setting-control';
+      wrap.style.gap = '8px';
+      const nowBtn = document.createElement('button');
+      nowBtn.className = 'btn-text bordered';
+      nowBtn.textContent = t('立即备份');
+      nowBtn.addEventListener('click', async () => {
+        nowBtn.disabled = true;
+        nowBtn.textContent = t('备份中…');
+        try {
+          const path2 = await window.robin.backupAutoNow?.();
+          showToast(path2 ? t('已备份') + '：' + path2 : t('今日已备份'));
+        } catch (e) { showToast(t('备份失败') + '：' + String(e?.message || e)); }
+        nowBtn.disabled = false;
+        nowBtn.textContent = t('立即备份');
+      });
+      const openBtn = document.createElement('button');
+      openBtn.className = 'btn-text bordered';
+      openBtn.textContent = t('打开备份文件夹');
+      openBtn.addEventListener('click', () => window.robin.backupOpenFolder?.());
+      wrap.append(nowBtn, openBtn);
+      return wrap;
+    })()));
+
     // ── 桌面行为 ──
     container.appendChild(group(t('桌面行为'), t('窗口与系统通知偏好，仅影响这台设备。'), [
       toggleRow(t('关闭窗口时最小化到托盘'), t('点击关闭按钮时隐藏到系统托盘并在后台保持刷新；从托盘菜单选择「退出」才会真正关闭应用。'), g.closeToTray === true, async (v) => {

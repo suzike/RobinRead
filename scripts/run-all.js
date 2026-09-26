@@ -16,6 +16,7 @@ const OFFLINE = [
   { file: 'scripts/diag-phase8-gate.js', runner: 'electron', desc: '会员全量释放 + 默认刷新间隔（离线）' },
   { file: 'scripts/diag-phase9-typography.js', runner: 'node', desc: '排版引擎 v2：盘古之白 + 设置链路（离线）' },
   { file: 'scripts/diag-phase12-knowledge.js', runner: 'electron', desc: '知识增强：图谱数据/问答受控路径（离线）' },
+  { file: 'scripts/diag-phase13-backup.js', runner: 'electron', desc: '自动备份：首查快照/配置/开关（离线）' },
   { file: 'scripts/diag-phase9-font-smoke.js', runner: 'electron', desc: '排版引擎+每日刊头真实渲染烟雾（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
