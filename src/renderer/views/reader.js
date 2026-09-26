@@ -3017,15 +3017,15 @@ export class ReaderView {
       <div class="nj-lightbox-backdrop"></div>
       <img class="nj-lightbox-img" src="${attr(src)}" alt="${attr(alt)}"/>
       <span class="nj-lightbox-zoom" title="${attr(t('滚轮缩放 · 拖拽平移 · 双击复位'))}"></span>
-      <button class="nj-lightbox-save" title="${attr(t('保存图片'))}">${icon('export')}</button>
-      <button class="nj-lightbox-nav nj-lightbox-prev" title="&#8592;">&#8592;</button>
-      <button class="nj-lightbox-nav nj-lightbox-next" title="&#8594;">&#8594;</button>
-      <span class="nj-lightbox-count"></span>
       <div class="nj-lightbox-thumbs"></div>
-      <button class="nj-lightbox-save" title="${attr(t('关闭（Esc）'))}">${icon('close')}</button>
+      ${items ? '<button class="nj-lightbox-nav nj-lightbox-prev" title="\u2190">\u2190</button><button class="nj-lightbox-nav nj-lightbox-next" title="\u2192">\u2192</button><span class="nj-lightbox-count"></span>' : ''}
+      <button class="nj-lightbox-save" title="${attr(t('保存图片'))}">${icon('export')}</button>
+      <button class="nj-lightbox-close" title="${attr(t('关闭（Esc）'))}">${icon('close')}</button>
     `;
     const img = lightbox.querySelector('.nj-lightbox-img');
     const zoomBadge = lightbox.querySelector('.nj-lightbox-zoom');
+    const countEl = lightbox.querySelector('.nj-lightbox-count');
+    const saveBtn = lightbox.querySelector('.nj-lightbox-save');
     // 缩放/平移：滚轮 1×~5×，放大后可拖拽平移，双击复位
     let scale = 1;
     let tx = 0;
@@ -3073,45 +3073,16 @@ export class ReaderView {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     img.addEventListener('dblclick', dbl);
-    // gotcha：esc 挂在 document 上，任何关闭路径（点击/Esc）都必须移除它，否则长会话每开一张图泄漏一个监听
-    const showAt = (idx) => {
-      if (!items) return;
-      gIndex = (idx + items.length) % items.length;
-      const target = items[gIndex];
-      img.src = target.src;
-      img.alt = target.alt || '';
-      scale = 1; tx = 0; ty = 0; apply();
-      lightbox.querySelector('.nj-lightbox-count').textContent = (gIndex + 1) + ' / ' + items.length;
-      const thumbs = lightbox.querySelectorAll('.nj-lightbox-thumb');
-      thumbs.forEach((t, i) => t.classList.toggle('active', i === gIndex));
-    };
-    const step = (dir) => { if (items) showAt(gIndex + dir); };
-    lightbox.querySelector('.nj-lightbox-prev').addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
-    lightbox.querySelector('.nj-lightbox-next').addEventListener('click', (e) => { e.stopPropagation(); step(1); });
-    if (items) {
-      const esc2 = (event) => { if (event.key === 'ArrowLeft') step(-1); if (event.key === 'ArrowRight') step(1); };
-      document.addEventListener('keydown', esc2);
-      const oldDismiss = dismiss;
-      dismiss = () => { document.removeEventListener('keydown', esc2); oldDismiss(); };
-    }
-    let esc = (event) => { if (event.key === 'Escape') dismiss(); };
-    let dismiss = () => {
-      document.removeEventListener('keydown', esc);
-      lightbox.removeEventListener('wheel', wheel);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      lightbox.remove();
-    };
-    // 保存图片：跨域图经主进程代理取字节（与反相同通道），另存为文件
-    lightbox.querySelector('.nj-lightbox-save').addEventListener('click', async (event) => {
+    // 保存图片：跨域图经主进程代理取字节（与反相同通道），另存为文件（跟随当前显示的图）
+    saveBtn.addEventListener('click', async (event) => {
       event.stopPropagation();
       const btn = event.currentTarget;
       btn.disabled = true;
       try {
-        const bytes = await window.robin.fetchImageBytes(src);
+        const bytes = await window.robin.fetchImageBytes(img.src);
         const payload = bytes && typeof bytes === 'object' && 'data' in bytes ? bytes.data : bytes;
         if (!payload) throw new Error(t('保存失败'));
-        const ext = (/\.png/i.test(src) ? '.png' : /\.(jpe?g|webp|gif)/i.test(src) ? RegExp.$1.toLowerCase() : '.jpg').replace('jpeg', 'jpg');
+        const ext = (/\.png/i.test(img.src) ? '.png' : /\.(jpe?g|webp|gif)/i.test(img.src) ? RegExp.$1.toLowerCase() : '.jpg').replace('jpeg', 'jpg');
         const picked = await window.robin.pickSavePath(`image-${Date.now()}${ext}`);
         const filePath = picked?.ok ? picked.data : null;
         if (!filePath) { btn.disabled = false; return; }
@@ -3123,22 +3094,40 @@ export class ReaderView {
       }
       setTimeout(() => { btn.textContent = t('保存图片'); btn.disabled = false; }, 1600);
     });
-    // 放大态下点击图片不关闭（可拖拽/双击复位）；缩小态点击图片或背景 = 关闭（沿用原交互）
+    // 画廊导航（多图时）：循环切换 + 缩略图条 + 计数徽标
+    const thumbsHost = lightbox.querySelector('.nj-lightbox-thumbs');
     if (items) {
-      const thumbsHost = lightbox.querySelector('.nj-lightbox-thumbs');
       items.forEach((it, i) => {
-        const t = document.createElement('img');
-        t.className = 'nj-lightbox-thumb' + (i === gIndex ? ' active' : '');
-        t.loading = 'lazy'; t.src = it.src; t.alt = '';
-        t.addEventListener('click', (e) => { e.stopPropagation(); showAt(i); });
-        thumbsHost.appendChild(t);
+        const tEl = document.createElement('img');
+        tEl.className = 'nj-lightbox-thumb' + (i === gIndex ? ' active' : '');
+        tEl.loading = 'lazy'; tEl.src = it.src; tEl.alt = '';
+        tEl.addEventListener('click', (e) => { e.stopPropagation(); showAt(i); });
+        thumbsHost.appendChild(tEl);
       });
-      lightbox.querySelector('.nj-lightbox-count').textContent = (gIndex + 1) + ' / ' + items.length;
+      countEl.textContent = `${gIndex + 1} / ${items.length}`;
+    } else {
+      countEl.style.display = 'none';
     }
-    lightbox.addEventListener('click', (event) => {
+    // gotcha：esc 挂在 document 上，任何关闭路径（点击/Esc）都必须移除它，否则长会话每开一张图泄漏一个监听
+    const esc = (event) => {
+      if (event.key === 'Escape') { dismiss(); return; }
+      if (items && event.key === 'ArrowLeft') { step(-1); }
+      if (items && event.key === 'ArrowRight') { step(1); }
+    };
+    const dismiss = () => {
+      document.removeEventListener('keydown', esc);
+      lightbox.removeEventListener('wheel', wheel);
+      lightbox.removeEventListener('click', clickClose);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      lightbox.remove();
+    };
+    const clickClose = (event) => {
       if (scale > 1.01 && event.target === img) return;
+      if (event.target.closest('.nj-lightbox-save, .nj-lightbox-thumb')) return;
       dismiss();
-    });
+    };
+    lightbox.addEventListener('click', clickClose);
     document.addEventListener('keydown', esc);
     document.body.appendChild(lightbox);
   }

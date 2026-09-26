@@ -134,6 +134,9 @@ app.whenReady().then(async () => {
     // R1 设计令牌体系：token 层存在且被消费
     assert.ok(cssSrc.includes('--radius-md') && cssSrc.includes('--dur-base') && cssSrc.includes('--ease-out') && cssSrc.includes('--shadow-3'), 'css 应含设计令牌层');
     assert.ok(!/border-radius: (?:4|6|7|8|10|12|14)px/.test(cssSrc), 'radius 硬编码应已系统化替换');
+    const readerSrc3 = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'views', 'reader.js'), 'utf8');
+    assert.ok(readerSrc3.includes('nj-lightbox-nav') && readerSrc2.includes('nj-lightbox-thumbs') && readerSrc2.includes('nj-lightbox-count'), '灯箱应含画廊导航/缩略图');
+    assert.ok(!readerSrc2.includes('const oldDismiss = dismiss'), '不应残留 TDZ 重赋值模式');
 
     // R2 命令面板 2.0：记分排序 + 最近使用
     const paletteSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'views', 'command-palette.js'), 'utf8');
