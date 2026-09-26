@@ -524,6 +524,25 @@ body.zen .list-top-inset { display: none; }
   animation: rotate 0.8s linear infinite;
 }
 
+/* 内置开源中文字体：霞鹜文楷 Screen（v1.522，OFL 1.1，屏读优化，简繁覆盖）
+   —— 授权全文见 fonts/OFL-LXGWWenKaiScreen.txt；未修改原版再分发 */
+@font-face {
+  font-family: 'LXGW WenKai Screen';
+  src: url('../fonts/LXGWWenKaiScreen.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 内置开源中文字体：得意黑 Smiley Sans（v2.0.1，OFL 1.1，斜体黑，仅限标题/刊头）——授权见 fonts/OFL-SmileySans.txt */
+@font-face {
+  font-family: 'Smiley Sans';
+  src: url('../fonts/SmileySans-Oblique.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* 正文容器（对应 webview body） */
 .reader-article {
   max-width: var(--reader-page-width, 820px);
@@ -533,7 +552,7 @@ body.zen .list-top-inset { display: none; }
   font-family: var(--reader-font, var(--font-serif));
   font-weight: 400;
   line-height: var(--reader-line-height, 1.78);
-  letter-spacing: 0.006em;
+  letter-spacing: var(--reader-letter-spacing, 0.006em);
   color: var(--reader-ink, var(--text-primary));
   overflow-wrap: anywhere;
   user-select: text;
@@ -547,9 +566,278 @@ body.zen .list-top-inset { display: none; }
 .reader-article .table-scroll table { margin: 0; min-width: 480px; }
 .reader-article ::selection { background: rgba(116, 137, 100, 0.24); }
 
+/* ── 排版引擎 v2：段落风格 / 对齐 / 字距 / 中文微排版 / 首字下沉（调研报告 2026-09-26 方向 1/4/7）── */
+.reader-article pre, .reader-article code, .reader-article kbd, .reader-article samp { letter-spacing: 0; }
+
+/* 缩进式段落（中文书刊惯例：首行空两格，段间不留空；引用/图注不参与） */
+body[data-reader-para="indent"] .robin-body p { text-indent: 2em; }
+body[data-reader-para="indent"] .robin-body blockquote p,
+body[data-reader-para="indent"] .robin-body figcaption,
+body[data-reader-para="indent"] .robin-body li p:first-of-type:only-child { text-indent: 0; }
+
+/* 两端对齐（报刊式；hanging 标点 Chromium 未支持，行尾由禁则自然处理） */
+body[data-reader-align="justify"] .reader-article { text-align: justify; }
+
+/* 中文微排版：盘古之白 spacer（≈1/4 字宽）+ 行首行尾标点挤压（text-spacing-trim，Chromium 123+，
+   默认 normal 已挤压相邻标点；关闭开关时 space-all 恢复全宽） */
+.robin-body .nj-gap { display: inline-block; width: 0.155em; overflow: hidden; }
+body.rp-micro-off .reader-article { text-spacing-trim: space-all; }
+
+/* 首字下沉（杂志版式）：initial-letter（Chromium 110+），不支持时 float 降级 */
+@supports (initial-letter: 2) {
+  body.rp-dropcap .robin-body > p:first-of-type::first-letter {
+    initial-letter: 2;
+    font-weight: 700;
+    font-family: var(--font-serif);
+    margin-right: 0.08em;
+  }
+}
+@supports not (initial-letter: 2) {
+  body.rp-dropcap .robin-body > p:first-of-type::first-letter {
+    float: left;
+    font-size: 3.1em;
+    line-height: 0.9;
+    font-weight: 700;
+    font-family: var(--font-serif);
+    padding: 0.04em 0.09em 0 0;
+  }
+}
+
+/* ── 图注排版（方向 7）：杂志式编号圆章，全文按出现顺序编号；整图不跨页截断 ── */
+.robin-body { counter-reset: nj-fig; }
+.robin-body figure { counter-increment: nj-fig; break-inside: avoid; }
+.robin-body figure figcaption::before {
+  content: counter(nj-fig);
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 6px;
+  margin-right: 7px;
+  border: 1px solid var(--note-border);
+  border-radius: 999px;
+  background: var(--note-background);
+  font-size: 0.86em;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* ── 每日刊头（方向 6）：报头双细线 / 封面故事 / 本期目录。「本期」= 当前列表视野 ── */
+.nj-edition { margin: 4px 0 20px; }
+.nj-edition-mast {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 2px 9px;
+  border-bottom: 3px double color-mix(in srgb, var(--text-primary) 55%, transparent);
+}
+.nj-edition-brand {
+  font-family: var(--reader-title-font, var(--font-serif));
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.nj-edition-date { font-size: 0.82em; color: var(--text-secondary); letter-spacing: 0.04em; }
+.nj-edition-cover {
+  position: relative;
+  margin: 14px 0 4px;
+  aspect-ratio: 21 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--note-background);
+}
+.nj-edition-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nj-edition-cover.no-image { aspect-ratio: auto; min-height: 120px; display: flex; align-items: center; justify-content: center; }
+.nj-edition-cover-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 36px 18px 13px;
+  background: linear-gradient(transparent, rgba(12, 10, 8, 0.78));
+  color: #f5f1e8;
+}
+.nj-edition-cover.no-image .nj-edition-cover-caption { position: static; padding: 16px 18px; background: none; color: var(--text-primary); }
+.nj-edition-kicker { font-size: 0.72em; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.85; }
+.nj-edition-cover h2 {
+  margin: 4px 0 2px;
+  font-family: var(--reader-title-font, var(--font-serif));
+  font-size: 1.34em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.nj-edition-cover:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nj-edition-toc { margin-top: 12px; border-top: 1px solid var(--separator); padding-top: 9px; }
+.nj-edition-toc-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  letter-spacing: 0.14em;
+  color: var(--text-secondary);
+}
+.nj-edition-section { margin-top: 9px; }
+.nj-edition-section-name {
+  font-size: 0.76em;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+}
+.nj-edition-toc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.nj-edition-toc-row:hover { background: var(--row-selected); }
+.nj-edition-toc-row .toc-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95em;
+}
+.nj-edition-toc-row.unread .toc-title { font-weight: 600; }
+.nj-edition-toc-row.unread .toc-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 7px;
+  vertical-align: 2px;
+}
+.nj-edition-toc-row .toc-dots { flex: 1; border-bottom: 1px dotted var(--note-border); transform: translateY(-3px); }
+.nj-edition-toc-row .toc-meta { font-size: 0.78em; color: var(--text-secondary); white-space: nowrap; }
+.nj-edition-epub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--note-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.86em;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.nj-edition-epub-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--row-selected); }
+
+/* ── 同题对比速读（方向 14）：聚类行按钮 + AI 对比弹窗 ── */
+.cluster-brief-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--note-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.76em;
+  padding: 2px 9px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cluster-brief-btn:hover { border-color: var(--accent); background: var(--row-selected); }
+.nj-brief-modal { width: min(680px, 92vw); max-height: 78vh; display: flex; flex-direction: column; padding: 18px 20px 14px; overflow: hidden; }
+.nj-brief-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--separator); }
+.nj-brief-head h3 { margin: 0; font-family: var(--reader-title-font, var(--font-serif)); font-size: 1.15em; }
+.nj-brief-sub { flex: 1; font-size: 0.8em; color: var(--text-secondary); }
+.nj-brief-close { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; }
+.nj-brief-close:hover { color: var(--text-primary); }
+.nj-brief-body { flex: 1; overflow-y: auto; padding: 14px 2px 8px; font-size: 0.95em; line-height: 1.7; }
+.nj-brief-body.loading::before {
+  content: '';
+  display: block;
+  margin: 48px auto 0;
+  width: 18px; height: 18px;
+  border: 2px solid var(--row-selected);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: rotate 0.8s linear infinite;
+}
+.nj-brief-refs { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 2px; border-top: 1px dashed var(--note-border); }
+.nj-brief-refs:empty { display: none; }
+.nj-brief-foot { display: flex; justify-content: flex-end; padding-top: 8px; }
+
+/* ── 双语对照刊版式（方向 13）：对照分行——原句独立成块、译文缩进左线悬挂其下 ── */
+body[data-bilingual-style="card"] .reader-article .nj-s { display: block; margin-bottom: 0.2em; }
+body[data-bilingual-style="card"] .reader-article .nj-t {
+  margin: 0 0 0.9em;
+  padding: 2px 0 2px 0.9em;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ── 自定义样式输入（方向 24）── */
+.nj-css-input {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border: 1px solid var(--note-border);
+  border-radius: 8px;
+  background: var(--note-background);
+  color: var(--text-primary);
+  font-family: Consolas, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+.nj-css-input:focus { outline: none; border-color: var(--accent); }
+
+/* ── 聚焦模式（方向 11）：非当前段落渐暗，指针所在块保持清晰 ── */
+body.rp-focus .reader-article .robin-body > * { opacity: 0.25; transition: opacity 0.25s ease; }
+body.rp-focus .reader-article .robin-body > *:hover { opacity: 1; }
+body.rp-focus .reader-article .robin-header-container,
+body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: opacity 0.25s ease; }
+
+/* ── 命令面板（方向 22）── */
+.cmd-palette-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(20, 17, 12, 0.35);
+  display: flex; justify-content: center; align-items: flex-start;
+  padding-top: 12vh;
+}
+.cmd-palette {
+  width: min(560px, 90vw);
+  max-height: 62vh;
+  display: flex; flex-direction: column;
+  background: var(--page-background);
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(20, 17, 12, 0.28);
+  overflow: hidden;
+}
+.cmd-palette input {
+  border: none; outline: none; background: transparent;
+  padding: 14px 16px;
+  font-size: 15px; color: var(--text-primary);
+  border-bottom: 1px solid var(--separator);
+  font-family: inherit;
+}
+.cmd-palette-list { overflow-y: auto; padding: 6px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.cmd-item.active { background: var(--row-selected); }
+.cmd-item .cmd-icon { color: var(--text-secondary); display: inline-flex; flex-shrink: 0; }
+.cmd-item .cmd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95em; }
+.cmd-item .cmd-hint { font-size: 0.75em; color: var(--text-secondary); flex-shrink: 0; }
+.cmd-empty { padding: 22px; text-align: center; color: var(--text-secondary); font-size: 0.9em; }
+.cmd-palette-foot {
+  padding: 7px 14px;
+  border-top: 1px solid var(--separator);
+  font-size: 0.74em; color: var(--text-secondary);
+  display: flex; gap: 14px;
+}
+
 .robin-header-container { margin: 0 0 28px; }
 .robin-header-title {
-  font-family: var(--font-serif);
+  font-family: var(--reader-title-font, var(--font-serif));
   font-size: 2em;
   font-weight: 700;
   line-height: 1.26;

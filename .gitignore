@@ -10,3 +10,7 @@ paperrss.tar.gz
 .DS_Store
 Thumbs.db
 dist-release/
+
+# 临时调试产物
+.tmp-*
+.zcode/

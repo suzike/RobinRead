@@ -208,6 +208,19 @@ export class ListView {
       <span class="entry-time">${escapeHTML(formatTime(cluster.items[0].publishedAt))}</span>`;
     row.querySelector('span:nth-child(2)').textContent = cluster.items[0].title;
     row.title = t('多源相似报道，点击展开');
+    // AI 对比速读（方向 14 v1）：一键融合多源同题报道（弹窗与生成在 app 层，与今日简报同管线）
+    if (cluster.items.length >= 2) {
+      const briefBtn = document.createElement('button');
+      briefBtn.className = 'cluster-brief-btn';
+      briefBtn.title = t('AI 对比速读');
+      briefBtn.innerHTML = `${icon('spark')}<span></span>`;
+      briefBtn.querySelector('span').textContent = t('AI 速读');
+      briefBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.handlers.onClusterBrief?.(cluster.items);
+      });
+      row.appendChild(briefBtn);
+    }
     row.addEventListener('click', () => {
       const host = row.parentElement;
       const children = document.createElement('div');
@@ -235,6 +248,8 @@ export class ListView {
 
   /** 沉浸杂志：封面卡片网格（借鉴上游 PaperRss v1.4.0 Magazine View，Web 版本）。 */
   _renderMagazine(items, selectedID) {
+    // 每日刊头（方向 6）：报头 + 封面故事 + 本期目录，置于封面卡片网格之上
+    if (items.length > 0) this.rowsHost.appendChild(this.editionMasthead(items));
     const grid = document.createElement('div');
     grid.className = 'nj-mag-grid';
     grid.tabIndex = 0;
@@ -265,6 +280,147 @@ export class ListView {
     });
     this.rowsHost.appendChild(grid);
     this.markSelected(selectedID);
+  }
+
+  /**
+   * 每日刊头（方向 6，调研报告 2026-09-26）：报头双细线 + 封面故事 + 本期目录。
+   * - 「本期」= 当前列表视野（分类/搜索过滤后），刊期取最新一篇的日期
+   * - 封面故事：前 12 篇里第一篇带封面图的（未读优先），全图退化纯文字版式
+   * - 目录：封面故事外的前 10 篇，按来源分组为「栏目」，点行即读
+   */
+  editionMasthead(items) {
+    const mast = document.createElement('header');
+    mast.className = 'nj-edition';
+
+    const newest = items.reduce((acc, it) => (!acc || (it.publishedAt || 0) > (acc.publishedAt || 0) ? it : acc), null);
+    const mastLine = document.createElement('div');
+    mastLine.className = 'nj-edition-mast';
+    const brand = document.createElement('span');
+    brand.className = 'nj-edition-brand';
+    brand.textContent = t('知更 · 本期');
+    const dateEl = document.createElement('span');
+    dateEl.className = 'nj-edition-date';
+    if (newest?.publishedAt) {
+      const locale = (window.__robinLanguage || 'zh') === 'zh' ? 'zh-CN' : 'en-US';
+      dateEl.textContent = new Date(newest.publishedAt * 1000)
+        .toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+    }
+    mastLine.append(brand, dateEl);
+    mast.appendChild(mastLine);
+
+    const open = (item) => this.handlers.onSelect(item.id, item);
+    const pool = items.slice(0, 12);
+    const cover = pool.find((it) => !it.isRead && firstImageURL(it.contentHead))
+      || pool.find((it) => firstImageURL(it.contentHead))
+      || pool[0];
+    mast.appendChild(this.editionCoverCard(cover));
+
+    const tocItems = items.filter((it) => it !== cover).slice(0, 10);
+    if (tocItems.length > 0) mast.appendChild(this.editionTOC(tocItems, items));
+    return mast;
+  }
+
+  editionCoverCard(item) {
+    const card = document.createElement('article');
+    card.className = 'nj-edition-cover';
+    card.dataset.entryId = item.id;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+
+    const caption = document.createElement('div');
+    caption.className = 'nj-edition-cover-caption';
+    const kicker = document.createElement('span');
+    kicker.className = 'nj-edition-kicker';
+    kicker.textContent = `${t('封面故事')} · ${item.sourceTitle || ''}`;
+    const h2 = document.createElement('h2');
+    h2.textContent = item.title || t('未命名文章');
+    caption.append(kicker, h2);
+
+    const imageURL = firstImageURL(item.contentHead);
+    if (imageURL) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.addEventListener('error', () => {
+        img.remove();
+        card.classList.add('no-image');
+      }, { once: true });
+      img.src = imageURL;
+      card.appendChild(img);
+    } else {
+      card.classList.add('no-image');
+    }
+    card.appendChild(caption);
+    card.addEventListener('click', () => open(item));
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open(item);
+      }
+    });
+    return card;
+  }
+
+  editionTOC(items, allItems) {
+    const toc = document.createElement('div');
+    toc.className = 'nj-edition-toc';
+    const head = document.createElement('div');
+    head.className = 'nj-edition-toc-head';
+    const label = document.createElement('span');
+    label.textContent = t('本期目录');
+    const headRight = document.createElement('span');
+    headRight.style.cssText = 'display:inline-flex;align-items:center;gap:10px;';
+    const epubBtn = document.createElement('button');
+    epubBtn.className = 'nj-edition-epub-btn';
+    epubBtn.innerHTML = `${icon('bookOpen')}<span></span>`;
+    epubBtn.querySelector('span').textContent = t('导出本期 EPUB');
+    epubBtn.title = t('把当前列表（最多 40 篇）打包为一本带目录的 EPUB 电子书');
+    // 整期导出按当前视野全量（含封面故事），而非仅目录可见的 10 条
+    epubBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.handlers.onExportEdition?.((allItems || items).map((it) => it.id));
+    });
+    const count = document.createElement('span');
+    count.textContent = t('%lld 篇').replace('%lld', String(items.length)).replace('%d', String(items.length));
+    headRight.append(epubBtn, count);
+    head.append(label, headRight);
+    toc.appendChild(head);
+
+    // 按来源分组为「栏目」，保持首次出现顺序
+    const sections = new Map();
+    for (const item of items) {
+      const key = item.sourceTitle || '';
+      if (!sections.has(key)) sections.set(key, []);
+      sections.get(key).push(item);
+    }
+    for (const [source, groupItems] of sections) {
+      const section = document.createElement('div');
+      section.className = 'nj-edition-section';
+      if (source) {
+        const name = document.createElement('div');
+        name.className = 'nj-edition-section-name';
+        name.textContent = source;
+        section.appendChild(name);
+      }
+      for (const item of groupItems) {
+        const row = document.createElement('div');
+        row.className = `nj-edition-toc-row ${item.isRead ? 'read' : 'unread'}`;
+        row.dataset.entryId = item.id;
+        const title = document.createElement('span');
+        title.className = 'toc-title';
+        title.textContent = item.title || t('未命名文章');
+        const dots = document.createElement('span');
+        dots.className = 'toc-dots';
+        const meta = document.createElement('span');
+        meta.className = 'toc-meta';
+        meta.textContent = formatTime(item.publishedAt);
+        row.append(title, dots, meta);
+        row.addEventListener('click', () => this.handlers.onSelect(item.id, item));
+        section.appendChild(row);
+      }
+      toc.appendChild(section);
+    }
+    return toc;
   }
 
   magCard(item) {

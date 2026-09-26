@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('robin', {
   smartFolderSearch: (query, limit) => invoke('app:smartFolderSearch', query, limit),
   generateDigest: () => invoke('ai:digest'),
   cachedDigest: () => invoke('ai:digestCache'),
+  clusterBrief: (items) => invoke('ai:clusterBrief', items),
+  exportEpub: (entryID) => data('app:exportEpub', entryID),
+  exportEditionEpub: (entryIDs) => data('app:exportEditionEpub', entryIDs),
+  readerCustomCSS: () => data('prefs:readerCustomCSS'),
 
   // 阅读状态
   markRead: (entryID, read) => invoke('read:mark', entryID, read),
@@ -210,6 +214,12 @@ contextBridge.exposeInMainWorld('robin', {
   copyText: (text) => invoke('app:copyText', text),
   pickSavePath: (defaultName) => invoke('app:pickSavePath', { defaultName }),
   writeTextFile: (filePath, content) => invoke('app:writeTextFile', { filePath, content }),
+
+  // 精读/摘要卡片导出（PNG 渲染 / 二进制写盘 / 图片进剪贴板 / 封面降采样）
+  renderCardPng: (payload) => invoke('card:renderPng', payload),
+  writeBinaryFile: (filePath, base64) => invoke('app:writeBinaryFile', { filePath, base64 }),
+  copyImage: (base64) => invoke('app:copyImage', { base64 }),
+  fetchCardCover: (url) => invoke('net:fetchCardCover', url),
 
   // 商店健康 + AI 探索（订阅源发现）
   storeHealth: () => invoke('store:health'),

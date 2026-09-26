@@ -21,6 +21,7 @@ const { CredentialStore } = require('./Account/CredentialStore');
 const { fetchFeed } = require('./FeedService');
 const OPMLService = require('./OPMLService');
 const ArticleExtractor = require('./ArticleExtractor');
+const EpubBuilder = require('./EpubBuilder');
 const { LLMService, LLMServiceError, ArticleChunker } = require('./LLMService');
 const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL, normalizeMinifluxEndpoint } = require('./FreshRSS/FreshRSSClient');
 const { KnowledgeEngine } = require('./KnowledgeEngine');
@@ -1448,6 +1449,94 @@ class AppStore extends EventEmitter {
   }
 
   /**
+   * 同题对比速读（调研报告 2026-09-26 方向 14 v1）：对标题聚类出的多源同题报道做 AI 融合对比。
+   * 非流式（聚类行点按后弹窗等待）；不缓存——每次点按基于当下列表现算，材料本就是摘要预览。
+   */
+  async generateClusterBrief(items) {
+    const list = (Array.isArray(items) ? items : []).filter((it) => it && it.title);
+    if (list.length < 2) throw new Error(i18n.localized('同题报道至少需要两篇才能对比。'));
+    if (list.length > 10) list.length = 10;
+    const { config, apiKey } = this._requireAIReady();
+    const lines = list.map((it, index) => {
+      const preview = String(it.summaryPreview || '').replace(/\s+/g, ' ').slice(0, 140);
+      return `${index + 1}. [${it.sourceTitle || '?'}] ${it.title}${preview ? ' — ' + preview : ''}`;
+    });
+    const prompt = `以下是同一事件/话题的多源报道（每条前的编号即来源编号）：\n${lines.join('\n')}\n\n请生成对比速读，严格输出以下 Markdown 结构（不要添加结构之外的标题）：\n## 一句话结论\n## 各源侧重\n每个来源一条，以「- **[编号]**」开头，一句该源独特的角度或增量信息。\n## 分歧与互补\n1-3 条，指出口径/事实/立场差异或互补信息，条末标注相关来源编号，如 [1][3]。\n只基于给定材料，禁止编造。来源编号必须只使用真实存在的编号。`;
+    const content = await this.llm.complete({
+      prompt,
+      system: '你是一位顶级中文编辑，为读者做「一事多源」的客观对比。只基于给定材料，禁止编造。输出简体中文 Markdown。',
+      configuration: config,
+      apiKey,
+      forceDisableReasoning: true,
+      overrideTemperature: 0.2,
+    });
+    return { content, refs: list.map((it, index) => ({ n: index + 1, id: it.id, title: it.title })) };
+  }
+
+  /** 自定义 CSS（方向 24）：独立读取通道，避免大文本随状态快照频繁传输。 */
+  readerCustomCSS() {
+    return String(this.preferences.get('RobinRead.readerCustomCSS', '') || '');
+  }
+
+  /**
+   * 导出 EPUB 电子书（方向 19 v1）：单篇文章 → EPUB 3。
+   * 正文优先取抓取缓存（阅读器同源），无缓存时退回 RSS content 消毒产物；
+   * 图片保留远端地址（阅读器在线时可加载，离线显示占位）。
+   */
+  exportEntryEpub(entryID) {
+    const entry = this.articlesRepo.entry(entryID);
+    if (!entry) throw new Error('entry not found');
+    const cache = this.cachesRepo.cache(entryID);
+    const html = (cache?.html && String(cache.html).trim()) || (entry.contentHTML
+      ? ArticleExtractor.sanitizedHTML(ArticleExtractor.normalizeFeedMarkup(entry.contentHTML), entry.url)
+      : null);
+    if (!html) throw new Error(i18n.localized('文章暂无正文内容。'));
+    const feed = this.feedsRepo.feed?.(entry.feedID) || null;
+    const buffer = EpubBuilder.buildEntryEpub({
+      title: entry.title || i18n.localized('未命名文章'),
+      author: entry.author || '',
+      feedTitle: feed?.title || '',
+      publishedAt: entry.publishedAt,
+      url: entry.url || '',
+      html,
+    });
+    return buffer.toString('base64');
+  }
+
+  /**
+   * 整期导出 EPUB（方向 19b）：当前列表视野（entryIDs，≤40 篇）打包为一本带目录的多章节电子书。
+   * 单篇正文为空时跳过（不阻塞整期）；全空则报错。
+   */
+  exportEditionEpub(entryIDs) {
+    const ids = (Array.isArray(entryIDs) ? entryIDs : []).slice(0, 40);
+    if (ids.length < 1) throw new Error(i18n.localized('文章暂无正文内容。'));
+    const chapters = [];
+    for (const id of ids) {
+      const entry = this.articlesRepo.entry(id);
+      if (!entry) continue;
+      const cache = this.cachesRepo.cache(id);
+      const html = (cache?.html && String(cache.html).trim()) || (entry.contentHTML
+        ? ArticleExtractor.sanitizedHTML(ArticleExtractor.normalizeFeedMarkup(entry.contentHTML), entry.url)
+        : null);
+      if (!html) continue;
+      const feed = this.feedsRepo.feed?.(entry.feedID) || null;
+      chapters.push({
+        title: entry.title || i18n.localized('未命名文章'),
+        feedTitle: feed?.title || '',
+        publishedAt: entry.publishedAt,
+        html,
+      });
+    }
+    if (!chapters.length) throw new Error(i18n.localized('文章暂无正文内容。'));
+    const now = new Date();
+    const buffer = EpubBuilder.buildEditionEpub({
+      title: `${i18n.localized('知更 · 本期')} · ${now.toISOString().slice(0, 10)}`,
+      chapters,
+    });
+    return buffer.toString('base64');
+  }
+
+  /**
    * 数据管家：每日一次的轻量维护。
    * - 清理孤儿 AI 产物（文章已删除后残留的摘要/翻译/划词解析）
    * - 清理过期正文缓存（45 天前的网页提取结果）
@@ -2732,6 +2821,15 @@ class AppStore extends EventEmitter {
       fontFamily: this.preferences.get('RobinRead.readerFontFamily', 'serif'),
       pageWidth: this.preferences.get('RobinRead.readerPageWidth', 'standard'),
       lineHeight: this.preferences.get('RobinRead.readerLineHeight', 'standard'),
+      // 排版引擎 v2（调研报告 2026-09-26 方向 1/4/7）：段落风格 / 对齐 / 字距 / 中文微排版 / 首字下沉 / 标题字体
+      paraStyle: this.preferences.get('RobinRead.paraStyle', 'spacing'),
+      textAlign: this.preferences.get('RobinRead.textAlign', 'left'),
+      letterSpacing: this.preferences.get('RobinRead.letterSpacing', 'normal'),
+      microTypography: this.preferences.get('RobinRead.microTypography', 'on'),
+      dropCap: this.preferences.get('RobinRead.dropCap', 'off'),
+      titleFont: this.preferences.get('RobinRead.titleFont', 'inherit'),
+      // 双语对照版式（方向 13）：inline 逐句紧跟 / card 对照分行（原译交替，双语刊物式）
+      bilingualStyle: this.preferences.get('RobinRead.bilingualStyle', 'inline'),
       listDensity: this.preferences.get('RobinRead.listDensity', 'comfortable'),
       listSort: this.preferences.get('RobinRead.listSort', 'time'),
       // 时间线展现形态：list 经典列表 / magazine 沉浸杂志（封面卡片网格）
@@ -2748,9 +2846,16 @@ class AppStore extends EventEmitter {
 
   setReaderLayout(patch) {
     const allowed = {
-      fontFamily: ['serif', 'sans'],
+      fontFamily: ['serif', 'sans', 'wenkai'],
       pageWidth: ['narrow', 'standard', 'wide'],
       lineHeight: ['compact', 'standard', 'loose'],
+      paraStyle: ['spacing', 'indent'],
+      textAlign: ['left', 'justify'],
+      letterSpacing: ['normal', 'wide', 'loose'],
+      microTypography: ['on', 'off'],
+      dropCap: ['on', 'off'],
+      titleFont: ['inherit', 'smiley'],
+      bilingualStyle: ['inline', 'card'],
       listDensity: ['compact', 'comfortable'],
       listSort: ['time', 'unreadFirst'],
       listViewMode: ['list', 'magazine'],
@@ -2760,6 +2865,11 @@ class AppStore extends EventEmitter {
     for (const [key, value] of Object.entries(patch || {})) {
       if (key === 'autoTranslateEnglish') {
         this.preferences.set('RobinRead.autoTranslateEnglish', Boolean(value));
+        continue;
+      }
+      // 自定义 CSS（方向 24）：自由字符串，不进 readerLayout 快照（避免每次状态推送携带大文本）
+      if (key === 'customCss') {
+        this.preferences.set('RobinRead.readerCustomCSS', String(value ?? '').slice(0, 40000));
         continue;
       }
       if (allowed[key] && allowed[key].includes(value)) {

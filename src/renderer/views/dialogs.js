@@ -224,10 +224,15 @@ export class SettingsView {
     // ── 阅读排版 ──
     const layout = prefs.readerLayout || { fontFamily: 'serif', pageWidth: 'standard', lineHeight: 'standard', listDensity: 'comfortable' };
     container.appendChild(group(t('阅读排版'), t('字体、页宽、行距与列表密度，即刻生效并跨重启保持。'), [
-      row(t('正文字体'), null, selectControl(
-        [['serif', t('衬线（默认）')], ['sans', t('无衬线')]],
+      row(t('正文字体'), t('霞鹜文楷为内置开源字体（OFL 授权），离线可用，楷体风格适合文艺类长文。'), selectControl(
+        [['serif', t('衬线（默认）')], ['sans', t('无衬线')], ['wenkai', t('霞鹜文楷（内置）')]],
         layout.fontFamily || 'serif',
         async (value) => { await window.robin.setReaderLayout({ fontFamily: value }); this.handlers.onRefreshState?.(); },
+      )),
+      row(t('标题字体'), t('标题、刊头独立选字；得意黑为内置开源斜体黑（OFL 授权），仅适合大标题，不适合正文。'), selectControl(
+        [['inherit', t('跟随正文（默认）')], ['smiley', t('得意黑（内置）')]],
+        layout.titleFont || 'inherit',
+        async (value) => { await window.robin.setReaderLayout({ titleFont: value }); this.handlers.onRefreshState?.(); },
       )),
       row(t('页面宽度'), null, selectControl(
         [['narrow', t('窄')], ['standard', t('标准')], ['wide', t('宽')]],
@@ -239,6 +244,29 @@ export class SettingsView {
         layout.lineHeight || 'standard',
         async (value) => { await window.robin.setReaderLayout({ lineHeight: value }); this.handlers.onRefreshState?.(); },
       )),
+      row(t('段落风格'), t('空行式以段间距分段（西式）；缩进式首行空两格、段间不留空（中文书刊惯例）。'), selectControl(
+        [['spacing', t('空行式（默认）')], ['indent', t('缩进式')]],
+        layout.paraStyle || 'spacing',
+        async (value) => { await window.robin.setReaderLayout({ paraStyle: value }); this.handlers.onRefreshState?.(); },
+      )),
+      row(t('文字对齐'), t('两端对齐左右边缘齐平，更接近报刊排版；左对齐则行长自然。'), selectControl(
+        [['left', t('左对齐（默认）')], ['justify', t('两端对齐')]],
+        layout.textAlign || 'left',
+        async (value) => { await window.robin.setReaderLayout({ textAlign: value }); this.handlers.onRefreshState?.(); },
+      )),
+      row(t('字距'), t('在默认字距基础上微调正文字间距；代码块不受影响。'), selectControl(
+        [['normal', t('标准')], ['wide', t('微宽')], ['loose', t('疏朗')]],
+        layout.letterSpacing || 'normal',
+        async (value) => { await window.robin.setReaderLayout({ letterSpacing: value }); this.handlers.onRefreshState?.(); },
+      )),
+      toggleRow(t('中文微排版'), t('中西文相邻处自动加约 1/4 字宽间隙（盘古之白）并挤压行首行尾标点，符合 W3C 中文排版规范；只改版面不改文字，复制与搜索不受影响。'), layout.microTypography !== 'off', async (v) => {
+        await window.robin.setReaderLayout({ microTypography: v ? 'on' : 'off' });
+        this.handlers.onRefreshState?.();
+      }),
+      toggleRow(t('首字下沉'), t('杂志版式：正文首段首字放大并下沉两行，中英文均适用。'), layout.dropCap === 'on', async (v) => {
+        await window.robin.setReaderLayout({ dropCap: v ? 'on' : 'off' });
+        this.handlers.onRefreshState?.();
+      }),
       row(t('列表密度'), t('紧凑模式隐藏摘要，仅显示标题行。'), selectControl(
         [['comfortable', t('舒适')], ['compact', t('紧凑')]],
         layout.listDensity || 'comfortable',
@@ -253,7 +281,32 @@ export class SettingsView {
         layout.translateMode && layout.translateMode !== 'off' ? layout.translateMode : 'bilingual',
         async (value) => { await window.robin.setReaderLayout({ translateMode: value }); this.handlers.onRefreshState?.(); },
       )),
+      row(t('对照版式'), t('对照分行将原句独立成块，译文缩进悬挂其下，更接近双语刊物版式；逐句紧跟保持译文贴行显示。'), selectControl(
+        [['inline', t('逐句紧跟（默认）')], ['card', t('对照分行（双语刊物式）')]],
+        layout.bilingualStyle || 'inline',
+        async (value) => { await window.robin.setReaderLayout({ bilingualStyle: value }); this.handlers.onRefreshState?.(); },
+      )),
     ]));
+
+    // ── 自定义样式（方向 24）：CSS 注入阅读器窗口 ──
+    const cssWrap = document.createElement('div');
+    cssWrap.style.cssText = 'padding:12px 16px;display:flex;flex-direction:column;gap:8px;';
+    const cssArea = document.createElement('textarea');
+    cssArea.className = 'nj-css-input';
+    cssArea.rows = 4;
+    cssArea.spellcheck = false;
+    cssArea.placeholder = t('贴入自定义 CSS，如调整字体、间距、配色…');
+    cssArea.value = await window.robin.readerCustomCSS?.() || '';
+    let cssTimer = null;
+    cssArea.addEventListener('input', () => {
+      clearTimeout(cssTimer);
+      cssTimer = setTimeout(async () => {
+        await window.robin.setReaderLayout({ customCss: cssArea.value });
+        document.dispatchEvent(new CustomEvent('robinread:custom-css', { detail: cssArea.value }));
+      }, 400);
+    });
+    cssWrap.appendChild(cssArea);
+    container.appendChild(group(t('自定义样式'), t('注入自定义 CSS，实时生效并跨重启保持；供高级用户深度定制字体、间距与配色。'), [cssWrap]));
 
     // ── 存储与历史记录 ──（保留期限淘汰超期已读；未读/收藏/稍后读永不清理）
     const maintenance = (await window.robin.getMaintenance().catch(() => null)) || { retentionDays: 0 };

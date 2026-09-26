@@ -7,6 +7,7 @@
  */
 const path = require('node:path');
 const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
 const { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, session, nativeImage, protocol, shell, Notification } = require('electron');
 const { checkForUpdate } = require('./UpdateCheckService');
 const { errorMessage } = require('./AppStore');
@@ -473,6 +474,7 @@ function registerIPCHandlers(store, window) {
 
   // MARK: 阅读排版
   handle('prefs:setReaderLayout', (patch) => store.setReaderLayout(patch));
+  handle('prefs:readerCustomCSS', () => store.readerCustomCSS());
   handle('prefs:setFilterRules', (patch) => store.setFilterRules(patch));
 
   // MARK: 阅读状态
@@ -496,6 +498,18 @@ function registerIPCHandlers(store, window) {
   // MARK: 图片字节抓取（深色纸面插图反相的像素分析）
   handle('net:fetchImage', (url) => store.fetchImageBytes(url));
 
+  // 分享卡片封面：抓取后降采样（原图最大 3MB，直接内嵌会让导出慢、渲染内存高）
+  handle('net:fetchCardCover', async (url) => {
+    const base64 = await store.fetchImageBytes(url);
+    const image = nativeImage.createFromBuffer(Buffer.from(base64, 'base64'));
+    if (image.isEmpty()) throw new Error('封面图片无效');
+    const { width } = image.getSize();
+    let out = image;
+    if (width > 1400) out = image.resize({ width: 1400 });
+    const jpeg = out.toJPEG(82);
+    return (jpeg.length > 0 ? jpeg : image.toPNG()).toString('base64');
+  });
+
   // MARK: 账户
   handle('accounts:addFreshRSS', (payload) => store.addFreshRSSAccount(payload));
   handle('accounts:validate', ({ endpointURL, username, password }) => store.validateFreshRSSCredentials(endpointURL, username, password));
@@ -505,6 +519,9 @@ function registerIPCHandlers(store, window) {
 
   // MARK: AI
   handle('ai:generateSummary', (entryID) => store.generateSummary(entryID));
+  handle('ai:clusterBrief', (items) => store.generateClusterBrief(items));
+  handle('app:exportEpub', (entryID) => store.exportEntryEpub(entryID));
+  handle('app:exportEditionEpub', (entryIDs) => store.exportEditionEpub(entryIDs));
   handle('ai:deepRead', (entryID) => store.deepRead(entryID));
   handle('ai:richSummary', (entryID) => store.richSummary(entryID));
   handle('ai:existingWork', (entryID, kind) => store.existingArticleWork(entryID, kind));
@@ -722,6 +739,85 @@ function registerIPCHandlers(store, window) {
     fs.writeFileSync(filePath, String(content ?? ''), 'utf8');
     return true;
   });
+  handle('app:writeBinaryFile', ({ filePath, base64 } = {}) => {
+    if (!filePath || typeof filePath !== 'string') throw new Error('缺少有效的文件路径');
+    fs.writeFileSync(filePath, Buffer.from(String(base64 ?? ''), 'base64'));
+    return true;
+  });
+  // 分享卡片图：复制 PNG 到剪贴板（renderer 端 clipboard 失焦会失败，必须走主进程）
+  handle('app:copyImage', ({ base64 } = {}) => {
+    const image = nativeImage.createFromBuffer(Buffer.from(String(base64 ?? ''), 'base64'));
+    if (image.isEmpty()) throw new Error('图片数据无效');
+    clipboard.writeImage(image);
+    return true;
+  });
+
+  // MARK: 精读/摘要卡片导出 PNG（隐藏 offscreen 窗口 + 真 Chromium 渲染 + capturePage）
+  let cardExportWin = null;
+  let cardExportChain = Promise.resolve();
+  const getCardExportWindow = () => {
+    if (cardExportWin && !cardExportWin.isDestroyed()) return cardExportWin;
+    cardExportWin = new BrowserWindow({
+      show: false, width: 1500, height: 1000, useContentSize: true,
+      webPreferences: { offscreen: true, contextIsolation: true, sandbox: true, nodeIntegration: false },
+    });
+    cardExportWin.on('closed', () => { cardExportWin = null; });
+    return cardExportWin;
+  };
+  let templatesModule = null;
+  const loadTemplatesModule = async () => {
+    if (!templatesModule) {
+      templatesModule = await import(pathToFileURL(path.join(__dirname, '../renderer/card-export/templates.js')).href);
+    }
+    return templatesModule;
+  };
+  handle('card:renderPng', ({ templateId, data, options, zoom = 2, ratio = null } = {}) => {
+    // 串行化：隐藏窗口同一时刻只渲染一张（排队执行，结果按序返回）
+    const task = cardExportChain.catch(() => {}).then(() =>
+      renderCardPngOnce({ templateId, data, options, zoom, ratio }));
+    cardExportChain = task.catch(() => {});
+    return task;
+  });
+  async function renderCardPngOnce({ templateId, data, options, zoom, ratio }) {
+    const { renderStagePage } = await loadTemplatesModule();
+    const win = getCardExportWindow();
+    const opts = { zoom, ratio, naturalHeight: null };
+    const page = renderStagePage(data, options, opts);
+
+    const tmpPath = path.join(app.getPath('temp'), `robin-card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.html`);
+    fs.writeFileSync(tmpPath, page.html, 'utf8');
+    try {
+      const measure = async () => {
+        await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
+        await win.webContents.executeJavaScript('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+        return JSON.parse(await win.webContents.executeJavaScript(
+          '(()=>{const r=document.querySelector(".xc-card").getBoundingClientRect();return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height)})})()'
+        ));
+      };
+      // 第一遍：自然高度测量（ratio 适配需要真实内容高度）
+      await win.loadFile(tmpPath);
+      let rect = await measure();
+      let finalPage = page;
+      if (ratio && rect.h > 0) {
+        finalPage = renderStagePage(data, options, { zoom, ratio, naturalHeight: rect.h / zoom });
+        fs.writeFileSync(tmpPath, finalPage.html, 'utf8');
+        await win.loadFile(tmpPath);
+        await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
+        await new Promise((r) => setTimeout(r, 120));
+        rect = { w: finalPage.width, h: finalPage.height };
+      }
+      const height = Math.min(rect.h, 16000);
+      win.setContentSize(rect.w, height);
+      win.setBackgroundColor(finalPage.bg);
+      await new Promise((r) => setTimeout(r, 140));
+      const image = await win.webContents.capturePage();
+      const png = image.toPNG();
+      if (png.length < 1000) throw new Error('卡片渲染结果为空');
+      return { base64: png.toString('base64'), width: rect.w, height, truncated: rect.h > 16000 };
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) { /* 临时文件清理失败可忽略 */ }
+    }
+  }
 
   // MARK: 桌面通用偏好（关闭到托盘 / 新文章通知）
   handle('prefs:getGeneral', () => ({

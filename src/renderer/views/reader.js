@@ -14,6 +14,9 @@ import { icon } from '../icons.js';
 import { formatFullDate } from './list.js';
 import { renderMarkdown } from '../markdown.js';
 import { ContextMenu } from './context-menu.js';
+import * as CJKMicro from './cjk-micro.js';
+import { parseArtifactToCard, extractFirstImage, base64ImageToDataURI } from '../card-export/parse.js';
+import { openCardExportModal } from '../card-export/preview.js';
 
 const MAX_TRANSLATION_FAILURES = 2;
 // 逐句双语：视口批量按「句」计（一段约 3-6 句），调大批次减少往返
@@ -47,6 +50,8 @@ export class ReaderView {
     this.handlers = handlers;
     // 深色⇄浅色切换：清掉/重算插图反相（切换到浅色必须移除 filter）
     document.addEventListener('robinread:theme-applied', () => this._applyDarkPaperInversion(true));
+    // 排版设置变更：微排版是 DOM 结构性的（spacer 增删），需在打开的文章上重建
+    document.addEventListener('robinread:reader-layout-changed', () => this._applyMicroTypography());
 
     this.entryID = null;
     this.entry = null;
@@ -299,9 +304,28 @@ export class ReaderView {
     ContextMenu.show(x, y, [
       { label: t('复制全文 Markdown'), icon: 'copy', onClick: () => this._copyArticleMarkdown() },
       { label: t('导出为 Markdown 文件'), icon: 'docText', onClick: () => this._exportMarkdownFile() },
+      { label: t('导出为 EPUB 电子书'), icon: 'bookOpen', onClick: () => this._exportEpubFile() },
       { type: 'separator' },
       { label: t('打印 / 存为 PDF'), icon: 'newspaper', onClick: () => window.print() },
     ]);
+  }
+
+  /** 导出 EPUB（方向 19）：主进程构建（缓存正文优先）→ base64 → pickSavePath + writeBinaryFile。 */
+  async _exportEpubFile() {
+    try {
+      const base64 = await window.robin.exportEpub(this.entryID);
+      if (!base64) throw new Error(t('导出失败：没有可导出的内容。'));
+      const rawName = (this.entry?.title || '').trim() || t('未命名文章');
+      const safeName = rawName.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 80) || t('未命名文章');
+      const picked = await window.robin.pickSavePath(`${safeName}.epub`);
+      const filePath = picked?.ok ? picked.data : null;
+      if (!filePath) return; // 用户取消
+      const written = await window.robin.writeBinaryFile(filePath, base64);
+      if (!written?.ok) throw new Error(written?.error || t('写入文件失败'));
+      this.handlers.onFeedback?.(t('已导出'));
+    } catch (err) {
+      this.handlers.onFeedback?.(`${t('导出失败')}：${err?.message || err}`);
+    }
   }
 
   /** 复制全文 Markdown（kb:exportMarkdown → KnowledgeEngine.exportToMarkdown 返回纯字符串）。 */
@@ -428,6 +452,7 @@ export class ReaderView {
     article.className = 'reader-article';
     article.appendChild(this._buildHeader());
     this.body = document.createElement('div');
+    this.body.className = 'robin-body';
     article.appendChild(this.body);
     this.scrollEl.appendChild(article);
     this._articleEl = article; // 翻页动效挂载点
@@ -443,6 +468,8 @@ export class ReaderView {
     this._setBodyHTML(this.html);
     this._normalizeArticle();
     this._restructureArticle();
+    // 中文微排版（盘古之白）：空 spacer 不改 textContent，段落标注 / 句子包裹 / 高亮锚点全部不受影响
+    this._applyMicroTypography();
     // 代码高亮与公式渲染必须在段落标注（data-nj-id）/批注锚点之前完成：
     // 两者都只做「节点内部」的文本拆分与包裹，不改块结构，不会使后续锚点失效
     this._highlightCodeBlocks();
@@ -547,6 +574,10 @@ export class ReaderView {
     this.summaryCard.addEventListener('click', (event) => {
       if (event.target.closest('[data-action="regenerate"]')) {
         this.generateSummary(true);
+        return;
+      }
+      if (event.target.closest('[data-action="card-export"]')) {
+        this._openCardExport('summary');
         return;
       }
       if (event.target.closest('[data-action="feedback"]')) {
@@ -994,6 +1025,21 @@ export class ReaderView {
   }
 
   /**
+   * 中文微排版（盘古之白，clreq §3.1.4）：中西文相邻处插空 spacer。
+   * - 设置「中文微排版」开关控制；关闭时只移除 spacer（幂等，可随时重建）
+   * - spacer 无文字内容：复制/搜索/高亮/批注锚点零影响；代码块与译文内部不处理
+   */
+  _applyMicroTypography() {
+    if (!this.body) return;
+    try {
+      CJKMicro.removeGaps(this.body);
+      const layout = window.__robinReaderLayout || {};
+      if (layout.microTypography === 'off') return;
+      CJKMicro.insertGaps(this.body);
+    } catch (_) { /* 微排版失败不影响正文阅读 */ }
+  }
+
+  /**
    * 逐句双语：把英文正文的叶子段落按句子包进 <span class="nj-s" data-sent="pNsM">。
    * - 只在英文文章上包裹（中文文章不翻译，无需扰动 DOM）
    * - 只处理「叶子」块（无嵌套块级内容、非 pre/table/媒体）
@@ -1283,6 +1329,7 @@ export class ReaderView {
       } else {
         footer = `<div class="robin-summary-feedback">
           <span class="robin-summary-feedback-label">${escapeHTML(t('这条摘要怎么样？'))}</span>
+          <button class="robin-summary-action-btn" data-action="card-export" title="${attr(t('导出卡片图'))}">${icon('export')}</button>
           <button class="robin-summary-feedback-btn" data-action="feedback" data-rating="1" title="${attr(t('有帮助'))}">👍</button>
           <button class="robin-summary-feedback-btn" data-action="feedback" data-rating="-1" title="${attr(t('没帮助'))}">👎</button>
         </div>`;
@@ -3045,6 +3092,7 @@ export class ReaderView {
         <span class="study-panel-title"></span>
         <span class="study-panel-state${s.generating ? ' is-busy' : ''}">${s.generating ? t('生成中…') : (s.error ? t('生成失败') : t('已完成'))}</span>
         <button class="study-panel-btn" data-act="regen" title="${escapeHTML(t('重新生成'))}">${icon('refresh')}</button>
+        ${(s.artifact?.content && !s.generating && !s.error) ? `<button class="study-panel-btn" data-act="export" title="${escapeHTML(t('导出卡片图'))}">${icon('export')}</button>` : ''}
         <button class="study-panel-btn" data-act="close" title="${escapeHTML(t('关闭'))}">${icon('close')}</button>
       </div>
       <div class="study-panel-body${s.generating ? ' streaming' : ''}"></div>`;
@@ -3068,11 +3116,50 @@ export class ReaderView {
       event.stopPropagation();
       this.openStudy(s.kind);
     });
+    const exportBtn = panel.querySelector('[data-act="export"]');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this._openCardExport(s.kind);
+      });
+    }
     panel.querySelector('.study-panel-head').addEventListener('click', (event) => {
       if (event.target.closest('.study-panel-btn')) return;
       this._toggleStudyCollapsed();
     });
     if (!streamTick && !s.collapsed) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /** 汇总当前文章元信息 + AI 产物为卡片导出数据（无产物返回 null）。 */
+  _buildCardExportData(kind) {
+    const artifact = kind === 'summary' ? this.summary?.artifact : this._study?.artifact;
+    if (!artifact?.content) return null;
+    const entry = this.entry || {};
+    const parsed = parseArtifactToCard(artifact.content, kind);
+    return {
+      kind,
+      title: entry.title || t('未命名文章'),
+      feedTitle: this.feed?.title || '',
+      date: entry.publishedAt ? formatFullDate(entry.publishedAt) : '',
+      cover: null,
+      coverURL: extractFirstImage(this.html || ''),
+      link: /^https?:/i.test(entry.url || '') ? entry.url : '',
+      ...parsed,
+    };
+  }
+
+  /** 打开「导出卡片图」预览弹窗（封面图先经主进程取字节转 data URI 内嵌，避免导出时网络时序）。 */
+  async _openCardExport(kind) {
+    const data = this._buildCardExportData(kind);
+    if (!data) return;
+    if (data.coverURL) {
+      try {
+        const result = await window.robin.fetchCardCover(data.coverURL);
+        if (result?.ok && result.data) data.cover = base64ImageToDataURI(result.data);
+      } catch (_) { data.cover = null; }
+    }
+    delete data.coverURL;
+    await openCardExportModal({ data, link: data.link });
   }
 
   /** 研读面板折叠切换：记住用户偏好（之后新面板默认保持该形态）。 */

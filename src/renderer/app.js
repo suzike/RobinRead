@@ -19,6 +19,7 @@ import { ReaderView } from './views/reader.js';
 import { SettingsView, showAddFeed, showAddFolder, showRenameFolder, showFreshRSSAccount } from './views/dialogs.js';
 import { ShortcutsView } from './views/shortcuts.js';
 import { ContextMenu } from './views/context-menu.js';
+import { CommandPalette } from './views/command-palette.js';
 import {
   normalizeTokens, switchModeTokens, fullPalette, applyPalette, clearPalette,
   persistTokens, clearTokens, pushRecent,
@@ -111,6 +112,8 @@ async function bootstrap() {
     onLoadMore: loadMoreEntries,
     onSearch: runSearch,
     onDigest: showTodayDigest,
+    onClusterBrief: showClusterBrief,
+    onExportEdition: showEditionExport,
     onToggleSort: () => {
       const next = currentListSort() === 'unreadFirst' ? 'time' : 'unreadFirst';
       window.robin.setReaderLayout({ listSort: next });
@@ -162,6 +165,22 @@ function applyFontSize(size) {
   document.documentElement.style.setProperty('--article-font-size', `${size || 17}px`);
 }
 
+/** 自定义 CSS（方向 24）：注入 <style id="nj-custom-css">，空值时移除（幂等）。 */
+function applyCustomCSS(css) {
+  let el = document.getElementById('nj-custom-css');
+  const value = String(css || '');
+  if (!value.trim()) {
+    el?.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'nj-custom-css';
+    document.head.appendChild(el);
+  }
+  el.textContent = value;
+}
+
 function syncLLMGlobals(snapshot) {
   window.__robinLLM = { ...(snapshot?.llm || {}), __hasKey: snapshot?.hasAPIKey !== false };
 }
@@ -169,14 +188,38 @@ function syncLLMGlobals(snapshot) {
 /** 恢复 / 重应用自定义主题（跟随当前明暗模式）。 */
 function applyReaderLayout(layout) {
   const root = document.documentElement;
-  const fontMap = { serif: 'var(--font-serif)', sans: 'var(--font-sans)' };
+  const fontMap = { serif: 'var(--font-serif)', sans: 'var(--font-sans)', wenkai: '"LXGW WenKai Screen", var(--font-serif)' };
   const widthMap = { narrow: '680px', standard: '820px', wide: '960px' };
   const heightMap = { compact: '1.55', standard: '1.72', loose: '1.95' };
   root.style.setProperty('--reader-font', fontMap[layout?.fontFamily] || fontMap.serif);
   root.style.setProperty('--reader-page-width', widthMap[layout?.pageWidth] || widthMap.standard);
   root.style.setProperty('--reader-line-height', heightMap[layout?.lineHeight] || heightMap.standard);
-  document.body.dataset.listDensity = layout?.listDensity || 'comfortable';
+  // 排版引擎 v2：字距走 CSS 变量；段落风格/对齐/微排版/首字下沉走 body 标记（CSS 按标记生效）
+  const letterMap = { normal: '0.006em', wide: '0.028em', loose: '0.05em' };
+  root.style.setProperty('--reader-letter-spacing', letterMap[layout?.letterSpacing] || letterMap.normal);
+  const titleMap = { inherit: 'var(--font-serif)', smiley: '"Smiley Sans", var(--font-serif)' };
+  root.style.setProperty('--reader-title-font', titleMap[layout?.titleFont] || titleMap.inherit);
+  document.body.dataset.bilingualStyle = layout?.bilingualStyle === 'card' ? 'card' : 'inline';
+  // 自定义 CSS（方向 24）：首次应用状态时从独立通道拉取一次，之后的变更由设置页事件推送
+  if (!applyReaderLayout._cssHook) {
+    applyReaderLayout._cssHook = true;
+    document.addEventListener('robinread:custom-css', (event) => applyCustomCSS(event.detail));
+    window.robin.readerCustomCSS?.().then((css) => applyCustomCSS(css)).catch(() => {});
+  }
+  document.body.dataset.readerPara = layout?.paraStyle === 'indent' ? 'indent' : 'spacing';
+  document.body.dataset.readerAlign = layout?.textAlign === 'justify' ? 'justify' : 'left';
+  document.body.classList.toggle('rp-micro-off', layout?.microTypography === 'off');
+  document.body.classList.toggle('rp-dropcap', layout?.dropCap === 'on');
   window.__robinReaderLayout = layout || {};
+  // 微排版是 DOM 结构性的（spacer 增删）：设置变化时通知阅读器在已打开的文章上重建。
+  // 必须在 __robinReaderLayout 更新之后再派发——阅读器按新值重建
+  const micro = layout?.microTypography === 'off' ? 'off' : 'on';
+  if (micro !== applyReaderLayout._lastMicro) {
+    const microChanged = applyReaderLayout._lastMicro !== undefined;
+    applyReaderLayout._lastMicro = micro;
+    if (microChanged) document.dispatchEvent(new CustomEvent('robinread:reader-layout-changed'));
+  }
+  document.body.dataset.listDensity = layout?.listDensity || 'comfortable';
   // 列表排序：状态变化时更新按钮并重拉列表（排序影响行序）
   const listSort = layout?.listSort === 'unreadFirst' ? 'unreadFirst' : 'time';
   if (views.list?.setSortButton) views.list.setSortButton(listSort);
@@ -245,6 +288,7 @@ function buildToolbar() {
   set('cap-read', icon('envelopeClosed'));
   set('cap-star', icon('star'));
   set('cap-zen', icon('expand'));
+  set('cap-focus', icon('eye'), t('聚焦模式：非当前段落渐暗（F）'));
   set('cap-highlight', icon('marker'), t('高亮：选中文字快速高亮（H）；无选区打开批注面板'));
   set('cap-note', icon('noteSticky'), t('批注面板：本篇高亮与笔记'));
   set('cap-review', icon('refresh'), t('加入复习'));
@@ -323,6 +367,7 @@ function bindToolbar() {
   document.getElementById('cap-rsummary').addEventListener('click', () => dispatchReaderAction('richSummary'));
   document.getElementById('cap-star').addEventListener('click', () => toggleStarWithGuide());
   document.getElementById('cap-zen').addEventListener('click', toggleZenMode);
+  document.getElementById('cap-focus').addEventListener('click', toggleFocusMode);
 
   // 批注按钮：高亮（有选区 → 快速高亮；无选区 → 批注面板）/ 笔记（批注面板）
   const capHl = document.getElementById('cap-highlight');
@@ -486,6 +531,59 @@ function toggleZenMode() {
   updateToolbarState();
   syncToolbarZones();
   requestAnimationFrame(() => views.reader?.refreshScrollMetrics());
+}
+
+/** 聚焦模式（方向 11）：非当前段落渐暗，指针所在段保持清晰；会话级开关，再按退出。 */
+function toggleFocusMode() {
+  const on = document.body.classList.toggle('rp-focus');
+  showToast(on ? t('聚焦模式：指针所在段落保持清晰，F 或再点按钮退出') : t('已退出聚焦模式'));
+}
+
+// MARK: - 命令面板（方向 22）
+
+let commandPalette = null;
+
+function buildPaletteCommands() {
+  const commands = [
+    { label: t('打开：今天'), keywords: 'today 今日', icon: 'sun', hint: '1', action: () => handleScopeSelect({ kind: 'today' }) },
+    { label: t('打开：未读'), keywords: 'unread 未读', icon: 'envelopeClosed', hint: '2', action: () => handleScopeSelect({ kind: 'unread' }) },
+    { label: t('打开：收藏'), keywords: 'starred 收藏 star', icon: 'star', action: () => handleScopeSelect({ kind: 'starred' }) },
+    { label: t('打开：稍后读'), keywords: 'later 稍后读 read later', icon: 'clock', action: () => handleScopeSelect({ kind: 'later' }) },
+    { label: t('切换：杂志视图 / 列表视图'), keywords: 'magazine list view 杂志 列表 视图', icon: 'newspaper', action: () => window.robin.setReaderLayout({ listViewMode: window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine' }) },
+    { label: t('切换：浅色 / 深色主题'), keywords: 'theme dark light 主题 深色 浅色', icon: 'appearance', action: () => window.robin.setTheme(document.body.classList.contains('dark') ? 'light' : 'dark') },
+    { label: t('切换：聚焦模式'), keywords: 'focus 聚焦 渐暗', icon: 'eye', hint: 'F', action: toggleFocusMode },
+    { label: t('切换：禅模式'), keywords: 'zen 禅 全屏', icon: 'expand', action: toggleZenMode },
+    { label: t('打开：今日简报'), keywords: 'digest 简报 日报 ai', icon: 'spark', action: () => showTodayDigest() },
+    { label: t('打开：AI 热点'), keywords: 'aihot 热点 趋势', icon: 'flame', action: openAihotView },
+    { label: t('打开：知识库'), keywords: 'knowledge 知识 高亮 复习', icon: 'bookOpen', hint: 'Ctrl+K', action: openKnowledgeCenter },
+    { label: t('打开：设置'), keywords: 'settings 设置 preference', icon: 'gear', action: () => showSettings('appearance') },
+    { label: t('刷新全部订阅'), keywords: 'refresh 刷新 订阅', icon: 'refresh', action: () => window.robin.refresh() },
+    { label: t('增大字号'), keywords: 'font size larger 字号 增大', icon: 'textLarger', action: () => adjustFontSize(1) },
+    { label: t('减小字号'), keywords: 'font size smaller 字号 减小', icon: 'textSmaller', action: () => adjustFontSize(-1) },
+  ];
+  // 订阅源直达：侧栏账号树展开为「来源：源名」命令（上限 40，防面板过长）
+  const accounts = window.__robinSidebar || [];
+  let added = 0;
+  for (const account of accounts) {
+    for (const feed of (account.allFeeds || [])) {
+      if (added >= 40) break;
+      if (!feed?.id) continue;
+      commands.push({
+        label: `${t('来源')}：${feed.title || feed.id}`,
+        keywords: `feed ${feed.title || ''}`,
+        icon: 'globe',
+        action: () => handleScopeSelect({ kind: 'feed', feedID: feed.id }),
+      });
+      added += 1;
+    }
+    if (added >= 40) break;
+  }
+  return commands;
+}
+
+function openCommandPalette() {
+  commandPalette = commandPalette || new CommandPalette();
+  commandPalette.present(buildPaletteCommands());
 }
 
 function toggleSidebarCollapsed() {
@@ -795,6 +893,89 @@ async function showTodayDigest({ forceRegenerate = false } = {}) {
 function escapeHTMLInline(value) {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+/**
+ * 同题对比速读（方向 14 v1）：聚类行「AI 速读」按钮 → 多源同题报道的 AI 融合对比弹窗。
+ * 与今日简报同管线约定：门控在渲染层（gateAI），材料用列表摘要预览，来源编号点击跳原文。
+ */
+async function showClusterBrief(items) {
+  const list = (items || []).filter((it) => it && it.title);
+  if (list.length < 2) return;
+  if (!(await views.account?.gateAI())) {
+    showToast(t('对比速读需要会员或每日 AI 额度。'));
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.addEventListener('mousedown', (event) => { if (event.target === overlay) overlay.remove(); });
+  const modal = document.createElement('div');
+  modal.className = 'modal nj-brief-modal';
+  modal.innerHTML = `
+    <div class="nj-brief-head">
+      <h3></h3>
+      <span class="nj-brief-sub"></span>
+      <button class="nj-brief-close">${icon('close')}</button>
+    </div>
+    <div class="nj-brief-body loading"></div>
+    <div class="nj-brief-refs"></div>
+    <div class="nj-brief-foot"><button class="btn-text nj-brief-copy"></button></div>`;
+  modal.querySelector('h3').textContent = t('同题对比速读');
+  modal.querySelector('.nj-brief-sub').textContent = `${list.length} ${t('个来源')}`;
+  modal.querySelector('.nj-brief-close').addEventListener('click', () => overlay.remove());
+  modal.querySelector('.nj-brief-copy').textContent = t('复制全文');
+  const body = modal.querySelector('.nj-brief-body');
+  const refsHost = modal.querySelector('.nj-brief-refs');
+  const copyBtn = modal.querySelector('.nj-brief-copy');
+  let lastContent = '';
+  copyBtn.addEventListener('click', async () => {
+    const ok = await window.robin.copyText(lastContent);
+    showToast(ok ? t('已复制') : t('复制失败'));
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const result = await window.robin.clusterBrief(list.map((it) => ({
+    id: it.id, title: it.title, sourceTitle: it.sourceTitle || '', summaryPreview: it.summaryPreview || '',
+  }))).catch((error) => ({ ok: false, error: String(error?.message || error) }));
+  body.classList.remove('loading');
+  if (!result.ok) {
+    body.textContent = result.error || t('生成失败');
+    return;
+  }
+  lastContent = result.data?.content || '';
+  body.innerHTML = renderMarkdown(lastContent);
+  copyBtn.style.display = '';
+  for (const ref of result.data?.refs || []) {
+    const chip = document.createElement('button');
+    chip.className = 'dg-ref';
+    chip.textContent = String(ref.n);
+    chip.title = ref.title || '';
+    chip.addEventListener('click', () => {
+      overlay.remove();
+      handleEntrySelect(ref.id, null);
+    });
+    refsHost.appendChild(chip);
+  }
+}
+
+/** 整期导出 EPUB（方向 19b）：刊头「导出本期」→ 主进程打包 → 存盘。 */
+async function showEditionExport(entryIDs) {
+  const ids = (entryIDs || []).slice(0, 40);
+  if (!ids.length) return;
+  showToast(t('正在打包本期 EPUB…'));
+  try {
+    const base64 = await window.robin.exportEditionEpub(ids);
+    if (!base64) throw new Error(t('导出失败：没有可导出的内容。'));
+    const picked = await window.robin.pickSavePath(`知更-本期-${new Date().toISOString().slice(0, 10)}.epub`);
+    const filePath = picked?.ok ? picked.data : null;
+    if (!filePath) return; // 用户取消
+    const written = await window.robin.writeBinaryFile(filePath, base64);
+    if (!written?.ok) throw new Error(written?.error || t('写入文件失败'));
+    showToast(t('已导出'));
+  } catch (err) {
+    showToast(`${t('导出失败')}：${err?.message || err}`);
+  }
+}
 async function loadMoreEntries() {
   if (state.listItems.length === 0 || state.listItems.length % 100 !== 0) return;
   const result = await window.robin.getList(state.scope, {
@@ -1009,6 +1190,10 @@ function bindKeyboard() {
     if ((event.ctrlKey || event.metaKey) && event.code === 'KeyK') {
       event.preventDefault(); openKnowledgeCenter(); return;
     }
+    // Ctrl/Cmd+Shift+P：命令面板（方向 22）
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.code === 'KeyP') {
+      event.preventDefault(); openCommandPalette(); return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.code === 'Slash') {
       event.preventDefault(); new ShortcutsView().present(); return;
     }
@@ -1019,6 +1204,12 @@ function bindKeyboard() {
     if (event.code === 'KeyJ' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
       event.preventDefault();
       navigateList(1);
+      return;
+    }
+    // F：聚焦模式（方向 11）
+    if (event.code === 'KeyF' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      toggleFocusMode();
       return;
     }
     if (event.code === 'KeyK' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
