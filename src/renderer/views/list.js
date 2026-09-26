@@ -130,6 +130,7 @@ export class ListView {
     this.rowsHost.appendChild(fragment);
     this.markSelected(selectedID);
     this._observeReveal();
+    this._mountResumeCard();
   }
 
   titleForScope(scope) {
@@ -290,6 +291,7 @@ export class ListView {
     this.rowsHost.appendChild(grid);
     this.markSelected(selectedID);
     this._observeReveal();
+    this._mountResumeCard();
   }
 
   /**
@@ -546,6 +548,31 @@ export class ListView {
       el.classList.add('nj-reveal-pending');
       this._revealObserver.observe(el);
     });
+  }
+
+  /** 继续阅读卡（知识增强）：「今天」视野顶部恢复上次未读完的文。 */
+  setResume(candidate) {
+    this.resumeCandidate = candidate;
+  }
+
+  _mountResumeCard() {
+    this.rowsHost?.querySelector('.nj-resume-card')?.remove();
+    const candidate = this.resumeCandidate;
+    if (!candidate || this.scope?.kind !== 'today') return;
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'nj-resume-card';
+    card.innerHTML = `
+      <span class="nj-resume-icon">${icon('bookOpen')}</span>
+      <span class="nj-resume-main">
+        <span class="nj-resume-label">${escapeHTML(t('继续阅读'))}</span>
+        <span class="nj-resume-title"></span>
+        <span class="nj-resume-meta">${escapeHTML(candidate.feed || '')}</span>
+      </span>
+      <span class="nj-resume-pct">${candidate.pct}%</span>`;
+    card.querySelector('.nj-resume-title').textContent = candidate.title || t('未命名文章');
+    card.addEventListener('click', () => this.handlers.onResumeOpen?.(candidate));
+    this.rowsHost.insertBefore(card, this.rowsHost.firstChild);
   }
 
   setLaterAges(ageMap) {

@@ -329,7 +329,7 @@ export class ReaderView {
       const html = await window.robin.exportHtml(this.entryID);
       if (!html) throw new Error(t('导出失败：没有可导出的内容。'));
       const rawName = (this.entry?.title || '').trim() || t('未命名文章');
-      const safeName = rawName.replace(/[\/:*?"<>| -]/g, '_').slice(0, 80) || t('未命名文章');
+      const safeName = rawName.replace(/[\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 80) || t('未命名文章');
       const picked = await window.robin.pickSavePath(`${safeName}.html`);
       const filePath = picked?.ok ? picked.data : null;
       if (!filePath) return; // 用户取消
@@ -441,6 +441,37 @@ export class ReaderView {
   }
 
   /** 记录阅读位置并同步写回 localStorage。 */
+  // MARK: - 继续阅读（知识增强）：3 秒节流记录未完成进度，供「今天」视野顶部续读卡
+
+  _trackResume(pct) {
+    const now = Date.now();
+    if (this._resumeAt && now - this._resumeAt < 3000) return;
+    this._resumeAt = now;
+    try {
+      const map = JSON.parse(localStorage.getItem('robinread.resume') || '{}');
+      const id = this.entryID;
+      if (!id) return;
+      if (pct >= 3 && pct < 97) map[id] = { pct, at: Date.now(), title: this.entry?.title || '', feed: this.feed?.title || '' };
+      else delete map[id]; // 未开始或已读完：移出续读
+      localStorage.setItem('robinread.resume', JSON.stringify(map));
+    } catch (_) { /* 隐私模式：放弃持久化 */ }
+  }
+
+  /** 最近一条未读完（3%–97%）的阅读位置，供「继续阅读」卡片。 */
+  resumeCandidate() {
+    try {
+      const map = JSON.parse(localStorage.getItem('robinread.resume') || '{}');
+      let best = null;
+      for (const [entryID, v] of Object.entries(map)) {
+        if (!v || typeof v.pct !== 'number') continue;
+        if (!best || v.at > best.at) best = { entryID, ...v };
+      }
+      return best;
+    } catch (_) {
+      return null;
+    }
+  }
+
   _rememberScrollPosition(entryID, scrollTop) {
     if (!entryID || !Number.isFinite(scrollTop)) return;
     this._scrollPositions.set(entryID, scrollTop);
@@ -2946,6 +2977,7 @@ export class ReaderView {
       <div class="nj-lightbox-backdrop"></div>
       <img class="nj-lightbox-img" src="${attr(src)}" alt="${attr(alt)}"/>
       <span class="nj-lightbox-zoom" title="${attr(t('滚轮缩放 · 拖拽平移 · 双击复位'))}"></span>
+      <button class="nj-lightbox-save" title="${attr(t('保存图片'))}">${icon('export')}</button>
       <button class="nj-lightbox-close" title="${attr(t('关闭（Esc）'))}">${icon('close')}</button>
     `;
     const img = lightbox.querySelector('.nj-lightbox-img');
@@ -3006,6 +3038,27 @@ export class ReaderView {
       window.removeEventListener('pointerup', up);
       lightbox.remove();
     };
+    // 保存图片：跨域图经主进程代理取字节（与反相同通道），另存为文件
+    lightbox.querySelector('.nj-lightbox-save').addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const btn = event.currentTarget;
+      btn.disabled = true;
+      try {
+        const bytes = await window.robin.fetchImageBytes(src);
+        const payload = bytes && typeof bytes === 'object' && 'data' in bytes ? bytes.data : bytes;
+        if (!payload) throw new Error(t('保存失败'));
+        const ext = (/\.png/i.test(src) ? '.png' : /\.(jpe?g|webp|gif)/i.test(src) ? RegExp.$1.toLowerCase() : '.jpg').replace('jpeg', 'jpg');
+        const picked = await window.robin.pickSavePath(`image-${Date.now()}${ext}`);
+        const filePath = picked?.ok ? picked.data : null;
+        if (!filePath) { btn.disabled = false; return; }
+        const written = await window.robin.writeBinaryFile(filePath, payload);
+        if (!written?.ok) throw new Error(written?.error || t('写入文件失败'));
+        btn.textContent = t('已保存');
+      } catch (err) {
+        btn.textContent = err?.message || t('保存失败');
+      }
+      setTimeout(() => { btn.textContent = t('保存图片'); btn.disabled = false; }, 1600);
+    });
     // 放大态下点击图片不关闭（可拖拽/双击复位）；缩小态点击图片或背景 = 关闭（沿用原交互）
     lightbox.addEventListener('click', (event) => {
       if (scale > 1.01 && event.target === img) return;
@@ -3120,6 +3173,7 @@ export class ReaderView {
         this.progressEl.style.width = `${ratio0 * 100}%`;
         this.progressEl.dataset.pct = `${Math.round(ratio0 * 100)}%`; // 端点气泡显示阅读百分比
       }
+      if (this.entryID && max0 > 0) this._trackResume(Math.round(ratio0 * 100));
     }
     if (this._scrollTick) return;
     this._scrollTick = true;

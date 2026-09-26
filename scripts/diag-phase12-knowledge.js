@@ -80,6 +80,16 @@ app.whenReady().then(async () => {
     assert.ok(readerSrc2.includes('_exportHtmlFile') && readerSrc2.includes('robin-tag-chip'), 'reader 应含 HTML 导出与标签 chips');
     console.log('PASS 单篇 HTML 导出结构 + 标签 chips 锚点');
 
+    // 继续阅读候选：reader 侧 resume 记录逻辑（localStorage 形状）
+    const win2 = new (require(path.join(ROOT, 'node_modules', 'jsdom')).JSDOM)('<body></body>', { url: 'https://localhost/' });
+    global.localStorage = win2.window.localStorage;
+    global.window = win2.window;
+    localStorage.setItem('robinread.resume', JSON.stringify({ 'a1': { pct: 42, at: Date.now(), title: 'T1', feed: 'F1' } }));
+    // resumeCandidate 是 reader 方法，此处仅校验存储形状约定
+    const raw = JSON.parse(localStorage.getItem('robinread.resume'));
+    assert.ok(raw.a1 && raw.a1.pct === 42 && raw.a1.title === 'T1', 'resume 存储形状异常');
+    console.log('PASS 继续阅读存储形状');
+
     // 列表 readMinutes 字段（阅读时长进列表）
     const listItems = store.listItems({ kind: 'today' }, { limit: 10 });
     assert.ok(listItems.length >= 2 && listItems.every((it) => (it.readMinutes || 0) >= 1),

@@ -1170,6 +1170,58 @@ body.dark .robin-summary-card { background: color-mix(in srgb, #302d28 97%, tran
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   cursor: zoom-out;
 }
+/* 灯箱保存按钮 + 进度百分比气泡 */
+.nj-lightbox-save {
+  position: absolute; top: 26px; right: 68px;
+  background: rgba(255, 255, 255, 0.22);
+  border: none; color: #fff;
+  height: 32px; border-radius: 16px;
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 12px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-family: inherit;
+}
+.nj-lightbox-save:hover { background: rgba(255, 255, 255, 0.32); }
+.nj-lightbox-save:disabled { opacity: 0.6; cursor: default; }
+.reading-progress { position: relative; }
+.reading-progress::after {
+  content: attr(data-pct);
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translate(115%, -50%);
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 继续阅读卡（今天视野顶部） */
+.nj-resume-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--note-border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--note-background);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.nj-resume-card:hover { border-color: var(--accent); }
+.nj-resume-icon { color: var(--accent); display: inline-flex; }
+.nj-resume-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nj-resume-label { font-size: 0.72em; letter-spacing: 0.12em; color: var(--accent); }
+.nj-resume-title { font-size: 0.95em; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nj-resume-meta { font-size: 0.76em; color: var(--text-secondary); }
+.nj-resume-pct { font-size: 1.05em; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+
 .nj-lightbox-close {
   position: absolute; top: 26px; right: 26px;
   background: rgba(255, 255, 255, 0.22);

@@ -115,6 +115,9 @@ async function bootstrap() {
     onClusterBrief: showClusterBrief,
     onExportEdition: showEditionExport,
     onCleanupLater: (ids) => cleanupOverdueLater(ids),
+    onResumeOpen: async (candidate) => {
+      await handleEntrySelect(candidate.entryID, { id: candidate.entryID, title: candidate.title });
+    },
     onFilterTag: (tag) => {
       kc.dismiss();
       handleScopeSelect({ kind: 'tag', tag });
@@ -698,6 +701,7 @@ async function reloadList({ resetScroll = false } = {}) {
   const overdue = state.scope?.kind === 'later' ? laterOverdueIDs() : [];
   views.list.setLaterCleanup(overdue);
   views.list.setLaterAges(laterAgeMap());
+  views.list.setResume(state.scope?.kind === 'today' ? views.reader?.resumeCandidate?.() || null : null);
   updateToolbarState();
   if (resetScroll) views.list.scrollTop();
 }
