@@ -477,6 +477,7 @@ function registerIPCHandlers(store, window) {
   // MARK: 阅读排版
   handle('prefs:setReaderLayout', (patch) => store.setReaderLayout(patch));
   handle('prefs:readerCustomCSS', () => store.readerCustomCSS());
+  handle('prefs:setFeedTypography', ({ feedID, patch } = {}) => store.setFeedTypography(feedID, patch));
   handle('prefs:setFilterRules', (patch) => store.setFilterRules(patch));
 
   // MARK: 阅读状态

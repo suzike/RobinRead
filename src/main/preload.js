@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('robin', {
   ttsSetConfig: (patch) => data('tts:setConfig', patch),
   ttsSynthesize: (payload) => data('tts:synthesize', payload),
   readerCustomCSS: () => data('prefs:readerCustomCSS'),
+  setFeedTypography: (feedID, patch) => data('prefs:setFeedTypography', { feedID, patch }),
 
   // 阅读状态
   markRead: (entryID, read) => invoke('read:mark', entryID, read),

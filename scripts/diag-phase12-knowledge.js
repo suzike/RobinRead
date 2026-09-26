@@ -90,6 +90,16 @@ app.whenReady().then(async () => {
     assert.ok(raw.a1 && raw.a1.pct === 42 && raw.a1.title === 'T1', 'resume 存储形状异常');
     console.log('PASS 继续阅读存储形状');
 
+    // 每源排版偏好（重量级）：存取回环 + 白名单回退
+    const saved = store.setFeedTypography('feed-x', { fontFamily: 'wenkai', fontSize: 19, pageWidth: 'wide', bogus: 'x' });
+    assert.ok(saved['feed-x'].fontFamily === 'wenkai' && saved['feed-x'].fontSize === 19 && saved['feed-x'].pageWidth === 'wide', '排版偏好应保存');
+    assert.ok(!('bogus' in saved['feed-x']), '非法键应被忽略');
+    const reset = store.setFeedTypography('feed-x', { fontFamily: 'global', fontSize: 0, pageWidth: 'global' });
+    assert.ok(!reset['feed-x'], '全部跟随时应删除条目');
+    const ipcAt = s => s;
+    const ipcSrcTop = fs.readFileSync(path.join(ROOT, 'src', 'main', 'ipc.js'), 'utf8');
+    assert.ok(ipcSrcTop.includes("handle('prefs:setFeedTypography'"), 'ipc 应含每源排版通道');
+
     // 列表 readMinutes 字段（阅读时长进列表）
     const listItems = store.listItems({ kind: 'today' }, { limit: 10 });
     assert.ok(listItems.length >= 2 && listItems.every((it) => (it.readMinutes || 0) >= 1),

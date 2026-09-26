@@ -72,6 +72,15 @@ export class ArticleSearch {
     this.input.select();
   }
 
+  /** 打开搜索条并立即执行 query（搜索结果 → 文章定位闭环）。 */
+  run(query) {
+    this.open();
+    if (!this.bar) return;
+    this.input.value = query || '';
+    this._deb = null;
+    this._run(query || '');
+  }
+
   close() {
     this.bar?.remove();
     this.bar = null;

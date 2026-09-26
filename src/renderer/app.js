@@ -81,6 +81,7 @@ async function bootstrap() {
   applyFontSize(snapshot.preferences.articleFontSize);
   syncLLMGlobals(snapshot);
   syncCustomTheme(snapshot);
+  window.__robinFeedTypography = snapshot?.preferences?.feedTypography || {};
   applyReaderLayout(snapshot.preferences?.readerLayout);
   restoreSidebarCollapsed();
 
@@ -709,10 +710,12 @@ async function reloadList({ resetScroll = false } = {}) {
 async function runSearch(query) {
   if (!query) {
     views.list.setSearchMode(false);
+    state.activeQuery = '';
     views.list.setDigestVisible(state.scope?.kind === 'today' || state.scope?.kind === 'unread');
     await reloadList();
     return;
   }
+  state.activeQuery = query;
   views.list.setSearchMode(true);
   views.list.setDigestVisible(false);
   // 优先全文搜索（含正文），空结果回退到标题/摘要搜索
@@ -1113,6 +1116,8 @@ async function handleEntrySelect(entryID, item) {
   updateToolbarState();
   const turn = pendingPageTurn || (item ? 'fwd' : null);
   pendingPageTurn = null;
+  // 搜索定位闭环：从搜索结果进入的文章，打开后自动高亮该查询
+  views.reader.searchAfterOpen = state.searchMode && state.activeQuery ? state.activeQuery : '';
   await views.reader.open(entryID, { turn });
   // 自动精读可能在 open 内改变翻译模式：确定性刷新胶囊状态
   updateToolbarState();
@@ -1581,6 +1586,7 @@ function onFeedContext(event, { feed, selectedFeedIDs }) {
     } },
     { label: t('全部已读'), icon: 'checkAll', onClick: () => window.robin.markAllRead({ kind: 'feed', feedID: feed.id }) },
     { label: t('复制订阅'), icon: 'copy', onClick: () => navigator.clipboard.writeText(feed.feedURL) },
+    { label: t('此源排版偏好…'), icon: 'appearance', onClick: () => showFeedTypographyDialog(feed) },
     { label: t('AI 精读翻译'), icon: 'spark', children: [
       { label: t('跟随默认'), onClick: async () => { await window.robin.setTranslateFeedMode(feed.id, 'auto'); showToast(t('此源翻译已改为跟随默认')); } },
       { label: t('总是翻译'), onClick: async () => { await window.robin.setTranslateFeedMode(feed.id, 'always'); showToast(t('打开此源文章将自动 AI 精读翻译')); } },
@@ -1678,6 +1684,7 @@ async function runSmartFolderSearch(name, query) {
   const result = await window.robin.smartFolderSearch(query, 200);
   const items = result.ok ? result.data : [];
   state.listItems = items;
+  state.activeQuery = query;
   views.list.setSearchMode(true);
   views.list.setDigestVisible(false);
   views.list.render(items, { kind: 'smart', name }, state.selectedEntryID, false);
@@ -1716,6 +1723,76 @@ function openFeedStore() {
 }
 
 let settingsView = null;
+
+const FEED_TYPO_FONTS = [['global', '跟随全局'], ['serif', '衬线'], ['sans', '无衬线'], ['wenkai', '霞鹜文楷']];
+const FEED_TYPO_SIZES = [[0, '跟随全局'], [15, '15pt（小）'], [17, '17pt（标准）'], [19, '19pt（大）'], [21, '21pt（特大）']];
+const FEED_TYPO_WIDTHS = [['global', '跟随全局'], ['narrow', '窄 (680px)'], ['standard', '标准 (820px)'], ['wide', '宽 (960px)']];
+
+/** 每源排版偏好（重量级）：为单个订阅源覆盖字体 / 字号 / 页宽，仅影响该源文章。 */
+function showFeedTypographyDialog(feed) {
+  const map = window.__robinFeedTypography || {};
+  const current = map[feed.id] || { fontFamily: 'global', fontSize: 0, pageWidth: 'global' };
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.addEventListener('mousedown', (event) => { if (event.target === overlay) overlay.remove(); });
+  const modal = document.createElement('div');
+  modal.className = 'modal nj-brief-modal';
+  modal.innerHTML = `
+    <div class="nj-brief-head">
+      <h3>${t('此源排版偏好')}</h3>
+      <span class="nj-brief-sub"></span>
+      <button class="nj-brief-close">${icon('close')}</button>
+    </div>
+    <div class="nj-typo-form"></div>
+    <div class="nj-brief-foot">
+      <button class="btn-text nj-typo-reset">${t('恢复跟随全局')}</button>
+      <button class="btn-text primary nj-typo-save">${t('保存')}</button>
+    </div>`;
+  modal.querySelector('.nj-brief-sub').textContent = feed.title || feed.id || '';
+  modal.querySelector('.nj-brief-close').addEventListener('click', () => overlay.remove());
+  const form = modal.querySelector('.nj-typo-form');
+  const build = (label, options, value, onChange) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'nj-typo-row';
+    const labelEl = document.createElement('span');
+    labelEl.className = 'nj-typo-label';
+    labelEl.textContent = label;
+    const select = document.createElement('select');
+    select.className = 'nj-typo-select';
+    for (const [val, text] of options) {
+      const opt = document.createElement('option');
+      opt.value = String(val);
+      opt.textContent = t(text);
+      select.appendChild(opt);
+    }
+    select.value = String(value);
+    select.addEventListener('change', () => onChange(select.value));
+    rowEl.append(labelEl, select);
+    form.appendChild(rowEl);
+    return () => String(select.value);
+  };
+  const getFont = build(t('正文字体'), FEED_TYPO_FONTS, current.fontFamily || 'global', () => {});
+  const getSize = build(t('正文字号'), FEED_TYPO_SIZES, current.fontSize || 0, () => {});
+  const getWidth = build(t('页面宽度'), FEED_TYPO_WIDTHS, current.pageWidth || 'global', () => {});
+  modal.querySelector('.nj-typo-reset').addEventListener('click', async () => {
+    await window.robin.setFeedTypography(feed.id, { fontFamily: 'global', fontSize: 0, pageWidth: 'global' });
+    overlay.remove();
+    showToast(t('已恢复跟随全局'));
+  });
+  modal.querySelector('.nj-typo-save').addEventListener('click', async () => {
+    await window.robin.setFeedTypography(feed.id, {
+      fontFamily: getFont(),
+      fontSize: Number(getSize()) || 0,
+      pageWidth: getWidth(),
+    });
+    overlay.remove();
+    showToast(t('已保存此源排版偏好'));
+    await refreshState();
+  });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
 function showSettings(section = 'appearance') {
   if (settingsView) settingsView.dismiss();
   settingsView = new SettingsView({
@@ -1764,7 +1841,8 @@ function bindEvents() {
       document.body.classList.toggle('dark', snapshot.prefersDark);
     }
     if (customThemeTokens) syncCustomTheme(snapshot);
-    applyReaderLayout(snapshot.preferences?.readerLayout);
+    window.__robinFeedTypography = snapshot?.preferences?.feedTypography || {};
+  applyReaderLayout(snapshot.preferences?.readerLayout);
     if (languageChanged) {
       configure({ lang: snapshot.language });
       buildToolbar();

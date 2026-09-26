@@ -519,6 +519,15 @@ export class ReaderView {
     article.appendChild(this.body);
     this.scrollEl.appendChild(article);
     this._articleEl = article; // 翻页动效挂载点
+    // 每源排版偏好（重量级）：article 级 CSS 变量覆盖（比根变量更近作用域，仅影响本篇）
+    const typo = (window.__robinFeedTypography || {})[this.feed?.id];
+    if (typo) {
+      const fontMap = { serif: 'var(--font-serif)', sans: 'var(--font-sans)', wenkai: '"LXGW WenKai Screen", var(--font-serif)' };
+      if (fontMap[typo.fontFamily]) article.style.setProperty('--reader-font', fontMap[typo.fontFamily]);
+      if (Number(typo.fontSize) > 0) article.style.setProperty('--article-font-size', `${typo.fontSize}px`);
+      const widthMap = { narrow: '680px', standard: '820px', wide: '960px' };
+      if (widthMap[typo.pageWidth]) article.style.setProperty('--reader-page-width', widthMap[typo.pageWidth]);
+    }
     // 拟真翻页：方向性纸页翻转（杂志⇄文章、上一篇/下一篇共用），动画结束自清理
     if (this._pageTurn) {
       const turnClass = this._pageTurn === 'back' ? 'nj-page-turn-back' : 'nj-page-turn-fwd';
@@ -560,6 +569,14 @@ export class ReaderView {
           if (max > 0) this.scrollEl.scrollTop = Math.min(saved, max);
         }
       });
+      // 搜索定位闭环：从全文搜索结果进入的文章，自动高亮该查询并跳到首个命中
+      if (this.searchAfterOpen) {
+        const query = this.searchAfterOpen;
+        this.searchAfterOpen = '';
+        setTimeout(() => {
+          if (this.entryID && this.articleSearch) this.articleSearch.run(query);
+        }, 800);
+      }
       // 知更电台连播：连播切来的新文渲染完毕 → 自动续播（标记 8 秒内有效，防误触）
       if (this._ttsAutoResume && Date.now() - this._ttsAutoResume < 8000) {
         this._ttsAutoResume = 0;

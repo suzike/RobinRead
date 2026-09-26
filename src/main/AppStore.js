@@ -395,6 +395,7 @@ class AppStore extends EventEmitter {
     return {
       appTheme: this.preferences.get(PreferenceKey.appTheme, 'system'),
       articleFontSize: this.preferences.get(PreferenceKey.articleFontSize, 17),
+      feedTypography: this.feedTypographyMap(),
       refreshInterval: this.preferences.get(PreferenceKey.refreshInterval, 'thirtyMinutes'),
       refreshOnLaunch: this.preferences.get(PreferenceKey.refreshOnLaunch, true),
       appLanguage: this.preferences.get(PreferenceKey.appLanguage, 'zh'),
@@ -1514,6 +1515,38 @@ class AppStore extends EventEmitter {
   /** 自定义 CSS（方向 24）：独立读取通道，避免大文本随状态快照频繁传输。 */
   readerCustomCSS() {
     return String(this.preferences.get('RobinRead.readerCustomCSS', '') || '');
+  }
+
+  /** 每源排版偏好（重量级 · 阅读体验）：feedID → { fontFamily, fontSize, pageWidth }。 */
+  feedTypographyMap() {
+    try {
+      const parsed = JSON.parse(this.preferences.get('RobinRead.feedTypography', '{}') || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  setFeedTypography(feedID, patch) {
+    const id = String(feedID || '');
+    if (!id) return this.feedTypographyMap();
+    const allowed = {
+      fontFamily: ['global', 'serif', 'sans', 'wenkai'],
+      fontSize: [0, 15, 17, 19, 21],
+      pageWidth: ['global', 'narrow', 'standard', 'wide'],
+    };
+    const map = this.feedTypographyMap();
+    const entry = { ...(map[id] || {}) };
+    for (const [key, value] of Object.entries(patch || {})) {
+      if (!(key in allowed)) continue;
+      if (allowed[key].includes(value)) entry[key] = value;
+      else entry[key] = allowed[key][0] === 'global' ? 'global' : (key === 'fontSize' ? 0 : 'global'); // 非法值回退跟随
+    }
+    if (Object.values(entry).every((v) => v === 'global' || v === 0)) delete map[id];
+    else map[id] = entry;
+    this.preferences.set('RobinRead.feedTypography', JSON.stringify(map));
+    this._emitState();
+    return map;
   }
 
   /** 朗读引擎配置（方向 18）：engine/neuralVoice + 自定义 TTS 端点；key 掩码不下发。 */
