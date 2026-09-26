@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('robin', {
   clusterBrief: (items) => invoke('ai:clusterBrief', items),
   exportEpub: (entryID) => data('app:exportEpub', entryID),
   exportEditionEpub: (entryIDs) => data('app:exportEditionEpub', entryIDs),
+  ttsNeuralVoices: () => data('tts:neuralVoices'),
+  ttsGetConfig: () => data('tts:getConfig'),
+  ttsSetConfig: (patch) => data('tts:setConfig', patch),
+  ttsSynthesize: (payload) => data('tts:synthesize', payload),
   readerCustomCSS: () => data('prefs:readerCustomCSS'),
 
   // 阅读状态

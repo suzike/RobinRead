@@ -77,6 +77,13 @@ export class ReaderView {
     // TTS 朗读：状态机在 _tts 内（null = 空闲）；_ttsGen 使在途 utterance 回调失效
     this._tts = null;
     this._ttsGen = 0;
+    this._ttsCfg = null; // 朗读引擎配置缓存（engine/neuralVoice/custom…，主进程 prefs 下发）
+    this._ttsStarting = false; // 防重入：_ttsStart 异步分派期间的快速二次触发
+    this._neuralVoices = null; // 神经音色清单（预取，播放器声音下拉用）
+    // 朗读引擎配置变更（设置页/播放器切换）：失效缓存，下次朗读按新引擎走
+    document.addEventListener('robinread:tts-config', () => { this._ttsCfg = null; });
+    window.robin.ttsNeuralVoices?.().then((voices) => { this._neuralVoices = voices || []; }).catch(() => {});
+    window.robin.ttsGetConfig?.().then((cfg) => { this._ttsCfg = cfg || this._ttsCfg; }).catch(() => {});
     this._ttsHeaderBtn = null;
     // R（读/停）与 Esc（停止）在 reader 内部监听：仅在阅读器聚焦且无更高优先级弹层时消费
     document.addEventListener('keydown', (event) => this._onTTSKeyDown(event));
@@ -3297,8 +3304,13 @@ export class ReaderView {
       btn.disabled = true;
       btn.title = t('这篇文章没有可朗读的正文');
     } else if (this._ttsVoicesConfirmedEmpty) {
-      btn.disabled = true;
-      btn.title = t('未检测到可用语音：请在系统设置中安装语音（如中文 Microsoft 语音）后重试。');
+      if (window.robin.ttsSynthesize) {
+        btn.disabled = false; // 神经语音引擎可用：本地无语音也能读（需联网）
+        btn.title = t('听文章：神经语音朗读全文（需联网；快捷键 R 读/停，Esc 停止）');
+      } else {
+        btn.disabled = true;
+        btn.title = t('未检测到可用语音：请在系统设置中安装语音（如中文 Microsoft 语音）后重试。');
+      }
     } else {
       btn.disabled = false;
       btn.title = t('听文章：本地语音朗读全文（快捷键 R 读/停，Esc 停止）');
@@ -3321,23 +3333,35 @@ export class ReaderView {
   }
 
   toggleTTS() {
-    if (this.ttsState !== 'idle') {
+    // 防重入：_ttsStart 含异步引擎分派，快速第二次 R 期间 state 仍为 idle，须同步挡住
+    if (this.ttsState !== 'idle' || this._ttsStarting) {
+      this._ttsStarting = false;
       this._ttsStop();
       return;
     }
-    this._ttsStart();
+    this._ttsStarting = true;
+    Promise.resolve(this._ttsStart()).finally(() => { this._ttsStarting = false; });
   }
 
-  _ttsStart() {
-    const synth = this._ttsSynth();
-    if (!synth) {
-      this.handlers.onFeedback?.(t('当前环境不支持语音朗读（speechSynthesis 不可用）'));
-      return;
-    }
+  async _ttsStart() {
     if (!this.entryID || !this.body) return;
     const chunks = this._ttsCollectChunks();
     if (chunks.length === 0) {
       this.handlers.onFeedback?.(t('这篇文章没有可朗读的正文。'));
+      return;
+    }
+    // 引擎分派（方向 18）：edge/custom = 神经语音（联网，真人情感级）；local = 系统语音（离线兜底）
+    // 预取缓存命中时零 await —— local 路径保持同步语义（R 键即刻入队）；配置变更经事件失效缓存
+    if (!this._ttsCfg) {
+      this._ttsCfg = await window.robin.ttsGetConfig?.().catch(() => null) || { engine: 'local' };
+    }
+    if ((this._ttsCfg.engine === 'edge' || this._ttsCfg.engine === 'custom') && window.robin.ttsSynthesize) {
+      this._ttsNeuralStart(chunks);
+      return;
+    }
+    const synth = this._ttsSynth();
+    if (!synth) {
+      this.handlers.onFeedback?.(t('当前环境不支持语音朗读（speechSynthesis 不可用）'));
       return;
     }
     const voices = this._ttsSortedVoices();
@@ -3360,6 +3384,147 @@ export class ReaderView {
     this.scrollEl.classList.add('nj-tts-open'); // 播放器悬浮正文底部：预留 padding 防遮最后一行
     this._ttsEnqueueFrom(0);
     this._ttsSyncHeaderButton();
+  }
+
+  // MARK: 神经语音引擎（方向 18）：edge/custom 合成 mp3 → Audio 链式播放，逐块预取
+
+  /** 神经引擎启动：与 local 同形的 state（audio 替代 utterances），复用播放器/高亮/句块。 */
+  _ttsNeuralStart(chunks, startIndex = 0) {
+    this._ttsStop(); // 幂等兜底
+    this._ttsGen += 1;
+    this._tts = {
+      engine: 'neural',
+      state: 'playing',
+      chunks,
+      index: startIndex,
+      gen: this._ttsGen,
+      rate: this._ttsReadRate(),
+      player: null,
+      audio: null,
+      pending: new Map(), // index -> Promise<base64> 预取
+      utterances: [],
+    };
+    this._ttsBuildPlayer();
+    this.scrollEl.classList.add('nj-tts-open');
+    this._ttsSpeakNeural(startIndex);
+    this._ttsSyncHeaderButton();
+  }
+
+  /** 合成并播放第 index 块；结束后自动推进下一块（onended 链）。 */
+  async _ttsSpeakNeural(index) {
+    const tts = this._tts;
+    if (!tts || tts.engine !== 'neural' || tts.gen !== this._ttsGen) return;
+    const chunk = tts.chunks[index];
+    if (!chunk) {
+      this._ttsStop();
+      this.handlers.onFeedback?.(t('朗读结束'));
+      return;
+    }
+    tts.index = index;
+    this._ttsHighlight(chunk.paraID);
+    this._ttsSyncPlayer();
+    let b64 = tts.pending.get(index) || null;
+    tts.pending.delete(index);
+    try {
+      if (b64 === null) {
+        b64 = await window.robin.ttsSynthesize({
+          engine: this._ttsCfg?.engine === 'custom' ? 'custom' : 'edge',
+          text: chunk.text,
+          voice: this._ttsCfg?.neuralVoice || 'zh-CN-XiaoxiaoNeural',
+          rate: tts.rate,
+        });
+      }
+    } catch (error) {
+      this._ttsNeuralFallbackLocal(index, error);
+      return;
+    }
+    if (this._tts !== tts || tts.gen !== this._ttsGen) return; // 过期（已停止/切文/换引擎）
+    this._ttsPrefetchNeural(index + 1);
+    const audio = new Audio(`data:audio/mpeg;base64,${b64}`);
+    audio.playbackRate = tts.rate;
+    tts.audio = audio;
+    audio.onended = () => {
+      if (this._tts === tts && tts.gen === this._ttsGen) this._ttsSpeakNeural(index + 1);
+    };
+    audio.onerror = () => {
+      if (this._tts === tts && tts.gen === this._ttsGen) this._ttsNeuralFallbackLocal(index, new Error('audio error'));
+    };
+    try {
+      await audio.play();
+    } catch (_) {
+      this._ttsNeuralFallbackLocal(index, new Error('play blocked'));
+      return;
+    }
+    this._ttsSyncPlayer();
+  }
+
+  /** 预取下一块（fire-and-forget）：播放当前块的同时合成下一块，句间零等待。 */
+  _ttsPrefetchNeural(index) {
+    const tts = this._tts;
+    if (!tts || tts.engine !== 'neural') return;
+    const chunk = tts.chunks[index];
+    if (!chunk || tts.pending.has(index)) return;
+    const promise = window.robin.ttsSynthesize({
+      engine: this._ttsCfg?.engine === 'custom' ? 'custom' : 'edge',
+      text: chunk.text,
+      voice: this._ttsCfg?.neuralVoice || 'zh-CN-XiaoxiaoNeural',
+      rate: tts.rate,
+    });
+    tts.pending.set(index, promise);
+    promise.catch(() => { tts.pending.delete(index); });
+  }
+
+  /** 神经语音失败（断网/接口不可达/播放被拦）：toast 说明并回退本地语音从当前块续播。 */
+  _ttsNeuralFallbackLocal(index, error) {
+    const chunks = this._tts?.chunks;
+    const rate = this._tts?.rate || this._ttsReadRate();
+    const reason = String(error?.message || error || '');
+    this._ttsStop();
+    if (!this._ttsSynth() || !chunks?.length) {
+      this.handlers.onFeedback?.(t('神经语音不可用（需联网），且本地语音缺失，已停止朗读。'));
+      return;
+    }
+    this._ttsGen += 1;
+    this._tts = {
+      state: 'playing',
+      chunks,
+      index,
+      gen: this._ttsGen,
+      rate,
+      player: null,
+      utterances: [],
+    };
+    this._ttsBuildPlayer();
+    this.scrollEl.classList.add('nj-tts-open');
+    this._ttsEnqueueFrom(index);
+    this._ttsSyncHeaderButton();
+    this.handlers.onFeedback?.(`${t('神经语音不可用，已回退本地语音')}（${reason.slice(0, 60)}）`);
+  }
+
+  /** 播放器「品质」按钮：local → edge → custom（配置了端点才参与）→ local，切换后从当前块重播。 */
+  async _ttsCycleEngine() {
+    const cfg = await window.robin.ttsGetConfig?.().catch(() => null) || { engine: 'local' };
+    const order = cfg.customEndpoint ? ['local', 'edge', 'custom'] : ['local', 'edge'];
+    const next = order[(order.indexOf(cfg.engine) + 1) % order.length];
+    await window.robin.ttsSetConfig?.({ engine: next });
+    this._ttsCfg = { ...cfg, engine: next };
+    const index = this._tts?.index || 0;
+    const wasIdle = !this._tts;
+    const label = next === 'edge' ? t('神经语音') : next === 'custom' ? t('自定义 TTS') : t('本地语音');
+    this.handlers.onFeedback?.(`${t('朗读引擎')}：${label}`);
+    if (wasIdle) return;
+    const chunks = this._tts?.chunks || this._ttsCollectChunks();
+    if (next === 'local') {
+      this._ttsStop();
+      this._ttsGen += 1;
+      this._tts = { state: 'playing', chunks, index, gen: this._ttsGen, rate: this._ttsReadRate(), player: null, utterances: [] };
+      this._ttsBuildPlayer();
+      this.scrollEl.classList.add('nj-tts-open');
+      this._ttsEnqueueFrom(index);
+      this._ttsSyncHeaderButton();
+    } else {
+      this._ttsNeuralStart(chunks, index);
+    }
   }
 
   /** 收集朗读块：标题 + 正文叶子段落（[data-nj-id]），每块切成 ≤120 字的句块。 */
@@ -3487,6 +3652,20 @@ export class ReaderView {
   /** 播放/暂停切换（迷你播放器主按钮）。 */
   _ttsTogglePause() {
     const tts = this._tts;
+    if (!tts) return;
+    if (tts.engine === 'neural') {
+      const audio = tts.audio;
+      if (!audio) return;
+      if (tts.state === 'playing') {
+        try { audio.pause(); } catch (_) { /* 忽略 */ }
+        tts.state = 'paused';
+      } else if (tts.state === 'paused') {
+        try { audio.play(); } catch (_) { /* 忽略 */ }
+        tts.state = 'playing';
+      }
+      this._ttsSyncPlayer();
+      return;
+    }
     const synth = this._ttsSynth();
     if (!tts || !synth) return;
     if (tts.state === 'playing') {
@@ -3501,7 +3680,7 @@ export class ReaderView {
     this._ttsSyncPlayer();
   }
 
-  /** 语速循环切换：写 localStorage；播放中则从当前句块重建队列（新语速即刻生效）。 */
+  /** 语速循环切换：写 localStorage；播放中 local 从当前句块重建队列，neural 直接改 playbackRate 即时生效。 */
   _ttsCycleRate() {
     const tts = this._tts;
     const current = tts ? tts.rate : this._ttsReadRate();
@@ -3509,17 +3688,53 @@ export class ReaderView {
     try { localStorage.setItem(TTS_RATE_KEY, String(next)); } catch (_) { /* 隐私模式：内存内仍生效 */ }
     if (tts) {
       tts.rate = next;
-      this._ttsRestartFrom(tts.index);
+      if (tts.engine === 'neural') {
+        if (tts.audio) tts.audio.playbackRate = next;
+        this._ttsSyncPlayer();
+      } else {
+        this._ttsRestartFrom(tts.index);
+      }
     }
     this.handlers.onFeedback?.(`${t('语速')} ${next}×`);
     return next;
   }
 
-  /** 声音切换：写 localStorage；播放中从当前句块重建队列。 */
-  _ttsSelectVoice(name) {
-    try { localStorage.setItem(TTS_VOICE_KEY, String(name || '')); } catch (_) { /* 忽略 */ }
+  /** 声音切换：写偏好；local 存 localStorage，neural 存主进程配置并从当前块以新音色重播。 */
+  _ttsSelectVoice(value) {
     const tts = this._tts;
+    if (tts?.engine === 'neural') {
+      window.robin.ttsSetConfig?.({ neuralVoice: value }).then(() => {
+        this._ttsCfg = { ...(this._ttsCfg || {}), neuralVoice: value };
+        this._ttsRestartNeural(tts.index);
+      }).catch(() => {});
+      return;
+    }
+    try { localStorage.setItem(TTS_VOICE_KEY, String(value || '')); } catch (_) { /* 忽略 */ }
     if (tts) this._ttsRestartFrom(tts.index);
+  }
+
+  /** 神经引擎内重建：换音色/重播当前块，保持 chunk 与 index。 */
+  _ttsRestartNeural(index) {
+    const tts = this._tts;
+    if (!tts || tts.engine !== 'neural') return;
+    this._ttsStop();
+    this._ttsGen += 1;
+    this._tts = {
+      engine: 'neural',
+      state: 'playing',
+      chunks: tts.chunks,
+      index,
+      gen: this._ttsGen,
+      rate: tts.rate,
+      player: null,
+      audio: null,
+      pending: new Map(),
+      utterances: [],
+    };
+    this._ttsBuildPlayer();
+    this.scrollEl.classList.add('nj-tts-open');
+    this._ttsSpeakNeural(index);
+    this._ttsSyncHeaderButton();
   }
 
   /** cancel + 丢弃旧 utterance + gen++（旧 onend 全部作废），再从 index 重灌队列。 */
@@ -3548,6 +3763,14 @@ export class ReaderView {
     }
     if (tts) {
       tts.utterances = [];
+      if (tts.audio) {
+        try { tts.audio.pause(); } catch (_) { /* 忽略 */ }
+        tts.audio.onended = null;
+        tts.audio.onerror = null;
+        tts.audio.src = '';
+        tts.audio = null;
+      }
+      tts.pending?.clear?.();
       tts.player?.remove();
     }
     this._ttsClearActive();
@@ -3568,22 +3791,25 @@ export class ReaderView {
       <button type="button" class="nj-tts-pbtn nj-tts-toggle" title="${attr(t('暂停 / 继续朗读'))}">${TTS_PAUSE_SVG}</button>
       <button type="button" class="nj-tts-pbtn nj-tts-stop" title="${attr(t('停止朗读（Esc）'))}">${TTS_STOP_SVG}</button>
       <button type="button" class="nj-tts-pbtn nj-tts-rate" title="${attr(t('点击切换语速（0.75 / 1 / 1.25 / 1.5）'))}"></button>
+      <button type="button" class="nj-tts-pbtn nj-tts-engine" title="${attr(t('切换朗读引擎：神经语音（需联网，真人情感）↔ 本地语音'))}"></button>
       <select class="nj-tts-voice" title="${attr(t('朗读声音'))}"></select>`;
     tts.player = player;
     player.querySelector('.nj-tts-toggle').addEventListener('click', () => this._ttsTogglePause());
     player.querySelector('.nj-tts-stop').addEventListener('click', () => this._ttsStop());
     player.querySelector('.nj-tts-rate').addEventListener('click', () => this._ttsCycleRate());
+    player.querySelector('.nj-tts-engine').addEventListener('click', () => this._ttsCycleEngine());
     const select = player.querySelector('.nj-tts-voice');
     select.addEventListener('change', () => this._ttsSelectVoice(select.value));
     host.appendChild(player);
     this._ttsSyncPlayer();
   }
 
-  /** 同步播放器 UI：播放/暂停图标、语速文案、声音下拉（每次现取 voices，兼容异步加载）。 */
+  /** 同步播放器 UI：播放/暂停图标、语速文案、引擎徽标、声音下拉（按引擎区分列表）。 */
   _ttsSyncPlayer() {
     const tts = this._tts;
     const player = tts?.player;
     if (!player || !player.isConnected) return;
+    const neural = tts.engine === 'neural';
     const toggle = player.querySelector('.nj-tts-toggle');
     if (toggle) {
       toggle.innerHTML = tts.state === 'paused' ? TTS_PLAY_SVG : TTS_PAUSE_SVG;
@@ -3591,28 +3817,46 @@ export class ReaderView {
     }
     const rateBtn = player.querySelector('.nj-tts-rate');
     if (rateBtn) rateBtn.textContent = `${tts.rate}×`;
-    const select = player.querySelector('.nj-tts-voice');
-    if (select) {
-      const voices = this._ttsSortedVoices();
-      const previous = select.value;
-      select.innerHTML = '';
-      if (voices.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = t('无可用语音');
-        select.appendChild(opt);
-      } else {
-        voices.forEach((voice) => {
-          const opt = document.createElement('option');
-          opt.value = voice.name || voice.voiceURI || '';
-          opt.textContent = `${voice.name || 'voice'}（${String(voice.lang || '').toUpperCase()}）`;
-          select.appendChild(opt);
-        });
-      }
-      const current = this._ttsPickVoice(voices);
-      select.value = current ? (current.name || current.voiceURI || '') : previous;
-      if (!select.value && previous) select.value = previous; // voices 未就绪时保留旧选中项
+    const engineBtn = player.querySelector('.nj-tts-engine');
+    if (engineBtn) {
+      const cfgEngine = neural ? (this._ttsCfg?.engine === 'custom' ? 'custom' : 'edge') : 'local';
+      engineBtn.textContent = cfgEngine === 'edge' ? t('神经') : cfgEngine === 'custom' ? t('自定') : t('本地');
+      engineBtn.title = t('切换朗读引擎：神经语音（需联网，真人情感）↔ 本地语音');
     }
+    const select = player.querySelector('.nj-tts-voice');
+    if (!select) return;
+    const previous = select.value;
+    select.innerHTML = '';
+    if (neural) {
+      const voices = Array.isArray(this._neuralVoices) ? this._neuralVoices : [];
+      const current = this._ttsCfg?.neuralVoice || 'zh-CN-XiaoxiaoNeural';
+      if (!voices.some((v) => v.id === current)) voices.push({ id: current, label: current });
+      voices.forEach((voice) => {
+        const opt = document.createElement('option');
+        opt.value = voice.id;
+        opt.textContent = voice.label || voice.id;
+        select.appendChild(opt);
+      });
+      select.value = current;
+      return;
+    }
+    const voices = this._ttsSortedVoices();
+    if (voices.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = t('无可用语音');
+      select.appendChild(opt);
+    } else {
+      voices.forEach((voice) => {
+        const opt = document.createElement('option');
+        opt.value = voice.name || voice.voiceURI || '';
+        opt.textContent = `${voice.name || 'voice'}（${String(voice.lang || '').toUpperCase()}）`;
+        select.appendChild(opt);
+      });
+    }
+    const current = this._ttsPickVoice(voices);
+    select.value = current ? (current.name || current.voiceURI || '') : previous;
+    if (!select.value && previous) select.value = previous; // voices 未就绪时保留旧选中项
   }
 }
 

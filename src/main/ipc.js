@@ -12,6 +12,8 @@ const { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, session, na
 const { checkForUpdate } = require('./UpdateCheckService');
 const { errorMessage } = require('./AppStore');
 const ArticleExtractor = require('./ArticleExtractor');
+const { NeuralTTSService, NEURAL_VOICES } = require('./NeuralTTSService');
+let neuralTTS = null;
 
 // 自定义图标协议必须先注册为 privileged（仅限 app ready 之前调用）。
 // 生产入口 main.js 在 ready 前 require 本模块，特权始终生效；
@@ -545,6 +547,19 @@ function registerIPCHandlers(store, window) {
   handle('prefs:setRefreshInterval', (raw) => store.setRefreshInterval(raw));
   handle('prefs:setRefreshOnLaunch', (enabled) => store.setRefreshOnLaunch(enabled));
   handle('prefs:setLLM', (patch) => store.setLLMConfiguration(patch));
+
+  // MARK: 高品质朗读（神经语音 / 自定义 TTS）
+  handle('tts:neuralVoices', () => NEURAL_VOICES);
+  handle('tts:getConfig', () => store.ttsConfig());
+  handle('tts:setConfig', (patch) => store.setTTSConfig(patch || {}));
+  handle('tts:synthesize', async (payload) => {
+    neuralTTS = neuralTTS || new NeuralTTSService(app.getPath('userData'));
+    const buffer = await neuralTTS.synthesize({
+      ...(payload || {}),
+      custom: store.ttsCustomCredentials(),
+    });
+    return buffer.toString('base64');
+  });
   handle('prefs:setAPIKey', (key) => store.setAIAPIKey(key));
   handle('llm:providers', () => store.providersSnapshot());
   handle('llm:addProvider', (payload) => store.addProvider(payload || {}));

@@ -25,6 +25,7 @@ const ONLINE = [
   { file: 'scripts/diag-phase6-node.js', runner: 'electron', desc: '主进程服务探针' },
   { file: 'scripts/diag-phase4-explore.js', runner: 'electron', desc: '探索后端（真实网络 20-60s）' },
   { file: 'scripts/diag-phase7-upstream.js', runner: 'electron', desc: '上游借鉴包端到端' },
+  { file: 'scripts/diag-phase11-neural-tts.js', runner: 'electron', desc: '神经语音在线合成（真实网络）' },
 ];
 
 const ci = process.argv.includes('--ci');

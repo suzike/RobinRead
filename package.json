@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "msedge-tts": "^2.0.8"
   }
 }

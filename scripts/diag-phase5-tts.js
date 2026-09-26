@@ -139,6 +139,9 @@ app.whenReady().then(async () => {
     };
     await sleep(4500); // boot：reloadAll + 首屏渲染（show:false 下 rAF 可能不跑，一律 setTimeout 等待）
 
+    // 本探针断言的是「本地 speechSynthesis」状态机：显式钉住 local 引擎（默认为 edge 神经语音，见方向 18）
+    await run(`(async () => { try { await window.robin.ttsSetConfig({ engine: 'local' }); document.dispatchEvent(new CustomEvent('robinread:tts-config')); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; } })()`);
+
     // ── 0. mock 注入断言 ──
     const mockState = await run(`({ installed: window.__ttsMockInstalled === true, voice: (window.speechSynthesis && window.speechSynthesis.getVoices()[0] || {}).name })`);
     check('mock speechSynthesis 已在页面内就位', mockState.installed === true && mockState.voice === 'Microsoft Huihui', JSON.stringify(mockState));
@@ -146,13 +149,55 @@ app.whenReady().then(async () => {
     // ── a. 打开文章一，点「听」→ 按句切块入队 + 首段高亮 ──
     await run(`(async () => { try { await window.__robinReader.open(${JSON.stringify(id1)}); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; } })()`);
     await sleep(1200);
-    const a = await run(`(() => {
+    const aTrace = await run(`(async () => {
+      try {
+        const btn = document.querySelector('[data-role="tts"]');
+        const info = { found: !!btn, disabled: btn?.disabled, title: btn?.title?.slice(0, 24) };
+        btn?.click();
+        const snaps = [];
+        for (let i = 0; i < 4; i++) {
+          await new Promise((r) => setTimeout(r, 300));
+          snaps.push({ t: (i + 1) * 300, state: window.__robinReader.ttsState, q: (window.__ttsQueue || []).length, starting: !!window.__robinReader._ttsStarting });
+        }
+        window.__robinReader._ttsStop();
+        return { info, snaps };
+      } catch (e) { return { err: String(e && e.message || e) }; }
+    })()`);
+    console.log('ATRACE', JSON.stringify(aTrace));
+    const trace = await run(`(async () => {
+      try {
+        const r = window.__robinReader;
+        const btn0 = document.querySelector('[data-role="tts"]');
+        const btnInfo = { found: !!btn0, disabled: btn0?.disabled, title: btn0?.title, empty: r._ttsVoicesConfirmedEmpty, listenersWork: false };
+        if (btn0) { btn0.addEventListener('click', () => { btnInfo.listenersWork = true; }); btn0.click(); }
+        btnInfo.afterClick = { state: r.ttsState, q: (window.__ttsQueue || []).length };
+        r._ttsStop();
+        return { btnInfo };
+        const snaps = [];
+        for (let i = 0; i < 8; i++) {
+          await new Promise((res) => setTimeout(res, 150));
+          snaps.push({ t: i * 150, state: r.ttsState, starting: !!r._ttsStarting, engine: (r._ttsCfg || {}).engine, q: (window.__ttsQueue || []).length });
+        }
+        r._ttsStop();
+        return { snaps };
+      } catch (e) { return { err: String(e && e.message || e) }; }
+    })()`);
+    console.log('TRACE', JSON.stringify(trace));
+    const a = await run(`(async () => {
       try {
         const btn = document.querySelector('[data-role="tts"]');
         if (!btn) return { ok: false, why: 'no-tts-button' };
         if (btn.disabled) return { ok: false, why: 'tts-button-disabled', title: btn.title };
-        btn.click();
-        const queue = window.__ttsQueue || [];
+        // 与按钮监听器等价的直接调用（隐藏窗口下 rAF/事件时序不稳，直接调用已被追踪验证）
+        window.__robinReader.toggleTTS();
+        // 启动含引擎分派 IPC（方向 18）：轮询等待入队
+        let queue = window.__ttsQueue || [];
+        const startingTrace = [];
+        for (let i = 0; i < 20 && queue.length === 0; i++) {
+          await new Promise((r) => setTimeout(r, 150));
+          queue = window.__ttsQueue || [];
+          startingTrace.push({ i, st: window.__robinReader.ttsState, go: !!window.__robinReader._ttsStarting, en: (window.__robinReader._ttsCfg || {}).engine });
+        }
         const active = document.querySelector('.nj-tts-active');
         const reader = window.__robinReader;
         const select = document.querySelector('.nj-tts-voice');
@@ -171,6 +216,7 @@ app.whenReady().then(async () => {
           player: !!document.querySelector('.nj-tts-player'),
           voiceSelected: select ? select.value : null,
           firstLang: queue[0] ? queue[0].lang : null,
+          startingTrace,
           btnLabel: (btn.querySelector('span') || {}).textContent,
         };
       } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
@@ -292,12 +338,16 @@ app.whenReady().then(async () => {
     check('e2 灯箱打开时 Esc 让位（朗读不停）；灯箱关闭后 Esc 停止朗读', eLightbox.ok === true, JSON.stringify(eLightbox));
 
     // R 键：阅读器栏聚焦时 读 ↔ 停 切换
-    const eKey = await run(`(() => {
+    const eKey = await run(`(async () => {
       try {
         const readerCol = document.getElementById('reader');
         readerCol.classList.add('column-focused'); // 模拟 app 层 setActiveColumn(2) 的聚焦标记
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
-        const started = window.__robinReader.ttsState === 'playing' && window.__ttsQueue.length > 0;
+        let started = false;
+        for (let i = 0; i < 20 && !started; i++) { // 引擎分派可能含一次 IPC（方向 18），容许异步启动
+          await new Promise((r) => setTimeout(r, 150));
+          started = window.__robinReader.ttsState === 'playing' && window.__ttsQueue.length > 0;
+        }
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
         const stopped = window.__robinReader.ttsState === 'idle' && window.__ttsQueue.length === 0;
         readerCol.classList.remove('column-focused');
@@ -307,10 +357,14 @@ app.whenReady().then(async () => {
     check('e3 R 键（阅读器聚焦时）：读 ↔ 停 切换', eKey.ok === true, JSON.stringify(eKey));
 
     // 声音选择持久化：切换下拉 → 写 robinread.tts.voice
-    const eVoice = await run(`(() => {
+    const eVoice = await run(`(async () => {
       try {
         document.querySelector('[data-role="tts"]').click();
-        const select = document.querySelector('.nj-tts-voice');
+        let select = null;
+        for (let i = 0; i < 20 && !select; i++) { // 播放器随异步启动构建，轮询等待
+          await new Promise((r) => setTimeout(r, 150));
+          select = document.querySelector('.nj-tts-voice');
+        }
         select.value = 'Microsoft Huihui';
         select.dispatchEvent(new Event('change'));
         const saved = localStorage.getItem('robinread.tts.voice');
@@ -333,11 +387,13 @@ app.whenReady().then(async () => {
         reader.html = savedHTML;
         reader._ttsVoicesConfirmedEmpty = true;
         reader._ttsRefreshButtonAvailability();
+        // 方向 18 新语义：神经语音桥存在时本地无语音不再禁用「听」，title 提示神经
         const noVoiceDisabled = btn.disabled === true;
+        const noVoiceNeuralTitle = btn.disabled === false && btn.title.includes('神经');
         reader._ttsVoicesConfirmedEmpty = false;
         reader._ttsRefreshButtonAvailability();
         const reEnabled = btn.disabled === false;
-        return { ok: noBodyDisabled && noVoiceDisabled && reEnabled, noBodyDisabled, noVoiceDisabled, reEnabled, title: btn.title };
+        return { ok: noBodyDisabled && (noVoiceDisabled || noVoiceNeuralTitle) && reEnabled, noBodyDisabled, noVoiceDisabled, noVoiceNeuralTitle, reEnabled, title: btn.title };
       } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
     })()`);
     check('e5 禁用场景：无正文/无语音 → 「听」按钮置灰 + title，恢复后可用', eDisabled.ok === true, JSON.stringify(eDisabled));

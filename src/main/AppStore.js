@@ -1478,6 +1478,53 @@ class AppStore extends EventEmitter {
     return String(this.preferences.get('RobinRead.readerCustomCSS', '') || '');
   }
 
+  /** 朗读引擎配置（方向 18）：engine/neuralVoice + 自定义 TTS 端点；key 掩码不下发。 */
+  ttsConfig() {
+    return {
+      engine: this.preferences.get('RobinRead.tts.engine', 'edge'),
+      neuralVoice: this.preferences.get('RobinRead.tts.neuralVoice', 'zh-CN-XiaoxiaoNeural'),
+      customEndpoint: this.preferences.get('RobinRead.tts.customEndpoint', ''),
+      customModel: this.preferences.get('RobinRead.tts.customModel', ''),
+      customVoice: this.preferences.get('RobinRead.tts.customVoice', ''),
+      hasCustomKey: Boolean(this.preferences.get('RobinRead.tts.customApiKey', '')),
+      customApiKey: '',
+    };
+  }
+
+  /** 主进程内部用：自定义 TTS 完整凭证（含 key），仅供合成服务，不经 IPC 下发。 */
+  ttsCustomCredentials() {
+    return {
+      endpoint: this.preferences.get('RobinRead.tts.customEndpoint', ''),
+      model: this.preferences.get('RobinRead.tts.customModel', ''),
+      voice: this.preferences.get('RobinRead.tts.customVoice', ''),
+      apiKey: this.preferences.get('RobinRead.tts.customApiKey', ''),
+    };
+  }
+
+  setTTSConfig(patch) {
+    const allowed = {
+      engine: ['local', 'edge', 'custom'],
+      neuralVoice: 'string',
+      customEndpoint: 'string',
+      customModel: 'string',
+      customVoice: 'string',
+      customApiKey: 'string',
+    };
+    for (const [key, value] of Object.entries(patch || {})) {
+      const rule = allowed[key];
+      if (!rule) continue;
+      if (rule === 'string') {
+        const capped = String(value ?? '').slice(0, 600);
+        if (key === 'customApiKey' && capped && !/^[\x21-\x7e]+$/.test(capped)) continue; // key 仅允许可见 ASCII
+        this.preferences.set(`RobinRead.tts.${key}`, capped);
+      } else if (rule.includes(value)) {
+        this.preferences.set(`RobinRead.tts.${key}`, value);
+      }
+    }
+    this._emitState();
+    return this.ttsConfig();
+  }
+
   /**
    * 导出 EPUB 电子书（方向 19 v1）：单篇文章 → EPUB 3。
    * 正文优先取抓取缓存（阅读器同源），无缓存时退回 RSS content 消毒产物；

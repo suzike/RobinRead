@@ -14,3 +14,4 @@ dist-release/
 # 临时调试产物
 .tmp-*
 .zcode/
+dist-v250/

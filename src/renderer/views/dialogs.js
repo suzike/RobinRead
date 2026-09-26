@@ -687,7 +687,7 @@ export class SettingsView {
 
   // MARK: AI 功能
 
-  _ai(container, llm) {
+  async _ai(container, llm) {
     const hasKey = this.state.snapshot?.hasAPIKey;
     // LLM 开关/输入统一：保存后刷新快照，切 section 再回来状态不丢
     const setLLMField = (patch) => async (value) => {
@@ -695,6 +695,73 @@ export class SettingsView {
       this.handlers.onRefreshState?.();
       this.state.snapshot.llm = { ...(this.state.snapshot.llm || {}), [patch]: value };
     };
+
+    // ── 朗读引擎（方向 18）：神经语音 / 本地语音 / 自定义 TTS ──
+    const ttsCfg = (await window.robin.ttsGetConfig?.().catch(() => null)) || { engine: 'edge' };
+    const neuralVoices = (await window.robin.ttsNeuralVoices?.().catch(() => null)) || [];
+    const saveTTS = (patch) => async (value) => {
+      await window.robin.ttsSetConfig?.({ [patch]: value });
+      document.dispatchEvent(new CustomEvent('robinread:tts-config'));
+    };
+    container.appendChild(group(t('朗读引擎'), t('「听文章」使用的高品质语音。神经语音免费需联网；自定义服务支持情感模型与音色克隆。'), [
+      row(t('朗读引擎'), t('神经语音：微软 Neural 音色（晓晓/云希等），自然接近真人，需联网；本地语音：系统离线语音；自定义 TTS：任何 OpenAI 兼容 /v1/audio/speech 服务或局域网语音服务（如 CosyVoice）。'), selectControl(
+        [['edge', t('神经语音（推荐，需联网）')], ['local', t('本地语音（离线）')], ['custom', t('自定义 TTS 服务')]],
+        ttsCfg.engine || 'edge',
+        saveTTS('engine'),
+      )),
+      row(t('神经音色'), t('晓晓温暖自然、云希阳光、云健磁性、云扬新闻腔；自定义引擎时此音色作 voice 参数。'), selectControl(
+        neuralVoices.map((v) => [v.id, v.label || v.id]),
+        ttsCfg.neuralVoice || 'zh-CN-XiaoxiaoNeural',
+        saveTTS('neuralVoice'),
+      )),
+      row(t('自定义端点'), t('例如 https://api.openai.com/v1/audio/speech，或局域网语音服务地址（如 CosyVoice / GPT-SoVITS）。'), (() => {
+        const wrap = document.createElement('div');
+        wrap.className = 'setting-control';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'nj-css-input';
+        input.style.minHeight = '32px';
+        input.value = ttsCfg.customEndpoint || '';
+        input.placeholder = 'https://…/v1/audio/speech';
+        input.addEventListener('change', () => saveTTS('customEndpoint')(input.value.trim()));
+        wrap.appendChild(input);
+        return wrap;
+      })()),
+      row(t('模型与音色'), t('model 与 voice 参数（OpenAI 兼容格式），如 tts-1 / alloy；留空用服务端默认。'), (() => {
+        const wrap = document.createElement('div');
+        wrap.className = 'setting-control';
+        wrap.style.gap = '8px';
+        const model = document.createElement('input');
+        model.type = 'text';
+        model.className = 'nj-css-input';
+        model.style.minHeight = '32px';
+        model.value = ttsCfg.customModel || '';
+        model.placeholder = 'model';
+        model.addEventListener('change', () => saveTTS('customModel')(model.value.trim()));
+        const voice = document.createElement('input');
+        voice.type = 'text';
+        voice.className = 'nj-css-input';
+        voice.style.minHeight = '32px';
+        voice.value = ttsCfg.customVoice || '';
+        voice.placeholder = 'voice';
+        voice.addEventListener('change', () => saveTTS('customVoice')(voice.value.trim()));
+        wrap.append(model, voice);
+        return wrap;
+      })()),
+      row(t('API Key'), t('自定义服务的鉴权密钥（Bearer），不出本机；本地服务可留空。'), (() => {
+        const wrap = document.createElement('div');
+        wrap.className = 'setting-control';
+        const input = document.createElement('input');
+        input.type = 'password';
+        input.className = 'nj-css-input';
+        input.style.minHeight = '32px';
+        input.value = '';
+        input.placeholder = ttsCfg.hasCustomKey ? '已保存，输入新值可覆盖' : 'sk-…';
+        input.addEventListener('change', () => saveTTS('customApiKey')(input.value.trim()));
+        wrap.appendChild(input);
+        return wrap;
+      })()),
+    ]));
 
     // ── 服务商与连接（多服务商管理）──
     const provGroup = group(t('服务商与连接'), t('可添加多个服务商并一键切换；API Key 只保存在这台设备。切换服务商后请填写对应的 API Key。'), []);
