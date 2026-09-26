@@ -6,6 +6,7 @@
 import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 import { promptBox, confirmBox } from '../ui-prompt.js';
+import { renderMarkdown } from '../markdown.js';
 
 const TABS = [
   { id: 'dashboard', label: '看板', icon: 'general' },
@@ -19,6 +20,8 @@ const TABS = [
   { id: 'heatmap', label: '热力图', icon: 'heart' },
   { id: 'stats', label: '统计', icon: 'general' },
   { id: 'tags', label: '标签', icon: 'globe' },
+  { id: 'graph', label: '图谱', icon: 'ai' },
+  { id: 'ask', label: '问知识库', icon: 'spark' },
 ];
 
 function timeAgo(seconds) {
@@ -81,6 +84,8 @@ export class KnowledgeCenter {
       heatmap: async () => window.robin.kbHeatmap(120),
       stats: async () => window.robin.kbStats(30),
       tags: async () => window.robin.kbTags(),
+      graph: async () => window.robin.kbGraph(240),
+      ask: async () => ({}),
     };
     const loader = loads[this.tab];
     if (!loader) return;
@@ -167,6 +172,8 @@ export class KnowledgeCenter {
       case 'heatmap': this._renderHeatmap(data || {}); break;
       case 'stats': this._renderStats(data || {}); break;
       case 'tags': this._renderTags(data || []); break;
+      case 'graph': this._renderGraph(data || {}); break;
+      case 'ask': this._renderAsk(); break;
     }
   }
 
@@ -611,6 +618,268 @@ export class KnowledgeCenter {
       el.appendChild(chart);
     }
     this.contentHost.appendChild(el);
+  }
+
+  // ── 图谱（知识增强）：标签 ↔ 文章 canvas 力导向图 ──
+  _renderGraph(data) {
+    const el = document.createElement('div');
+    if (!data?.edges?.length) {
+      this._empty('图谱还是空的', '阅读时高亮、打标签或生成 AI 摘要，知识节点会在这里生长。');
+      return;
+    }
+    const head = document.createElement('div');
+    head.className = 'kb-graph-head';
+    head.innerHTML = `<span class="kb-daily-title">${escapeHTML(t('知识图谱'))}</span><span class="kb-graph-legend">${escapeHTML(t('大节点 = 高频标签 · 悬停高亮关联 · 点击文章节点直达'))}</span>`;
+    el.appendChild(head);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'kb-graph-wrap';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'kb-graph-canvas';
+    wrap.appendChild(canvas);
+    el.appendChild(wrap);
+    this.contentHost.appendChild(el);
+
+    // 主题取色（canvas 不能直接用 CSS 变量）
+    const css = getComputedStyle(document.documentElement);
+    const palette = {
+      ink: css.getPropertyValue('--text-primary').trim() || '#333',
+      muted: css.getPropertyValue('--text-secondary').trim() || '#888',
+      accent: css.getPropertyValue('--accent').trim() || '#617357',
+      paper: css.getPropertyValue('--page-background').trim() || '#faf7ee',
+      line: css.getPropertyValue('--note-border').trim() || '#ddd',
+    };
+
+    // 节点/边构建
+    const nodes = [];
+    const nodeByKey = new Map();
+    const addNode = (key, kind, label, weight) => {
+      let node = nodeByKey.get(key);
+      if (!node) {
+        node = { key, kind, label, weight: 0, x: 0, y: 0, vx: 0, vy: 0 };
+        nodeByKey.set(key, node);
+        nodes.push(node);
+      }
+      node.weight += weight;
+      return node;
+    };
+    for (const tg of data.tags || []) addNode(`tag:${tg.tag}`, 'tag', tg.tag, tg.count);
+    for (const a of data.articles || []) addNode(`art:${a.id}`, 'article', a.title || a.id, 1);
+    const edges = (data.edges || []).map((e) => ({
+      a: nodeByKey.get(`tag:${e.tag}`),
+      b: nodeByKey.get(`art:${e.id}`),
+    })).filter((e) => e.a && e.b);
+
+    // 初始布局：同心圆撒点
+    const W = Math.max(420, wrap.clientWidth || 760);
+    const H = 460;
+    nodes.forEach((node, i) => {
+      const angle = (i / nodes.length) * Math.PI * 2;
+      const radius = node.kind === 'tag' ? 90 : 180;
+      node.x = W / 2 + Math.cos(angle) * radius * (0.6 + 0.4 * Math.sin(i * 7));
+      node.y = H / 2 + Math.sin(angle) * radius * (0.6 + 0.4 * Math.cos(i * 5));
+    });
+
+    // 力导向模拟（固定迭代成静态图；悬停仅视觉高亮，不重排）
+    const REPULSION = 2600;
+    const SPRING = 0.015;
+    const REST = 86;
+    const CENTER = 0.012;
+    for (let iter = 0; iter < 160; iter += 1) {
+      for (let i = 0; i < nodes.length; i += 1) {
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const a = nodes[i];
+          const b = nodes[j];
+          let dx = a.x - b.x;
+          let dy = a.y - b.y;
+          let dist2 = dx * dx + dy * dy;
+          if (dist2 < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; dist2 = 1; }
+          const force = REPULSION / dist2;
+          const dist = Math.sqrt(dist2);
+          const fx = (dx / dist) * Math.min(force, 12);
+          const fy = (dy / dist) * Math.min(force, 12);
+          a.vx += fx; a.vy += fy;
+          b.vx -= fx; b.vy -= fy;
+        }
+      }
+      for (const edge of edges) {
+        const dx = edge.b.x - edge.a.x;
+        const dy = edge.b.y - edge.a.y;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        const force = (dist - REST) * SPRING;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        edge.a.vx += fx; edge.a.vy += fy;
+        edge.b.vx -= fx; edge.b.vy -= fy;
+      }
+      for (const node of nodes) {
+        node.vx += (W / 2 - node.x) * CENTER;
+        node.vy += (H / 2 - node.y) * CENTER;
+        node.vx *= 0.82; node.vy *= 0.82;
+        node.x = Math.max(26, Math.min(W - 26, node.x + Math.max(-9, Math.min(9, node.vx))));
+        node.y = Math.max(22, Math.min(H - 22, node.y + Math.max(-9, Math.min(9, node.vy))));
+      }
+    }
+
+    // 绘制
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const radiusOf = (node) => (node.kind === 'tag' ? Math.min(20, 6 + Math.sqrt(node.weight) * 3.2) : 5);
+    let hover = null;
+    const related = (node) => {
+      const set = new Set([node]);
+      for (const edge of edges) {
+        if (edge.a === node) set.add(edge.b);
+        if (edge.b === node) set.add(edge.a);
+      }
+      return set;
+    };
+    let hoverSet = null;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      for (const edge of edges) {
+        const hot = hover && (edge.a === hover || edge.b === hover);
+        ctx.strokeStyle = hot ? palette.accent : palette.line;
+        ctx.globalAlpha = hover ? (hot ? 0.9 : 0.15) : 0.55;
+        ctx.beginPath();
+        ctx.moveTo(edge.a.x, edge.a.y);
+        ctx.lineTo(edge.b.x, edge.b.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      for (const node of nodes) {
+        const r = radiusOf(node);
+        const dim = hoverSet ? !hoverSet.has(node) : false;
+        ctx.globalAlpha = dim ? 0.15 : 1;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+        if (node.kind === 'tag') {
+          ctx.fillStyle = palette.accent;
+          ctx.fill();
+        } else {
+          ctx.fillStyle = palette.paper;
+          ctx.fill();
+          ctx.strokeStyle = palette.muted;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+        }
+        const showLabel = node.kind === 'tag' ? (node.weight >= 3 || hoverSet?.has(node)) : hoverSet?.has(node);
+        if (showLabel) {
+          ctx.globalAlpha = dim ? 0.25 : 0.92;
+          ctx.fillStyle = palette.ink;
+          ctx.font = `${node.kind === 'tag' ? 600 : 400} 11px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label;
+          ctx.fillText(label, node.x, node.y - r - 5);
+        }
+        ctx.globalAlpha = 1;
+      }
+    };
+    draw();
+
+    // 交互：悬停高亮关联子图 + 点击文章节点直达
+    const nodeAt = (evt) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = evt.clientX - rect.left;
+      const y = evt.clientY - rect.top;
+      let best = null;
+      let bestDist = 24;
+      for (const node of nodes) {
+        const d = Math.hypot(node.x - x, node.y - y);
+        if (d < Math.max(radiusOf(node) + 6, 12) && d < bestDist) { best = node; bestDist = d; }
+      }
+      return best;
+    };
+    canvas.addEventListener('mousemove', (event) => {
+      const node = nodeAt(event);
+      if (node !== hover) {
+        hover = node;
+        hoverSet = node ? related(node) : null;
+        canvas.style.cursor = node ? 'pointer' : 'default';
+        draw();
+      }
+    });
+    canvas.addEventListener('mouseleave', () => { hover = null; hoverSet = null; draw(); });
+    canvas.addEventListener('click', (event) => {
+      const node = nodeAt(event);
+      if (node?.kind === 'article') this.handlers.onOpenArticle?.(node.key.slice(4));
+    });
+  }
+
+  // ── 问知识库（知识增强）：以高亮 + 笔记为材料的流式问答 ──
+  _renderAsk() {
+    const el = document.createElement('div');
+    const head = document.createElement('div');
+    head.className = 'kb-graph-head';
+    head.innerHTML = `<span class="kb-daily-title">${escapeHTML(t('问知识库'))}</span><span class="kb-graph-legend">${escapeHTML(t('以你的高亮与笔记为材料作答，句末 [n] 可点击跳来源'))}</span>`;
+    el.appendChild(head);
+
+    const inputRow = document.createElement('div');
+    inputRow.className = 'kb-ask-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'kb-ask-input';
+    input.placeholder = t('例如：我收藏过哪些关于写作的建议？');
+    const askBtn = document.createElement('button');
+    askBtn.className = 'btn-text primary kb-ask-btn';
+    askBtn.textContent = t('提问');
+    inputRow.append(input, askBtn);
+    el.appendChild(inputRow);
+
+    const answer = document.createElement('div');
+    answer.className = 'kb-ask-answer';
+    el.appendChild(answer);
+    const refsHost = document.createElement('div');
+    refsHost.className = 'kb-ask-refs';
+    el.appendChild(refsHost);
+    this.contentHost.appendChild(el);
+
+    let busy = false;
+    const submit = async () => {
+      const question = input.value.trim();
+      if (!question || busy) return;
+      busy = true;
+      askBtn.disabled = true;
+      answer.className = 'kb-ask-answer';
+      answer.innerHTML = '<div class="robin-spinner"></div>';
+      refsHost.innerHTML = '';
+      let streamed = '';
+      const unsubscribe = window.robin.onAIDelta?.((payload) => {
+        if (payload?.key !== 'kb:ask') return;
+        streamed += payload.delta || '';
+        answer.innerHTML = renderMarkdown(streamed);
+      });
+      try {
+        const result = await window.robin.kbAsk(question);
+        if (result && result.ok === false) throw new Error(result.error || t('生成失败'));
+        const content = result?.content || streamed;
+        answer.className = 'kb-ask-answer';
+        answer.innerHTML = renderMarkdown(content);
+        for (const ref of result?.refs || []) {
+          const chip = document.createElement('button');
+          chip.className = 'dg-ref';
+          chip.textContent = String(ref.n);
+          chip.title = `${ref.kind} · ${ref.title || ''}`;
+          chip.addEventListener('click', () => this.handlers.onOpenArticle?.(ref.itemID));
+          refsHost.appendChild(chip);
+        }
+        if (!content.trim()) answer.textContent = t('（空回答）');
+      } catch (error) {
+        answer.className = 'kb-ask-answer kb-ask-error';
+        answer.textContent = String(error?.message || error) || t('生成失败');
+      } finally {
+        unsubscribe?.();
+        busy = false;
+        askBtn.disabled = false;
+      }
+    };
+    askBtn.addEventListener('click', submit);
+    input.addEventListener('keydown', (event) => { if (event.key === 'Enter') submit(); });
   }
 
   _renderTags(tags) {

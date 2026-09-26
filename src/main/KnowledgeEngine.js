@@ -199,6 +199,35 @@ class KnowledgeEngine {
 
   // MARK: - 标签
   getTags(limit = 100) { return this.store.database.prepare('SELECT tag, COUNT(*) as count FROM article_tags GROUP BY tag ORDER BY count DESC LIMIT ?').all(limit); }
+
+  /**
+   * 知识图谱数据（标签 ↔ 文章二部关系）：tags 节点 / articles 节点 / edges 边。
+   * 供知识中心「图谱」canvas 力导向渲染；行数封顶防止超大库卡顿。
+   */
+  getGraphData(limit = 220) {
+    const rows = this.store.database.prepare(`
+      SELECT at.tag, at.item_id, COALESCE(a.title, '') AS title
+      FROM article_tags at
+      INNER JOIN items i ON i.id = at.item_id
+      LEFT JOIN articles a ON a.item_id = i.id
+      LIMIT ?
+    `).all(Number(limit) || 220);
+    const tagCount = new Map();
+    const articles = new Map();
+    const edges = [];
+    for (const row of rows) {
+      const tag = String(row.tag || '').trim();
+      if (!tag || !row.item_id) continue;
+      tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
+      if (!articles.has(row.item_id)) articles.set(row.item_id, { id: row.item_id, title: row.title || '' });
+      edges.push({ tag, id: row.item_id });
+    }
+    return {
+      tags: [...tagCount.entries()].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count),
+      articles: [...articles.values()],
+      edges,
+    };
+  }
   getItemTags(itemID) { return this.store.database.prepare('SELECT tag, source FROM article_tags WHERE item_id = ?').all(itemID); }
 
   /** 按标签取关联文章（真实的 article_tags 关系查询，非全文搜索）。 */

@@ -3106,6 +3106,73 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
   flex: 0 0 auto;
 }
 .nj-tts-pbtn.nj-tts-queue.active { color: var(--accent); border-color: var(--accent); }
+
+/* ── 知识中心：图谱（知识增强）与问知识库 ── */
+.kb-graph-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.kb-graph-legend { font-size: 0.78em; color: var(--text-secondary); }
+.kb-graph-wrap {
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: var(--note-background);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+.kb-graph-canvas { display: block; }
+.kb-ask-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.kb-ask-input {
+  flex: 1;
+  border: 1px solid var(--note-border);
+  border-radius: 8px;
+  background: var(--note-background);
+  color: var(--text-primary);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.kb-ask-input:focus { border-color: var(--accent); }
+.kb-ask-answer {
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 120px;
+  font-size: 0.95em;
+  line-height: 1.7;
+  background: var(--note-background);
+}
+.kb-ask-answer .robin-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--row-selected);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: rotate 0.8s linear infinite;
+  margin: 24px auto;
+  display: block;
+}
+.kb-ask-answer.kb-ask-error { color: #c93b3b; }
+.kb-ask-refs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+.kb-ask-refs:empty { display: none; }
+
+/* ── 前端美化：命令面板入场动效 + 每日刊封面悬停 ── */
+.cmd-palette-overlay { animation: kb-fade-in 0.16s ease; }
+.cmd-palette { animation: kb-pop 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+@keyframes kb-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kb-pop {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.nj-edition-cover { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.nj-edition-cover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(20, 17, 12, 0.18);
+}
 .nj-tts-pbtn:hover { background: var(--row-hover); color: var(--accent); }
 .nj-tts-pbtn svg { width: 12px; height: 12px; pointer-events: none; }
 .nj-tts-pbtn.nj-tts-rate { width: auto; min-width: 24px; padding: 0 7px; border-radius: 999px; }

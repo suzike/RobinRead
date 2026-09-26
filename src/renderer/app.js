@@ -171,7 +171,11 @@ async function bootstrap() {
 
 function applyTheme(snapshot) {
   const prefers = snapshot?.prefersDark ?? window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.body.classList.toggle('dark', prefers);
+  const apply = () => document.body.classList.toggle('dark', prefers);
+  // 前端美化（方向 10 轻量版）：明暗切换走 View Transition 淡入淡出（尊重 reduced-motion）
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (document.startViewTransition && !reduce) document.startViewTransition(apply);
+  else apply();
 }
 
 function applyFontSize(size) {
@@ -241,13 +245,17 @@ function applyReaderLayout(layout) {
     applyReaderLayout._lastSort = listSort;
     if (changed && views.list) reloadList({ resetScroll: true }).catch(() => {});
   }
-  // 时间线形态（列表 / 沉浸杂志）：切换后重拉并重渲染
+  // 时间线形态（列表 / 沉浸杂志）：切换后重拉并重渲染（前端美化：View Transition 淡入）
   const viewMode = layout?.listViewMode === 'magazine' ? 'magazine' : 'list';
   if (views.list?.setViewMode) views.list.setViewMode(viewMode);
   if (viewMode !== applyReaderLayout._lastViewMode) {
     const changed = applyReaderLayout._lastViewMode !== undefined;
     applyReaderLayout._lastViewMode = viewMode;
-    if (changed && views.list) reloadList({ resetScroll: true }).catch(() => {});
+    if (changed && views.list) {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (document.startViewTransition && !reduce) document.startViewTransition(() => reloadList({ resetScroll: true }).catch(() => {}));
+      else reloadList({ resetScroll: true }).catch(() => {});
+    }
   }
   // 注意：translateMode 是「打开文章时的默认模式」，由 reader.open 自行读取；
   // 不在这里强制应用——否则每次 state 推送都会把用户会话内选择的模式重置掉。

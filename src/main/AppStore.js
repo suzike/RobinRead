@@ -1449,6 +1449,44 @@ class AppStore extends EventEmitter {
   }
 
   /**
+   * 知识库问答（知识增强）：以已收集的高亮 + 笔记为材料回答问题。
+   * 流式经 ai:delta（key='kb:ask'）推送；返回引用表（材料编号 → 来源文章）。
+   */
+  async knowledgeAsk(question, { onDelta = null } = {}) {
+    const q = String(question || '').trim();
+    if (!q) throw new Error(i18n.localized('请输入你想问的问题。'));
+    // 先查材料再查 Key：空库时引导积累，而不是抛配置错误
+    const highlights = this.knowledge.getAllHighlights(150).map((h) => ({ kind: '高亮', itemID: h.itemID, title: h.articleTitle || '（未知文章）', text: h.text }));
+    const notes = this.knowledge.getAllNotes(80).map((nt) => ({ kind: '笔记', itemID: nt.itemID, title: nt.articleTitle || '（未知文章）', text: nt.content }));
+    const materials = [...highlights, ...notes].filter((m) => m.text && String(m.text).trim());
+    if (!materials.length) throw new Error(i18n.localized('知识库还是空的：阅读时先高亮或记笔记，再来提问。'));
+    const { config, apiKey } = this._requireAIReady();
+    const lines = materials.map((m, index) => `${index + 1}. [${m.kind}·${m.title}] ${String(m.text).replace(/\s+/g, ' ').slice(0, 200)}`);
+    const prompt = [
+      '以下是你主人的知识库材料（高亮与笔记，每条前的编号即来源编号）：',
+      ...lines,
+      '',
+      `问题：${q}`,
+      '',
+      '请基于这些材料回答，严格遵循：',
+      '- 用到某条材料时在句末标注其编号，如 [3]',
+      '- 材料不足以回答的部分明确说「知识库中暂无相关内容」，禁止编造',
+      '- 直接给答案，分点清晰，不要复述材料原文',
+    ].join('\n');
+    const content = await this.llm.complete({
+      prompt,
+      system: '你是一位严谨的私人知识库管理员，只依据给定的高亮与笔记材料回答问题。输出简体中文 Markdown，语言精炼、分点清晰。',
+      configuration: config,
+      apiKey,
+      onDelta,
+      forceDisableReasoning: true,
+      overrideTemperature: 0.3,
+    });
+    const refs = materials.map((m, index) => ({ n: index + 1, itemID: m.itemID, title: m.title, kind: m.kind }));
+    return { content, refs: refs.slice(0, 60) };
+  }
+
+  /**
    * 同题对比速读（调研报告 2026-09-26 方向 14 v1）：对标题聚类出的多源同题报道做 AI 融合对比。
    * 非流式（聚类行点按后弹窗等待）；不缓存——每次点按基于当下列表现算，材料本就是摘要预览。
    */

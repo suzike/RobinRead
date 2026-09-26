@@ -179,6 +179,8 @@ contextBridge.exposeInMainWorld('robin', {
   kbExportAnki: () => data('kb:exportAnki'),
   kbSearchKnowledge: (query, options) => data('kb:searchKnowledge', query, options),
   kbHeatmap: (days) => data('kb:heatmap', days),
+  kbGraph: (limit) => data('kb:graph', limit),
+  kbAsk: (question) => invoke('kb:ask', question),
   kbDashboard: () => data('kb:dashboard'),
   kbExportJSON: () => data('kb:exportJSON'),
   kbExportHTML: () => data('kb:exportHTML'),
