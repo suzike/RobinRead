@@ -49,7 +49,8 @@ app.whenReady().then(async () => {
     const { registerIPCHandlers } = require('../src/main/ipc');
     registerIPCHandlers(store, win);
     await win.loadFile(path.join(__dirname, '..', 'src', 'renderer', 'index.html'));
-    const run = (js) => win.webContents.executeJavaScript(`(async () => { try { ${js} } catch (e) { return { error: String(e.message || e) }; } })()`);
+        win.webContents.on('console-message', (e, level, msg) => { if (level >= 2) console.log('PAGE', String(msg).slice(0, 180)); });
+const run = (js) => win.webContents.executeJavaScript(`(async () => { try { ${js} } catch (e) { return { error: String(e.message || e) }; } })()`);
     // 轮询等待应用桥就绪：隐藏窗口冷启动时机不定（run-all 连续 electron 启动时明显变慢），
     // 固定 sleep 会把 IPC 调用打在未初始化的 window.robin 上
     let bridgeReady = false;
@@ -69,9 +70,12 @@ app.whenReady().then(async () => {
     if (wenkai !== true) throw new Error(`霞鹜文楷加载失败: ${JSON.stringify(wenkai)}`);
     log('PASS 霞鹜文楷经 @font-face 相对路径真实加载');
     await run(`await window.robin.setReaderLayout({ fontFamily: 'wenkai' }); return true;`);
-    await sleep(800);
-    const bodyVar = await run(`return getComputedStyle(document.documentElement).getPropertyValue('--reader-font');`);
-    if (typeof bodyVar !== 'string' || !bodyVar.includes('LXGW WenKai Screen')) throw new Error(`--reader-font 未接线: ${JSON.stringify(bodyVar)}`);
+    let bodyVar = '';
+    for (let i = 0; i < 20 && !bodyVar; i++) {
+      await sleep(250);
+      bodyVar = await run(`return getComputedStyle(document.documentElement).getPropertyValue('--reader-font');`);
+    }
+    if (typeof bodyVar !== 'string' || !bodyVar.includes('LXGW WenKai Screen')) throw new Error('--reader-font 未接线: ' + JSON.stringify(bodyVar));
     if (store.readerLayout().fontFamily !== 'wenkai') throw new Error('fontFamily 未持久化');
     log('PASS 正文字体变量接线与持久化');
 

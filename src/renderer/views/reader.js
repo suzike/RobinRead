@@ -496,7 +496,20 @@ export class ReaderView {
     const overlay = document.createElement('div');
     overlay.className = 'reader-loading';
     overlay.id = 'reader-loading';
-    overlay.innerHTML = `<div class="spinner"></div><span>${escapeHTML(t('正在准备正文…'))}</span>`;
+    overlay.innerHTML = `
+      <div class="nj-skeleton-article">
+        <div class="nj-sk nj-sk-title"></div>
+        <div class="nj-sk nj-sk-meta"></div>
+        <div class="nj-sk nj-sk-line w90"></div>
+        <div class="nj-sk nj-sk-line w100"></div>
+        <div class="nj-sk nj-sk-line w75"></div>
+        <div class="nj-sk nj-sk-line w100"></div>
+        <div class="nj-sk nj-sk-line w60"></div>
+        <div class="nj-sk nj-sk-gap"></div>
+        <div class="nj-sk nj-sk-line w100"></div>
+        <div class="nj-sk nj-sk-line w85"></div>
+        <div class="nj-sk nj-sk-line w70"></div>
+      </div>`;
     this.scrollEl.parentElement.appendChild(overlay);
   }
 

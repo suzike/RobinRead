@@ -3880,3 +3880,17 @@ body.dark .sidebar-row .sidebar-health-warn.dead { background: #d0554a; color: #
   transition: width var(--dur-slow) var(--ease-out);
 }
 .kb-tag-bar-num { width: 32px; flex-shrink: 0; font-size: 0.8em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* ── 文章加载骨架屏（R6，替代 spinner）── */
+.nj-skeleton-article { padding: 8% 6%; }
+.nj-sk {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(100deg, var(--row-selected) 35%, var(--row-hover) 50%, var(--row-selected) 65%);
+  background-size: 220% 100%;
+  animation: kb-shimmer 1.4s linear infinite;
+}
+.nj-sk-title { height: 26px; width: 70%; margin-bottom: 12px; }
+.nj-sk-meta { height: 12px; width: 40%; margin-bottom: 22px; }
+.nj-sk-line { height: 13px; margin-bottom: 10px; }
+.nj-sk-gap { height: 20px; }
+.w90 { width: 90%; } .w100 { width: 100%; } .w85 { width: 85%; } .w75 { width: 75%; } .w70 { width: 70%; } .w60 { width: 60%; }

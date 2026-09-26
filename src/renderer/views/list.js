@@ -114,12 +114,28 @@ export class ListView {
       return;
     }
 
-    const fragment = document.createDocumentFragment();
     if (this.viewMode === 'magazine') {
       this._renderMagazine(items, selectedID);
       return;
     }
     const clusters = clusterSimilar(items);
+    // 渐进渲染（R6）：大量条目分帧 append，避免长列表一次性阻塞主线程
+    const BATCH = 60;
+    const renderEntry = (entry) => entry.type === 'cluster' ? this.clusterRow(entry) : this.rowFor(entry.item);
+    if (clusters.length > BATCH) {
+      let idx = 0;
+      const appendNext = () => {
+        const end = Math.min(clusters.length, idx + BATCH);
+        const frag = document.createDocumentFragment();
+        for (; idx < end; idx += 1) frag.appendChild(renderEntry(clusters[idx]));
+        this.rowsHost.appendChild(frag);
+        if (idx < clusters.length) requestAnimationFrame(appendNext);
+        else { this.markSelected(selectedID); this._observeReveal(); this._mountResumeCard(); }
+      };
+      appendNext();
+      return;
+    }
+    const fragment = document.createDocumentFragment();
     for (const entry of clusters) {
       if (entry.type === 'cluster') {
         fragment.appendChild(this.clusterRow(entry));
