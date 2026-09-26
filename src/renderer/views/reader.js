@@ -3096,6 +3096,21 @@ export class ReaderView {
     });
     // 画廊导航（多图时）：循环切换 + 缩略图条 + 计数徽标
     const thumbsHost = lightbox.querySelector('.nj-lightbox-thumbs');
+
+    // 画廊导航：循环切换 + 计数 + 缩略图 active 同步
+    const showAt = (idx) => {
+      if (!items) return;
+      gIndex = (idx + items.length) % items.length;
+      const target = items[gIndex];
+      img.src = target.src;
+      img.alt = target.alt || '';
+      scale = 1; tx = 0; ty = 0; apply();
+      countEl.textContent = (gIndex + 1) + ' / ' + items.length;
+      thumbsHost.querySelectorAll('.nj-lightbox-thumb').forEach((t, i) => t.classList.toggle('active', i === gIndex));
+    };
+    const step = (dir) => { if (items) showAt(gIndex + dir); };
+    lightbox.querySelector('.nj-lightbox-prev').addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
+    lightbox.querySelector('.nj-lightbox-next').addEventListener('click', (e) => { e.stopPropagation(); step(1); });
     if (items) {
       items.forEach((it, i) => {
         const tEl = document.createElement('img');
@@ -3111,6 +3126,8 @@ export class ReaderView {
     // gotcha：esc 挂在 document 上，任何关闭路径（点击/Esc）都必须移除它，否则长会话每开一张图泄漏一个监听
     const esc = (event) => {
       if (event.key === 'Escape') { dismiss(); return; }
+      if (items && event.key === 'ArrowLeft') { event.preventDefault(); step(-1); return; }
+      if (items && event.key === 'ArrowRight') { event.preventDefault(); step(1); return; }
       if (items && event.key === 'ArrowLeft') { step(-1); }
       if (items && event.key === 'ArrowRight') { step(1); }
     };
