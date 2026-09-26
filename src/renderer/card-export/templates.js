@@ -661,7 +661,7 @@ const MIN = {
 .xc-t-min .xc-cover { flex:none; width:128px; height:128px; border-radius:50%; overflow:hidden;
   margin-top:14px; border:1px solid #ececec; }
 .xc-t-min .xc-cover img { width:100%; height:100%; object-fit:cover; }
-.xc-t-min .xc-cover-gen { width:100%; height:100%; position:relative; overflow:hidden;
+.xc-t-min .xc-cover-gen { position:relative; overflow:hidden;
   background:linear-gradient(150deg,#f3f4f6,#dfe2e6 70%,#d3d7dc); }
 .xc-t-min .xc-gen-ic { display:none; }
 .xc-t-min .xc-ghost { position:absolute; left:12px; bottom:6px; font-size:40px; font-weight:600;
