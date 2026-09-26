@@ -1588,6 +1588,46 @@ class AppStore extends EventEmitter {
     return buffer.toString('base64');
   }
 
+  /** 单篇导出离线 HTML（排版保真）：与 EPUB 同源的消毒正文 + 内联纸感样式。 */
+  exportEntryHtml(entryID) {
+    const entry = this.articlesRepo.entry(entryID);
+    if (!entry) throw new Error('entry not found');
+    const cache = this.cachesRepo.cache(entryID);
+    const html = (cache?.html && String(cache.html).trim()) || (entry.contentHTML
+      ? ArticleExtractor.sanitizedHTML(ArticleExtractor.normalizeFeedMarkup(entry.contentHTML), entry.url)
+      : null);
+    if (!html) throw new Error(i18n.localized('文章暂无正文内容。'));
+    const feed = this.feedsRepo.feed?.(entry.feedID) || null;
+    const title = entry.title || i18n.localized('未命名文章');
+    const metaBits = [];
+    if (feed?.title) metaBits.push(feed.title);
+    if (entry.author) metaBits.push(entry.author);
+    if (entry.publishedAt) {
+      const d = new Date(entry.publishedAt * 1000);
+      if (!Number.isNaN(d.getTime())) metaBits.push(d.toISOString().slice(0, 10));
+    }
+    return [
+      '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">',
+      `<meta name="viewport" content="width=device-width, initial-scale=1">`,
+      `<title>${title}</title>`,
+      '<style>',
+      'body{font-family:"LXGW WenKai Screen","Source Han Serif SC","Noto Serif CJK SC",Georgia,serif;line-height:1.75;margin:0 auto;max-width:34em;padding:5% 6%;color:#1f1c17;background:#f6f2e7;}',
+      'h1{font-size:1.5em;line-height:1.3;margin-bottom:.4em;}',
+      '.meta{color:#6b6558;font-size:.85em;border-bottom:1px solid #d8d2c4;padding-bottom:.8em;margin-bottom:1.4em;}',
+      'img{max-width:100%;height:auto;border-radius:6px;}',
+      'blockquote{border-left:3px solid #8a9a7b;margin:1.2em 0;padding:.2em 0 .2em 1em;color:#4a463c;}',
+      'pre{background:#efe9da;padding:10px 12px;border-radius:8px;overflow-x:auto;}',
+      'code{font-family:Consolas,Menlo,monospace;font-size:.9em;}',
+      'a{color:#617357;}',
+      '</style></head><body>',
+      `<h1>${title}</h1>`,
+      metaBits.length ? `<p class="meta">${metaBits.join(' · ')}</p>` : '',
+      html,
+      '<p class="meta" style="margin-top:2em;border:none;">Exported by RobinRead</p>',
+      '</body></html>',
+    ].join('\n');
+  }
+
   /**
    * 整期导出 EPUB（方向 19b）：当前列表视野（entryIDs，≤40 篇）打包为一本带目录的多章节电子书。
    * 单篇正文为空时跳过（不阻塞整期）；全空则报错。

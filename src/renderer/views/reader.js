@@ -317,9 +317,28 @@ export class ReaderView {
       { label: t('复制全文 Markdown'), icon: 'copy', onClick: () => this._copyArticleMarkdown() },
       { label: t('导出为 Markdown 文件'), icon: 'docText', onClick: () => this._exportMarkdownFile() },
       { label: t('导出为 EPUB 电子书'), icon: 'bookOpen', onClick: () => this._exportEpubFile() },
+      { label: t('导出为 HTML 文件'), icon: 'docText', onClick: () => this._exportHtmlFile() },
       { type: 'separator' },
       { label: t('打印 / 存为 PDF'), icon: 'newspaper', onClick: () => window.print() },
     ]);
+  }
+
+  /** 导出单篇离线 HTML（排版保真）：主进程拼装 → pickSavePath + writeTextFile。 */
+  async _exportHtmlFile() {
+    try {
+      const html = await window.robin.exportHtml(this.entryID);
+      if (!html) throw new Error(t('导出失败：没有可导出的内容。'));
+      const rawName = (this.entry?.title || '').trim() || t('未命名文章');
+      const safeName = rawName.replace(/[\/:*?"<>| -]/g, '_').slice(0, 80) || t('未命名文章');
+      const picked = await window.robin.pickSavePath(`${safeName}.html`);
+      const filePath = picked?.ok ? picked.data : null;
+      if (!filePath) return; // 用户取消
+      const written = await window.robin.writeTextFile(filePath, html);
+      if (!written?.ok) throw new Error(written?.error || t('写入文件失败'));
+      this.handlers.onFeedback?.(t('已导出'));
+    } catch (err) {
+      this.handlers.onFeedback?.(`${t('导出失败')}：${err?.message || err}`);
+    }
   }
 
   /** 导出 EPUB（方向 19）：主进程构建（缓存正文优先）→ base64 → pickSavePath + writeBinaryFile。 */
@@ -562,6 +581,27 @@ export class ReaderView {
     const minutes = this._estimateReadingMinutes();
     if (minutes > 0) parts.push(`<span class="robin-read-time">${escapeHTML(tf('约 %lld 分钟', minutes))}</span>`);
     meta.innerHTML = parts.join(' &bull; ');
+
+    // 知识联动：文章标签 chips（AI/手动标签），点击切到标签筛选列表
+    if (this.entryID) {
+      const chips = document.createElement('span');
+      chips.className = 'robin-tag-chips';
+      chips.style.display = 'none';
+      meta.appendChild(chips);
+      window.robin.kbTags?.(this.entryID).then((tags) => {
+        const list = (tags || []).map((tg) => tg.tag).filter(Boolean).slice(0, 6);
+        if (!list.length) return;
+        chips.style.display = '';
+        for (const tag of list) {
+          const chip = document.createElement('button');
+          chip.className = 'robin-tag-chip';
+          chip.textContent = `#${tag}`;
+          chip.title = t('查看该标签的全部文章');
+          chip.addEventListener('click', () => this.handlers.onOpenTag?.(tag));
+          chips.appendChild(chip);
+        }
+      }).catch(() => {});
+    }
     // 头部操作区：「听」（TTS 朗读，只要有正文就提供）+ 稍后读 + 应用内精读 + 浏览器打开（次）
     {
       const actions = document.createElement('span');

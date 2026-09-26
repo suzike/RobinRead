@@ -3170,6 +3170,31 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
 }
 .nj-find-nav:hover, .nj-find-close:hover { background: var(--row-selected); color: var(--text-primary); }
 
+/* 文章头部标签 chips（知识联动） */
+.robin-tag-chips { display: inline-flex; gap: 6px; }
+.robin-tag-chip {
+  border: 1px solid var(--note-border);
+  background: var(--note-background);
+  color: var(--text-secondary);
+  font-size: 0.78em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.robin-tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 稍后读行标：已存天数（超 14 天红） */
+.later-age {
+  font-size: 0.78em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.later-age.overdue { color: #c93b3b; font-weight: 600; }
+
+/* 快读 badge（≤2 分钟） */
+.read-min.fast { color: var(--accent); font-weight: 600; }
+
 /* 朗读中：段落可点击跳播 */
 .nj-tts-open .reader-article .robin-body > [data-nj-id] { cursor: pointer; }
 

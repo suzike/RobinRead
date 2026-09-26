@@ -72,6 +72,14 @@ app.whenReady().then(async () => {
       '短文优先排序应按阅读时长升序');
     console.log('PASS 标签筛选列表 + 短文优先排序');
 
+    // 单篇 HTML 导出：结构完整（纸感样式 + 标题 + 正文 + 署名导出行）
+    const htmlOut = store.exportEntryHtml(entries[0]);
+    assert.ok(htmlOut.includes('<!DOCTYPE html>') && htmlOut.includes(entries[0].title || ''), 'HTML 导出应含标题');
+    assert.ok(htmlOut.includes('Exported by RobinRead') && htmlOut.includes('font-family'), 'HTML 应内联纸感样式');
+    const readerSrc2 = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'views', 'reader.js'), 'utf8');
+    assert.ok(readerSrc2.includes('_exportHtmlFile') && readerSrc2.includes('robin-tag-chip'), 'reader 应含 HTML 导出与标签 chips');
+    console.log('PASS 单篇 HTML 导出结构 + 标签 chips 锚点');
+
     // 列表 readMinutes 字段（阅读时长进列表）
     const listItems = store.listItems({ kind: 'today' }, { limit: 10 });
     assert.ok(listItems.length >= 2 && listItems.every((it) => (it.readMinutes || 0) >= 1),

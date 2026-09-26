@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('robin', {
   clusterBrief: (items) => invoke('ai:clusterBrief', items),
   exportEpub: (entryID) => data('app:exportEpub', entryID),
   exportEditionEpub: (entryIDs) => data('app:exportEditionEpub', entryIDs),
+  exportHtml: (entryID) => data('app:exportHtml', entryID),
   ttsNeuralVoices: () => data('tts:neuralVoices'),
   ttsGetConfig: () => data('tts:getConfig'),
   ttsSetConfig: (patch) => data('tts:setConfig', patch),

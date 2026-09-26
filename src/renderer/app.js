@@ -145,6 +145,7 @@ async function bootstrap() {
       onSelectNext: () => selectNextEntry(),
       onFocusList: () => setActiveColumn(1),
       // 知更电台连播（方向 18）：本篇读完自动接列表下一篇（getAdjacent 取向，不触发空格双击确认）
+      onOpenTag: (tag) => handleScopeSelect({ kind: 'tag', tag }),
       onTTSAdvance: async () => {
         if (!state.selectedEntryID) return;
         const result = await window.robin.getAdjacent(state.scope, state.selectedEntryID, 'next');
@@ -696,6 +697,7 @@ async function reloadList({ resetScroll = false } = {}) {
   // 智能稍后读（方向 23）：稍后读视野下出现「清理超龄」入口（入队超 14 天）
   const overdue = state.scope?.kind === 'later' ? laterOverdueIDs() : [];
   views.list.setLaterCleanup(overdue);
+  views.list.setLaterAges(laterAgeMap());
   updateToolbarState();
   if (resetScroll) views.list.scrollTop();
 }

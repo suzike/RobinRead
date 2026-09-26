@@ -524,6 +524,7 @@ function registerIPCHandlers(store, window) {
   handle('ai:clusterBrief', (items) => store.generateClusterBrief(items));
   handle('app:exportEpub', (entryID) => store.exportEntryEpub(entryID));
   handle('app:exportEditionEpub', (entryIDs) => store.exportEditionEpub(entryIDs));
+  handle('app:exportHtml', (entryID) => store.exportEntryHtml(entryID));
   handle('ai:deepRead', (entryID) => store.deepRead(entryID));
   handle('ai:richSummary', (entryID) => store.richSummary(entryID));
   handle('ai:existingWork', (entryID, kind) => store.existingArticleWork(entryID, kind));

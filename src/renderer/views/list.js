@@ -183,6 +183,7 @@ export class ListView {
           ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
           ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
           <span class="read-min-slot">${readMinutesChip(item)}</span>
+          ${this.laterAgeBadge(item)}
           <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
         </div>
       </div>
@@ -547,6 +548,21 @@ export class ListView {
     });
   }
 
+  setLaterAges(ageMap) {
+    this.laterAges = ageMap || {};
+  }
+
+  /** 稍后读行标：入队超 1 天显示「已存 N 天」，超 14 天记红。 */
+  laterAgeBadge(item) {
+    if (!item.isLater || this.scope?.kind !== 'later') return '';
+    const ts = this.laterAges?.[item.id];
+    if (!ts) return '';
+    const days = Math.floor((Date.now() / 1000 - ts) / 86400);
+    if (days < 1) return '';
+    const overdue = days >= 14 ? ' overdue' : '';
+    return `<span class="later-age${overdue}" title="${attr(t('加入稍后读至今'))}">${escapeHTML(tf('已存 %lld 天', days))}</span>`;
+  }
+
   setLaterCleanup(overdueIDs) {
     this._overdueIDs = overdueIDs || [];
     const btn = this.topInset?.querySelector('#later-clean-btn');
@@ -725,7 +741,8 @@ function firstImageURL(contentHead) {
 function readMinutesChip(item) {
   const minutes = Number(item.readMinutes) || 0;
   if (minutes <= 0) return '';
-  return `<span class="read-min">${icon('clock')}${Math.min(999, minutes)}</span>`;
+  const fast = minutes <= 2 ? ' fast' : '';
+  return `<span class="read-min${fast}" title="${attr(t('预计阅读时长'))}">${icon('clock')}${Math.min(999, minutes)}</span>`;
 }
 
 /** 杂志网格遥控式就近移动：目标方向没有卡片时返回 null（由调用方翻页/加载更多）。 */
