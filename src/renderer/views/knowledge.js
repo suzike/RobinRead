@@ -594,9 +594,61 @@ export class KnowledgeCenter {
     this._renderSession();
   }
 
+  /** 当日已复习计数（跨会话累计，跨零点清零）。 */
+  _bumpReviewCount() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = JSON.parse(localStorage.getItem('robinread.review.today') || '{}');
+      const count = raw.date === today ? (raw.count || 0) + 1 : 1;
+      localStorage.setItem('robinread.review.today', JSON.stringify({ date: today, count }));
+    } catch (_) { /* 忽略 */ }
+  }
+
+  _reviewedToday() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('robinread.review.today') || '{}');
+      return raw.date === new Date().toISOString().slice(0, 10) ? (raw.count || 0) : 0;
+    } catch (_) { return 0; }
+  }
+
+  _sessionKeyHandler(event) {
+    const session = this._reviewSession;
+    if (!session) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this._endReviewSession();
+      return;
+    }
+    if (session.revealed && ['1', '2', '3'].includes(event.key)) {
+      event.preventDefault();
+      const q = event.key === '1' ? 1 : event.key === '2' ? 3 : 5;
+      const btn = document.querySelector('.kb-session-a [data-q="' + q + '"]');
+      btn?.click();
+      return;
+    }
+    if ((event.key === ' ' || event.key === 'Enter') && !session.revealed) {
+      event.preventDefault();
+      event.stopPropagation();
+      document.querySelector('.kb-session-reveal')?.click();
+    }
+  }
+
+  _endReviewSession() {
+    if (this._sessionKeys) document.removeEventListener('keydown', this._sessionKeys);
+    this._sessionKeys = null;
+    this._reviewSession = null;
+    this.tab = 'review';
+    this._render();
+    this._load();
+  }
+
   _renderSession() {
     const session = this._reviewSession;
     if (!session) return;
+    if (this._sessionKeys) document.removeEventListener('keydown', this._sessionKeys);
+    this._sessionKeys = (event) => this._sessionKeyHandler(event);
+    document.addEventListener('keydown', this._sessionKeys);
     this.contentHost.innerHTML = '';
     const total = session.cards.length;
     const done = session.index;
@@ -611,6 +663,7 @@ export class KnowledgeCenter {
         <div class="kb-session-done-sub"></div>`;
       doneEl.querySelector('.kb-session-done-title').textContent = t('本次复习完成');
       doneEl.querySelector('.kb-session-done-sub').textContent = tf('共复习 %lld 张卡片，记忆曲线已更新', total);
+      doneEl.querySelector('.kb-session-done-sub').textContent += ' · ' + tf('今日累计 %lld 张', this._reviewedToday());
       const back = document.createElement('button');
       back.className = 'btn-text primary';
       back.style.marginTop = '14px';
@@ -664,17 +717,13 @@ export class KnowledgeCenter {
         event.stopPropagation();
         if (!session.revealed) return;
         try { await window.robin.kbReview(card.id, q); } catch (_) { /* 单卡失败不断会话 */ }
+        this._bumpReviewCount();
         session.index += 1;
         this._renderSession();
       });
     });
     wrap.querySelector('.kb-session-exit').textContent = t('结束本次复习');
-    wrap.querySelector('.kb-session-exit').addEventListener('click', () => {
-      this._reviewSession = null;
-      this.tab = 'review';
-      this._render();
-      this._load();
-    });
+    wrap.querySelector('.kb-session-exit').addEventListener('click', () => this._endReviewSession());
     const revealBtn = wrap.querySelector('.kb-session-reveal');
     const answer = wrap.querySelector('.kb-session-a');
     revealBtn.addEventListener('click', () => {
