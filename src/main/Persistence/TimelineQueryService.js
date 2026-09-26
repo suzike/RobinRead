@@ -199,6 +199,11 @@ class TimelineQueryService {
         where.push('i.feed_id = ?');
         params.push(scope.feedID);
         break;
+      case 'tag':
+        // 标签筛选（知识图谱联动）：真实 article_tags 关系
+        where.push('i.id IN (SELECT at.item_id FROM article_tags at WHERE at.tag = ?)');
+        params.push(String(scope.tag || ''));
+        break;
       case 'feeds':
         if (!scope.feedIDs || scope.feedIDs.length === 0) {
           where.push('1 = 0');
@@ -225,7 +230,11 @@ class TimelineQueryService {
 
   fetchListItems({ accountID = null, scope, retainingIDs = [], limit = null, offset = 0, sort = 'time' }) {
     const { where, params } = this._scopeClauses(accountID, scope, retainingIDs);
-    const orderPrefix = sort === 'unreadFirst' ? 's.is_read ASC, ' : '';
+    const orderPrefix = sort === 'unreadFirst'
+      ? 's.is_read ASC, '
+      : sort === 'shortFirst'
+        ? 'content_length ASC, '
+        : '';
     let sql = `${LIST_SELECT} WHERE ${where.join(' AND ')}
       ORDER BY ${orderPrefix}COALESCE(a.published_at, i.created_at) DESC, i.id DESC`;
     if (limit != null) {

@@ -294,6 +294,8 @@ const STRINGS = {
   "请输入你想问的问题。": { zh: "请输入你想问的问题。", en: "Please type a question first." },
   "知识库还是空的：阅读时先高亮或记笔记，再来提问。": { zh: "知识库还是空的：阅读时先高亮或记笔记，再来提问。", en: "Your knowledge base is empty — highlight or take notes while reading, then ask." },
   "点击文章直达 · 再次点击标签取消": { zh: "点击文章直达 · 再次点击标签取消", en: "Click an article to open · click the tag again to unpin" },
+  "短文优先": { zh: "短文优先", en: "Short reads first" },
+  "在主列表查看": { zh: "在主列表查看", en: "Show in main list" },
   "搜索正文…": { zh: "搜索正文…", en: "Search in article…" },
   "上一个（Shift+Enter）": { zh: "上一个（Shift+Enter）", en: "Previous (Shift+Enter)" },
   "下一个（Enter）": { zh: "下一个（Enter）", en: "Next (Enter)" },

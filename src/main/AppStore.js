@@ -2942,7 +2942,7 @@ class AppStore extends EventEmitter {
       titleFont: ['inherit', 'smiley'],
       bilingualStyle: ['inline', 'card'],
       listDensity: ['compact', 'comfortable'],
-      listSort: ['time', 'unreadFirst'],
+      listSort: ['time', 'unreadFirst', 'shortFirst'],
       listViewMode: ['list', 'magazine'],
       translateMode: ['off', 'bilingual', 'zh'],
       autoTranslateEnglish: [true, false],

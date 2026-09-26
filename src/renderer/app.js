@@ -115,8 +115,14 @@ async function bootstrap() {
     onClusterBrief: showClusterBrief,
     onExportEdition: showEditionExport,
     onCleanupLater: (ids) => cleanupOverdueLater(ids),
+    onFilterTag: (tag) => {
+      kc.dismiss();
+      handleScopeSelect({ kind: 'tag', tag });
+    },
     onToggleSort: () => {
-      const next = currentListSort() === 'unreadFirst' ? 'time' : 'unreadFirst';
+      // 三态循环：时间序 → 未读优先 → 短文优先（短文 = 估算阅读时长最短在前）
+      const cycle = { time: 'unreadFirst', unreadFirst: 'shortFirst', shortFirst: 'time' };
+      const next = cycle[currentListSort()] || 'time';
       window.robin.setReaderLayout({ listSort: next });
     },
     onToggleViewMode: () => {
@@ -1623,6 +1629,10 @@ function openKnowledgeCenter() {
     onOpenArticle: (itemID) => {
       kc.dismiss();
       handleEntrySelect(itemID, { isRead: true, isStarred: false });
+    },
+    onFilterTag: (tag) => {
+      kc.dismiss();
+      handleScopeSelect({ kind: 'tag', tag });
     },
     onOpenSmartFolder: ({ name, query }) => {
       // 智能文件夹 = 保存的搜索：任一关键词命中（标题/摘要/正文）即入列表

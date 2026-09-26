@@ -3292,6 +3292,17 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
 }
 .read-min svg { width: 11px; height: 11px; }
 
+/* 杂志封面加载 shimmer（图加载完成前呼吸流光） */
+.nj-mag-card .mag-cover:has(img:not(.nj-cover-loaded)) {
+  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, 0.28) 50%, transparent 68%), var(--note-background);
+  background-size: 220% 100%;
+  animation: kb-shimmer 1.5s linear infinite;
+}
+@keyframes kb-shimmer {
+  from { background-position: 180% 0; }
+  to { background-position: -80% 0; }
+}
+
 /* 灯箱图片 scale-in */
 .nj-lightbox-img { transform: scale(0.94); transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
 .nj-lightbox.is-active .nj-lightbox-img { transform: scale(1); }

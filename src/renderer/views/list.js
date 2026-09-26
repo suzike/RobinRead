@@ -72,9 +72,9 @@ export class ListView {
 
   /** 排序切换按钮文案（时间序 ↔ 未读优先）。 */
   setSortButton(listSort) {
-    const unreadFirst = listSort === 'unreadFirst';
-    this.sortBtn.innerHTML = `<span>${escapeHTML(unreadFirst ? t('未读优先') : t('时间序'))}</span>`;
-    this.sortBtn.classList.toggle('active', unreadFirst);
+    const labels = { time: t('时间序'), unreadFirst: t('未读优先'), shortFirst: t('短文优先') };
+    this.sortBtn.innerHTML = `<span>${escapeHTML(labels[listSort] || labels.time)}</span>`;
+    this.sortBtn.classList.toggle('active', listSort !== 'time');
   }
 
   /** 时间线形态（list 经典列表 / magazine 沉浸杂志），切换后下一次 render 生效。 */
@@ -140,6 +140,8 @@ export class ListView {
       case 'starred': return t('收藏');
       case 'later': return t('稍后读');
       case 'smart': return scope.name || t('智能文件夹');
+      case 'tag':
+        return `${t('标签')}：${scope.tag || ''}`;
       case 'feed': {
         for (const account of window.__robinSidebar || []) {
           const feed = (account.allFeeds || []).find((f) => f.id === scope.feedID);

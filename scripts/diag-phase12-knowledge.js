@@ -64,6 +64,14 @@ app.whenReady().then(async () => {
     assert.ok(noKey.ok === false && typeof noKey.error === 'string', `无 Key 应受控报错: ${JSON.stringify(noKey)}`);
     console.log('PASS 知识库问答受控路径：空库 / 无 Key 均友好报错');
 
+    // 标签筛选列表（图谱 → 主列表联动）：tag scope 走真实 article_tags 关系
+    const tagged = store.listItems({ kind: 'tag', tag: '技艺' }, { limit: 10 });
+    assert.ok(tagged.length === 2, `标签「技艺」应筛出 2 篇，实际 ${tagged.length}`);
+    const shortFirst = store.listItems({ kind: 'tag', tag: '技艺' }, { limit: 10, sort: 'shortFirst' });
+    assert.ok(shortFirst.length === 2 && Number(shortFirst[0].readMinutes) <= Number(shortFirst[1].readMinutes),
+      '短文优先排序应按阅读时长升序');
+    console.log('PASS 标签筛选列表 + 短文优先排序');
+
     // 列表 readMinutes 字段（阅读时长进列表）
     const listItems = store.listItems({ kind: 'today' }, { limit: 10 });
     assert.ok(listItems.length >= 2 && listItems.every((it) => (it.readMinutes || 0) >= 1),

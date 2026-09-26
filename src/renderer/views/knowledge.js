@@ -44,8 +44,8 @@ function downloadText(filename, content, mime = 'text/plain') {
 }
 
 export class KnowledgeCenter {
-  constructor({ onOpenArticle, onOpenSmartFolder }) {
-    this.handlers = { onOpenArticle, onOpenSmartFolder };
+  constructor({ onOpenArticle, onOpenSmartFolder, onFilterTag }) {
+    this.handlers = { onOpenArticle, onOpenSmartFolder, onFilterTag };
     this.tab = 'highlights';
     this.data = {};
   }
@@ -809,6 +809,14 @@ export class KnowledgeCenter {
       panel.style.display = '';
       panel.innerHTML = `<div class="kb-graph-panel-head"><span class="kb-daily-title"></span><span class="kb-graph-legend">${escapeHTML(t('点击文章直达 · 再次点击标签取消'))}</span></div>`;
       panel.querySelector('.kb-daily-title').textContent = `#${tagNode.label} · ${linked.length}`;
+      const filterBtn = document.createElement('button');
+      filterBtn.className = 'btn-text primary kb-graph-filter';
+      filterBtn.textContent = t('在主列表查看');
+      filterBtn.addEventListener('click', () => {
+        this.dismiss?.();
+        this.handlers.onFilterTag?.(tagNode.label);
+      });
+      panel.querySelector('.kb-graph-panel-head').appendChild(filterBtn);
       const list = document.createElement('div');
       list.className = 'kb-graph-panel-list';
       for (const articleNode of linked) {
