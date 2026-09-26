@@ -245,7 +245,7 @@ body.sidebar-collapsed .tb-zone-list { width: var(--list-width, 340px); }
   gap: 2px;
   padding: 0 6px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--row-hover);
   border: 1px solid var(--separator);
 }
@@ -1476,7 +1476,7 @@ body.dark .robin-summary-card { background: color-mix(in srgb, #302d28 97%, tran
   animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
-.toast-capsule.leaving { transition: opacity var(--dur-slow) var(--ease-out), transform 0.25s ease; opacity: 0; transform: translate(-50%, 8px); }
+.toast-capsule.leaving { transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); opacity: 0; transform: translate(-50%, 8px); }
 .toast-capsule .check { color: var(--accent); display: inline-flex; }
 
 /* ==========================================================================
@@ -1655,7 +1655,7 @@ select.control:focus, input.control:focus { border-color: var(--accent); }
 
 .toggle {
   position: relative; width: 38px; height: 22px;
-  border-radius: 11px; background: var(--separator);
+  border-radius: var(--radius-lg); background: var(--separator);
   cursor: default; transition: background var(--dur-base) var(--ease-out);
   flex: 0 0 auto; border: none;
 }
@@ -1886,7 +1886,7 @@ select.control:focus, input.control:focus { border-color: var(--accent); }
 .td-channels-col { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .td-channel {
   display: flex; align-items: center; gap: 9px;
-  border: 1px solid var(--separator); border-radius: 9px;
+  border: 1px solid var(--separator); border-radius: var(--radius-md);
   padding: 7px 10px; cursor: default; background: var(--page-background);
   transition: border-color var(--dur-fast) var(--ease-out), background 0.12s ease;
 }
@@ -1953,7 +1953,7 @@ select.control:focus, input.control:focus { border-color: var(--accent); }
 /* 提案卡片 */
 .td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
 .td-card {
-  border: 1px solid var(--separator); border-radius: 11px;
+  border: 1px solid var(--separator); border-radius: var(--radius-lg);
   padding: 8px; cursor: default; background: var(--page-background);
   transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
 }
@@ -1985,7 +1985,7 @@ select.control:focus, input.control:focus { border-color: var(--accent); }
 
 /* JSON 导入导出（卡片式） */
 .td-json-card {
-  border: 1px solid var(--separator); border-radius: 11px;
+  border: 1px solid var(--separator); border-radius: var(--radius-lg);
   background: var(--page-background);
   padding: 12px 13px 10px;
   display: flex; flex-direction: column; gap: 9px;
@@ -2107,7 +2107,7 @@ body.zen .list-top-inset { display: none; }
   --tag-h: 142;
   appearance: none; cursor: pointer;
   display: inline-flex; align-items: baseline; gap: 6px;
-  padding: 5px 12px; border-radius: 11px;
+  padding: 5px 12px; border-radius: var(--radius-lg);
   background: var(--page-background);
   border: 1px solid color-mix(in srgb, oklch(0.62 0.12 var(--tag-h)) 38%, var(--separator));
   color: color-mix(in srgb, oklch(0.52 0.13 var(--tag-h)) 62%, var(--text-primary));
@@ -2166,7 +2166,7 @@ body.zen .list-top-inset { display: none; }
 
 .kb-search-bar {
   display: flex; align-items: center; gap: 8px;
-  border: 1px solid var(--note-border); border-radius: 9px;
+  border: 1px solid var(--note-border); border-radius: var(--radius-md);
   background: var(--page-background); padding: 0 12px; height: 36px; margin-bottom: 14px;
   color: var(--text-tertiary);
 }
@@ -2240,7 +2240,7 @@ body.zen .list-top-inset { display: none; }
 .aihot-source-tag { font-size: 10.5px; color: var(--text-tertiary); border: 1px solid var(--separator); border-radius: var(--radius-full); padding: 2px 8px; margin-left: auto; margin-right: 10px; }
 .aihot-card {
   display: flex; gap: 12px; padding: 13px 14px;
-  border: 1px solid var(--separator); border-radius: 11px;
+  border: 1px solid var(--separator); border-radius: var(--radius-lg);
   background: var(--page-background); margin-bottom: 10px;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
@@ -2363,7 +2363,7 @@ body.zen .list-top-inset { display: none; }
 .aihot-kw-hit { font-size: 11px; color: var(--accent); font-weight: 600; }
 .aihot-kw-box {
   border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--separator));
-  border-radius: 11px; padding: 10px 12px; margin-bottom: 12px;
+  border-radius: var(--radius-lg); padding: 10px 12px; margin-bottom: 12px;
   background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 .aihot-kw-box .aihot-card { border: none; background: var(--page-background); margin-bottom: 6px; }
@@ -2395,7 +2395,7 @@ body.zen .list-top-inset { display: none; }
 /* 骨架屏 */
 .aihot-skeleton {
   display: flex; gap: 12px; padding: 14px; margin-bottom: 10px;
-  border: 1px solid var(--separator); border-radius: 11px;
+  border: 1px solid var(--separator); border-radius: var(--radius-lg);
 }
 .aihot-skeleton-rank { width: 26px; height: 26px; border-radius: 50%; background: var(--row-selected); animation: aihot-pulse 1.4s ease infinite; }
 .aihot-skeleton-main { flex: 1; display: flex; flex-direction: column; gap: 8px; }
@@ -2666,7 +2666,7 @@ body.dark .reader-article mark.nj-hl[data-color="purple"] { background: rgba(112
   min-height: 96px; max-height: 40vh;
   resize: vertical;
   border: 1px solid var(--note-border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--page-background);
   color: var(--text-primary);
   font-family: inherit; font-size: 13px; line-height: 1.7;
@@ -2775,7 +2775,7 @@ body.dark .nj-note-marker { color: #d3a952; }
 .annot-row {
   display: flex; align-items: stretch; gap: 10px;
   padding: 7px 6px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background-color 0.14s ease;
 }
@@ -3399,7 +3399,7 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
   from { opacity: 0; transform: translateY(-10px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.nj-edition-cover { transition: transform var(--dur-slow) var(--ease-out), box-shadow 0.25s ease; }
+.nj-edition-cover { transition: transform var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) var(--ease-out); }
 .nj-edition-cover:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 28px rgba(20, 17, 12, 0.18);

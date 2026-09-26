@@ -135,6 +135,11 @@ app.whenReady().then(async () => {
     assert.ok(cssSrc.includes('--radius-md') && cssSrc.includes('--dur-base') && cssSrc.includes('--ease-out') && cssSrc.includes('--shadow-3'), 'css 应含设计令牌层');
     assert.ok(!/border-radius: (?:4|6|7|8|10|12|14)px/.test(cssSrc), 'radius 硬编码应已系统化替换');
 
+    // R2 命令面板 2.0：记分排序 + 最近使用
+    const paletteSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'views', 'command-palette.js'), 'utf8');
+    assert.ok(paletteSrc.includes('RECENT_KEY') && paletteSrc.includes('_rememberRecent'), '面板应含最近使用机制');
+    assert.ok(paletteSrc.includes('label.startsWith(q)'), '搜索应含前缀记分排序');
+    assert.ok(cssSrc.includes('kb-pop'), '面板动效应保留');
     for (const token of ['.kb-graph-canvas', '.kb-graph-panel', '.kb-ask-answer', '.nj-reveal-pending', 'kb-pop', '.nj-edition-cover:hover', '.read-min', '.nj-code-copy', '.nj-lightbox-zoom', '.nj-find-bar']) {
       assert.ok(cssSrc.includes(token), `robin.css 应含 ${token}`);
     }

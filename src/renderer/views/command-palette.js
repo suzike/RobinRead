@@ -9,6 +9,8 @@
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 
+const RECENT_KEY = 'robinread.palette.recent';
+
 export class CommandPalette {
   constructor() {
     this.items = [];
@@ -22,6 +24,7 @@ export class CommandPalette {
     this.items = commands || [];
     this.filtered = this.items;
     this.activeIndex = 0;
+    try { this.recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (_) { this.recent = []; }
 
     const overlay = document.createElement('div');
     overlay.className = 'cmd-palette-overlay';
@@ -64,12 +67,38 @@ export class CommandPalette {
 
   _filter(query) {
     const q = String(query || '').trim().toLowerCase();
-    this.filtered = !q ? this.items : this.items.filter((cmd) => (
-      cmd.label.toLowerCase().includes(q)
-      || String(cmd.keywords || '').toLowerCase().includes(q)
-    ));
+    if (!q) {
+      // 空查询：最近使用置顶，其余保持注册序
+      const recentSet = new Set(this.recent);
+      this.filtered = [...this.items.filter((c) => recentSet.has(c.label)), ...this.items.filter((c) => !recentSet.has(c.label))];
+      this.activeIndex = 0;
+      this._render();
+      return;
+    }
+    // 记分：前缀命中(3) > 标签包含(2) > 关键词包含(1)；同分保持注册序
+    const scored = [];
+    this.items.forEach((cmd, order) => {
+      const label = cmd.label.toLowerCase();
+      const keywords = String(cmd.keywords || '').toLowerCase();
+      let score = 0;
+      if (label.startsWith(q)) score = 3;
+      else if (label.includes(q)) score = 2;
+      else if (keywords.includes(q)) score = 1;
+      if (score > 0) scored.push({ cmd, score, order });
+    });
+    scored.sort((a, b) => b.score - a.score || a.order - b.order);
+    this.filtered = scored.map((x) => x.cmd);
     this.activeIndex = 0;
     this._render();
+  }
+
+  /** 命令执行后记录最近使用（去重、上限 5）。 */
+  _rememberRecent(cmd) {
+    try {
+      const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]').filter((x) => x !== cmd.label);
+      list.unshift(cmd.label);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 5)));
+    } catch (_) { /* 隐私模式：放弃 */ }
   }
 
   _move(delta) {
@@ -82,6 +111,7 @@ export class CommandPalette {
 
   _run(cmd) {
     if (!cmd) return;
+    this._rememberRecent(cmd);
     this.dismiss();
     try { cmd.action?.(); } catch (_) { /* 单条命令失败不破坏面板生命周期 */ }
   }
