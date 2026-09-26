@@ -8,6 +8,7 @@ import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 import { FEED_REFRESH_INTERVALS_META } from '../refresh-intervals.js';
 import { promptBox, confirmBox, alertBox } from '../ui-prompt.js';
+import { TYPOGRAPHY_PRESETS } from '../data/typography-presets.js';
 
 const SECTIONS = [
   { id: 'appearance', title: '外观', icon: 'appearance' },
@@ -221,13 +222,8 @@ export class SettingsView {
       })()),
     ]));
 
-    // ── 版式主题预设包（方向 3）：刊物级一键排版 ──
-    const presetMap = {
-      default: { label: t('知更纸刊（默认）'), patch: { fontFamily: 'serif', lineHeight: 'standard', pageWidth: 'standard', paraStyle: 'spacing', textAlign: 'left', microTypography: 'on', dropCap: 'off' } },
-      evening: { label: t('新闻晚报'), patch: { fontFamily: 'serif', lineHeight: 'compact', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'justify', microTypography: 'on', dropCap: 'off' } },
-      minimal: { label: t('极简留白'), patch: { fontFamily: 'sans', lineHeight: 'loose', pageWidth: 'wide', paraStyle: 'spacing', textAlign: 'left', microTypography: 'off', dropCap: 'off' } },
-      eink: { label: t('墨水屏'), patch: { fontFamily: 'serif', lineHeight: 'loose', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'left', microTypography: 'on', dropCap: 'on' } },
-    };
+    // ── 版式主题预设包（方向 3）：刊物级一键排版（单一数据源 typography-presets.js）──
+    const presetMap = TYPOGRAPHY_PRESETS;
     const presetGroup = group(t('版式预设'), t('刊物级一键排版：整组参数（字体/行距/页宽/段落/对齐/微排版/首字下沉）即时生效，可再手动微调。'), []);
     container.appendChild(presetGroup);
     const presetHost = presetGroup.querySelector('.group-rows');

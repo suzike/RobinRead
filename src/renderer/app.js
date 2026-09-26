@@ -21,6 +21,7 @@ import { ShortcutsView } from './views/shortcuts.js';
 import { ContextMenu } from './views/context-menu.js';
 import { CommandPalette } from './views/command-palette.js';
 import { ReadingControls } from './views/reading-controls.js';
+import { TYPOGRAPHY_PRESETS } from './data/typography-presets.js';
 import {
   normalizeTokens, switchModeTokens, fullPalette, applyPalette, clearPalette,
   persistTokens, clearTokens, pushRecent,
@@ -569,17 +570,12 @@ function toggleZenMode() {
 }
 
 // ── 版式主题预设包（方向 3）：刊物级一键排版 ──
-const PRESETS = {
-  default: { fontFamily: 'serif', lineHeight: 'standard', pageWidth: 'standard', paraStyle: 'spacing', textAlign: 'left', microTypography: 'on', dropCap: 'off' },
-  evening: { fontFamily: 'serif', lineHeight: 'compact', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'justify', microTypography: 'on', dropCap: 'off' },
-  minimal: { fontFamily: 'sans', lineHeight: 'loose', pageWidth: 'wide', paraStyle: 'spacing', textAlign: 'left', microTypography: 'off', dropCap: 'off' },
-  eink: { fontFamily: 'serif', lineHeight: 'loose', pageWidth: 'narrow', paraStyle: 'indent', textAlign: 'left', microTypography: 'on', dropCap: 'on' },
-};
+// 单一数据源：TYPOGRAPHY_PRESETS（src/renderer/data/typography-presets.js）
 
 function applyPreset(name) {
-  const preset = PRESETS[name];
+  const preset = TYPOGRAPHY_PRESETS[name];
   if (!preset) return;
-  window.robin.setReaderLayout(preset);
+  window.robin.setReaderLayout(preset.patch);
   showToast(t('已应用版式预设') + '：' + ({ default: t('知更纸刊'), evening: t('新闻晚报'), minimal: t('极简留白'), eink: t('墨水屏') }[name] || name));
 }
 
