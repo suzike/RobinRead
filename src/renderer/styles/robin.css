@@ -3174,6 +3174,57 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
   box-shadow: 0 10px 28px rgba(20, 17, 12, 0.18);
 }
 
+/* 列表行滚动渐显（尊重 reduced-motion） */
+@media (prefers-reduced-motion: no-preference) {
+  .nj-reveal-pending { opacity: 0; transform: translateY(8px); }
+  .nj-reveal-pending.nj-revealed {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+}
+
+/* 阅读时长小标（列表行 / 杂志卡） */
+.read-min {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-secondary);
+  font-size: 0.86em;
+  white-space: nowrap;
+}
+.read-min svg { width: 11px; height: 11px; }
+
+/* 灯箱图片 scale-in */
+.nj-lightbox-img { transform: scale(0.94); transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+.nj-lightbox.is-active .nj-lightbox-img { transform: scale(1); }
+
+/* 知识图谱联动面板 + 节点拖拽光标 */
+.kb-graph-panel {
+  margin-top: 10px;
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  background: var(--note-background);
+  padding: 10px 12px;
+}
+.kb-graph-panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.kb-graph-panel-list { display: flex; flex-direction: column; }
+.kb-graph-panel-row {
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.9em;
+  padding: 6px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.kb-graph-panel-row:hover { background: var(--row-selected); color: var(--accent); }
+
 /* 杂志封面渐显：加载完成淡入，避免跳变 */
 .nj-mag-card .mag-cover img {
   opacity: 0;

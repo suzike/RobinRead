@@ -64,6 +64,12 @@ app.whenReady().then(async () => {
     assert.ok(noKey.ok === false && typeof noKey.error === 'string', `无 Key 应受控报错: ${JSON.stringify(noKey)}`);
     console.log('PASS 知识库问答受控路径：空库 / 无 Key 均友好报错');
 
+    // 列表 readMinutes 字段（阅读时长进列表）
+    const listItems = store.listItems({ kind: 'today' }, { limit: 10 });
+    assert.ok(listItems.length >= 2 && listItems.every((it) => (it.readMinutes || 0) >= 1),
+      `列表应含 readMinutes 估算: ${JSON.stringify(listItems.map((it) => it.readMinutes))}`);
+    console.log(`PASS 列表阅读时长字段：${listItems.map((it) => it.readMinutes).join('/')} 分钟`);
+
     // 3. 静态锚点
     const ipcSrc = fs.readFileSync(path.join(ROOT, 'src', 'main', 'ipc.js'), 'utf8');
     assert.ok(ipcSrc.includes("handle('kb:graph'") && ipcSrc.includes("handle('kb:ask'"), 'ipc 应含 kb:graph / kb:ask');
@@ -74,7 +80,7 @@ app.whenReady().then(async () => {
       assert.ok(kbSrc.includes(token), `knowledge.js 应含 ${token}`);
     }
     const cssSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles', 'robin.css'), 'utf8');
-    for (const token of ['.kb-graph-canvas', '.kb-ask-answer', 'kb-pop', '.nj-edition-cover:hover']) {
+    for (const token of ['.kb-graph-canvas', '.kb-graph-panel', '.kb-ask-answer', '.nj-reveal-pending', 'kb-pop', '.nj-edition-cover:hover', '.read-min']) {
       assert.ok(cssSrc.includes(token), `robin.css 应含 ${token}`);
     }
     const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'app.js'), 'utf8');

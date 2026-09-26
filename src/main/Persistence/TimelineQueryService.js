@@ -8,6 +8,12 @@
  */
 const { feedIconURL } = require('../Models');
 
+function estimateReadingMinutes(contentLength, summaryLength) {
+  // 粗估：HTML 字节 ≈ 2.6 倍可视字符（中文 3 字节/字 + 标签），换算 400 字/分钟
+  const approxChars = Math.round((Number(contentLength) || summaryLength || 0) / 2.6);
+  return approxChars > 0 ? Math.max(1, Math.round(approxChars / 400)) : 0;
+}
+
 function rowToListItem(row) {
   return {
     id: row.entry_id,
@@ -18,6 +24,7 @@ function rowToListItem(row) {
     title: row.title ?? '',
     url: row.url ?? null,
     summaryPreview: String(row.summary ?? '').slice(0, 240),
+    readMinutes: estimateReadingMinutes(row.content_length, Number(row.summary?.length) || 0),
     sourceTitle: row.feed_title ?? '',
     publishedAt: row.published_at ?? null,
     isRead: Number(row.is_read ?? 0) === 1,
@@ -42,6 +49,7 @@ const LIST_SELECT = `
       a.url AS url,
       COALESCE(a.summary, '') AS summary,
       substr(COALESCE(a.content_html, ''), 1, 1600) AS content_head,
+      LENGTH(COALESCE(a.content_html, '')) AS content_length,
       f.title AS feed_title,
       f.stored_icon_url AS stored_icon_url,
       f.site_url AS site_url,

@@ -639,6 +639,10 @@ export class KnowledgeCenter {
     wrap.appendChild(canvas);
     el.appendChild(wrap);
     this.contentHost.appendChild(el);
+    const panel = document.createElement('div');
+    panel.className = 'kb-graph-panel';
+    panel.style.display = 'none';
+    el.appendChild(panel);
 
     // 主题取色（canvas 不能直接用 CSS 变量）
     const css = getComputedStyle(document.documentElement);
@@ -731,6 +735,7 @@ export class KnowledgeCenter {
     ctx.scale(dpr, dpr);
     const radiusOf = (node) => (node.kind === 'tag' ? Math.min(20, 6 + Math.sqrt(node.weight) * 3.2) : 5);
     let hover = null;
+    let pinnedTag = null; // 点击标签节点：钉住并在面板中列出关联文章
     const related = (node) => {
       const set = new Set([node]);
       for (const edge of edges) {
@@ -795,20 +800,65 @@ export class KnowledgeCenter {
       }
       return best;
     };
-    canvas.addEventListener('mousemove', (event) => {
+    canvas.addEventListener('mouseleave', () => { hover = null; hoverSet = null; draw(); });
+
+    // 标签联动面板：钉住标签 → 列出关联文章（点击直达）
+    const showTagPanel = (tagNode) => {
+      if (!tagNode) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+      const linked = edges.filter((e) => e.a === tagNode).map((e) => e.b);
+      panel.style.display = '';
+      panel.innerHTML = `<div class="kb-graph-panel-head"><span class="kb-daily-title"></span><span class="kb-graph-legend">${escapeHTML(t('点击文章直达 · 再次点击标签取消'))}</span></div>`;
+      panel.querySelector('.kb-daily-title').textContent = `#${tagNode.label} · ${linked.length}`;
+      const list = document.createElement('div');
+      list.className = 'kb-graph-panel-list';
+      for (const articleNode of linked) {
+        const rowBtn = document.createElement('button');
+        rowBtn.className = 'kb-graph-panel-row';
+        rowBtn.textContent = articleNode.label || articleNode.key;
+        rowBtn.title = articleNode.label || '';
+        rowBtn.addEventListener('click', () => this.handlers.onOpenArticle?.(articleNode.key.slice(4)));
+        list.appendChild(rowBtn);
+      }
+      panel.appendChild(list);
+    };
+    canvas.addEventListener('click', (event) => {
+      const node = nodeAt(event);
+      if (!node) return;
+      if (node.kind === 'article') { this.handlers.onOpenArticle?.(node.key.slice(4)); return; }
+      if (pinnedTag === node) { pinnedTag = null; showTagPanel(null); }
+      else {
+        pinnedTag = node;
+        hover = node; hoverSet = related(node);
+        showTagPanel(node);
+        draw();
+      }
+    });
+
+    // 节点拖拽：按住拖动重摆位置（释放后自然停驻，即时重绘）
+    let dragging = null;
+    canvas.addEventListener('pointerdown', (event) => {
+      const node = nodeAt(event);
+      if (!node) return;
+      dragging = node;
+      try { canvas.setPointerCapture(event.pointerId); } catch (_) { /* 忽略 */ }
+    });
+    canvas.addEventListener('pointermove', (event) => {
+      if (dragging) {
+        const rect = canvas.getBoundingClientRect();
+        dragging.x = Math.max(20, Math.min(W - 20, event.clientX - rect.left));
+        dragging.y = Math.max(18, Math.min(H - 18, event.clientY - rect.top));
+        draw();
+        return;
+      }
       const node = nodeAt(event);
       if (node !== hover) {
         hover = node;
         hoverSet = node ? related(node) : null;
-        canvas.style.cursor = node ? 'pointer' : 'default';
+        canvas.style.cursor = node ? 'grab' : 'default';
         draw();
       }
     });
-    canvas.addEventListener('mouseleave', () => { hover = null; hoverSet = null; draw(); });
-    canvas.addEventListener('click', (event) => {
-      const node = nodeAt(event);
-      if (node?.kind === 'article') this.handlers.onOpenArticle?.(node.key.slice(4));
-    });
+    canvas.addEventListener('pointerup', () => { dragging = null; });
   }
 
   // ── 问知识库（知识增强）：以高亮 + 笔记为材料的流式问答 ──

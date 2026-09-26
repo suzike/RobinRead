@@ -293,7 +293,7 @@ const STRINGS = {
   "阅读时高亮、打标签或生成 AI 摘要，知识节点会在这里生长。": { zh: "阅读时高亮、打标签或生成 AI 摘要，知识节点会在这里生长。", en: "Highlight, tag, or generate AI summaries while reading — knowledge nodes will grow here." },
   "请输入你想问的问题。": { zh: "请输入你想问的问题。", en: "Please type a question first." },
   "知识库还是空的：阅读时先高亮或记笔记，再来提问。": { zh: "知识库还是空的：阅读时先高亮或记笔记，再来提问。", en: "Your knowledge base is empty — highlight or take notes while reading, then ask." },
-  "新建 Issue": { zh: "新建 Issue", en: "New Issue" },
+  "点击文章直达 · 再次点击标签取消": { zh: "点击文章直达 · 再次点击标签取消", en: "Click an article to open · click the tag again to unpin" },  "新建 Issue": { zh: "新建 Issue", en: "New Issue" },
   "新建与更多": { zh: "新建与更多", en: "Add and More" },
   "新建文件夹": { zh: "新建文件夹", en: "New Folder" },
   "新建文件夹...": { zh: "新建文件夹...", en: "New Folder…" },

@@ -129,6 +129,7 @@ export class ListView {
     }
     this.rowsHost.appendChild(fragment);
     this.markSelected(selectedID);
+    this._observeReveal();
   }
 
   titleForScope(scope) {
@@ -179,6 +180,7 @@ export class ListView {
           ${badge ? `<span class="entry-account-badge"></span>` : ''}
           ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
           ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
+          <span class="read-min-slot">${readMinutesChip(item)}</span>
           <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
         </div>
       </div>
@@ -247,6 +249,7 @@ export class ListView {
     const fragment = document.createDocumentFragment();
     for (const item of items) fragment.appendChild(this.rowFor(item));
     this.rowsHost.appendChild(fragment);
+    this._observeReveal();
   }
 
   /** 沉浸杂志：封面卡片网格（借鉴上游 PaperRss v1.4.0 Magazine View，Web 版本）。 */
@@ -283,6 +286,7 @@ export class ListView {
     });
     this.rowsHost.appendChild(grid);
     this.markSelected(selectedID);
+    this._observeReveal();
   }
 
   /**
@@ -468,6 +472,7 @@ export class ListView {
         <span class="mag-feed"></span>
         ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
         ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
+        ${readMinutesChip(item)}
         <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
       </div>`;
     body.querySelector('.mag-title').textContent = item.title || t('未命名文章');
@@ -520,6 +525,26 @@ export class ListView {
   }
 
   /** 智能稍后读（方向 23）：稍后读视野且存在超龄项时显示「清理超龄」。 */
+  /** 滚动渐显（前端美化）：进入视口的行淡入上移一次；尊重 prefers-reduced-motion。 */
+  _observeReveal() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    this._revealObserver?.disconnect();
+    const targets = this.rowsHost?.querySelectorAll('.entry-row:not(.nj-revealed), .nj-mag-card:not(.nj-revealed), .nj-edition:not(.nj-revealed)');
+    if (!targets?.length) return;
+    this._revealObserver = new IntersectionObserver((entries, observer) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('nj-revealed');
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { root: null, rootMargin: '0px 0px -6% 0px', threshold: 0.04 });
+    targets.forEach((el) => {
+      el.classList.add('nj-reveal-pending');
+      this._revealObserver.observe(el);
+    });
+  }
+
   setLaterCleanup(overdueIDs) {
     this._overdueIDs = overdueIDs || [];
     const btn = this.topInset?.querySelector('#later-clean-btn');
@@ -692,6 +717,13 @@ function firstImageURL(contentHead) {
   if (!match) return '';
   const url = match[1].replace(/&amp;/g, '&');
   return /^https?:\/\//i.test(url) ? url : '';
+}
+
+/** 阅读时长小标（方向 12/23 体系）：无估算值时返回空串。 */
+function readMinutesChip(item) {
+  const minutes = Number(item.readMinutes) || 0;
+  if (minutes <= 0) return '';
+  return `<span class="read-min">${icon('clock')}${Math.min(999, minutes)}</span>`;
 }
 
 /** 杂志网格遥控式就近移动：目标方向没有卡片时返回 null（由调用方翻页/加载更多）。 */
