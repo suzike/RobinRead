@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.8.0",
-  "name": "知更 RobinRead 2.8.0",
+  "tag_name": "v2.9.0",
+  "name": "知更 RobinRead 2.9.0",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-01T00:00:00Z",
-  "body": "知更 RobinRead v2.8.0 —— 继续阅读：未读完的文章出现在「今天」顶部，点击回到原滚动位置；图片灯箱支持滚轮缩放、拖拽平移与一键保存；导出矩阵补全（Markdown/HTML/EPUB/PDF）；文章头部标签 chips；稍后读超龄行标与短文快读标记。前往 GitHub 下载最新安装包。"
+  "body": "知更 RobinRead v2.9.0 —— 每源排版偏好（源右键菜单覆盖字体/字号/页宽）、搜索定位闭环（全文搜索点进文章自动高亮命中）、SM-2 复习会话（专注单卡+三档评分）、自动每日备份。前往 GitHub 下载最新安装包。"
 }
