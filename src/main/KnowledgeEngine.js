@@ -169,12 +169,12 @@ class KnowledgeEngine {
   getDueReviews() {
     return this.store.database.prepare(`
       SELECT rq.id, rq.item_id, rq.highlight_id, rq.repetitions, rq.interval_days, rq.ease_factor, rq.next_review_at,
-             a.title as article_title, h.text as highlight_text
+             a.title as article_title, h.text as highlight_text, h.note as highlight_note
       FROM review_queue rq
       LEFT JOIN articles a ON a.item_id = rq.item_id
       LEFT JOIN highlights h ON h.id = rq.highlight_id
       WHERE rq.next_review_at <= ? ORDER BY rq.next_review_at ASC LIMIT 50
-    `).all(Date.now() / 1000).map((r) => ({ id: r.id, itemID: r.item_id, articleTitle: r.article_title, highlightText: r.highlight_text, repetitions: r.repetitions, intervalDays: r.interval_days, easeFactor: r.ease_factor }));
+    `).all(Date.now() / 1000).map((r) => ({ id: r.id, itemID: r.item_id, articleTitle: r.article_title, highlightText: r.highlight_text, highlightNote: r.highlight_note, repetitions: r.repetitions, intervalDays: r.interval_days, easeFactor: r.ease_factor }));
   }
   reviewCard(id, quality) {
     const r = this.store.database.prepare('SELECT * FROM review_queue WHERE id = ?').get(id);

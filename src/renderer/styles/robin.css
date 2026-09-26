@@ -3724,3 +3724,42 @@ body.dark .reader-article img.nj-invert-art {
 .sidebar-row .sidebar-health-warn.dead { background: #b4372f; }
 body.dark .sidebar-row .sidebar-health-warn { background: #e08a3c; color: #20180c; }
 body.dark .sidebar-row .sidebar-health-warn.dead { background: #d0554a; color: #fff; }
+
+
+/* ── 复习会话（SM-2 专注流）── */
+.kb-session-btn { margin-bottom: 14px; }
+.kb-session-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.kb-session-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--note-border); overflow: hidden; }
+.kb-session-bar-fill { display: block; height: 100%; background: var(--accent); transition: width 0.3s ease; }
+.kb-session-count { font-size: 0.8em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.kb-session-card {
+  border: 1px solid var(--note-border);
+  border-radius: 12px;
+  background: var(--note-background);
+  padding: 22px 24px;
+  min-height: 200px;
+}
+.kb-session-title { font-family: var(--font-serif); font-size: 1.05em; font-weight: 600; margin-bottom: 10px; }
+.kb-session-hint, .kb-session-hint2 { color: var(--text-secondary); font-size: 0.85em; margin: 10px 0; }
+.kb-session-card .kb-hl-text {
+  font-family: var(--font-serif);
+  font-size: 1.15em;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+.kb-session-note {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--row-selected);
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+.kb-session-card .kb-review-actions { display: flex; gap: 8px; margin-top: 18px; }
+.kb-session-foot { margin-top: 12px; display: flex; justify-content: flex-end; }
+.kb-session-done { text-align: center; padding: 60px 0 30px; }
+.kb-session-done-icon { color: var(--accent); }
+.kb-session-done-icon svg { width: 42px; height: 42px; }
+.kb-session-done-title { font-family: var(--font-serif); font-size: 1.3em; font-weight: 700; margin-top: 10px; }
+.kb-session-done-sub { color: var(--text-secondary); margin-top: 6px; font-size: 0.9em; }

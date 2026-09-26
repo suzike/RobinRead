@@ -106,6 +106,21 @@ app.whenReady().then(async () => {
       `列表应含 readMinutes 估算: ${JSON.stringify(listItems.map((it) => it.readMinutes))}`);
     console.log(`PASS 列表阅读时长字段：${listItems.map((it) => it.readMinutes).join('/')} 分钟`);
 
+    // SM-2 复习评分回环：种卡片 → 评分 5（简单）→ 到期推后、repetitions=1
+    store.knowledge.addToReview({ itemID: entries[0], highlightID: null });
+    // 新卡默认次日到期：先置为立即到期，验证评分回环
+    store.database.prepare('UPDATE review_queue SET next_review_at = 0 WHERE item_id = ?').run(entries[0]);
+    const dueBefore = store.knowledge.getDueReviews();
+    const card = dueBefore.find((c) => c.itemID === entries[0]);
+    assert.ok(card, '置为到期后应出现在队列');
+    store.knowledge.reviewCard(card.id, 5);
+    const stillDue = store.knowledge.getDueReviews().filter((c) => c.id === card.id);
+    assert.ok(stillDue.length === 0, '评分「简单」后应移出到期队列');
+    const sm2Row = store.database.prepare('SELECT repetitions, interval_days, ease_factor FROM review_queue WHERE id = ?').get(card.id);
+    assert.ok(sm2Row.repetitions === 1 && sm2Row.interval_days >= 1 && sm2Row.ease_factor >= 1.3, 'SM-2 参数应更新: ' + JSON.stringify(sm2Row));
+    console.log('PASS SM-2 评分回环：rep=' + sm2Row.repetitions + ' interval=' + sm2Row.interval_days + '天 ease=' + sm2Row.ease_factor.toFixed(2));
+    store.knowledge.removeFromReview(card.id);
+
     // 3. 静态锚点
     const ipcSrc = fs.readFileSync(path.join(ROOT, 'src', 'main', 'ipc.js'), 'utf8');
     assert.ok(ipcSrc.includes("handle('kb:graph'") && ipcSrc.includes("handle('kb:ask'"), 'ipc 应含 kb:graph / kb:ask');

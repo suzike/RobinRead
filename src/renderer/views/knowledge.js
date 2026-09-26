@@ -452,6 +452,12 @@ export class KnowledgeCenter {
 
   _renderReview(items) {
     if (!items.length) { this._empty('复习队列空了', '高亮一篇文章的重要段落并加入复习，它会按记忆曲线回来。'); return; }
+    // 复习会话入口（重量级）：专注单卡翻转 + 三档评分 + 记忆曲线调度
+    const sessionBtn = document.createElement('button');
+    sessionBtn.className = 'btn-text primary kb-session-btn';
+    sessionBtn.textContent = tf('开始复习（%lld 张）', items.length);
+    sessionBtn.addEventListener('click', () => this._startReviewSession(items));
+    this.contentHost.appendChild(sessionBtn);
     for (const item of items) {
       const card = document.createElement('div');
       card.className = 'kb-card kb-review-card';
@@ -490,6 +496,103 @@ export class KnowledgeCenter {
       });
       this.contentHost.appendChild(card);
     }
+  }
+
+  /** 复习会话：单卡专注流。正面提示 → 翻面 → 三档评分（SM-2 调度）→ 下一张 → 结束统计。 */
+  _startReviewSession(items) {
+    this._reviewSession = { cards: items.slice(), index: 0, revealed: false };
+    this._renderSession();
+  }
+
+  _renderSession() {
+    const session = this._reviewSession;
+    if (!session) return;
+    this.contentHost.innerHTML = '';
+    const total = session.cards.length;
+    const done = session.index;
+
+    if (done >= total) {
+      this._reviewSession = null;
+      const doneEl = document.createElement('div');
+      doneEl.className = 'kb-session-done';
+      doneEl.innerHTML = `
+        <div class="kb-session-done-icon">${icon('checkCircle')}</div>
+        <div class="kb-session-done-title"></div>
+        <div class="kb-session-done-sub"></div>`;
+      doneEl.querySelector('.kb-session-done-title').textContent = t('本次复习完成');
+      doneEl.querySelector('.kb-session-done-sub').textContent = tf('共复习 %lld 张卡片，记忆曲线已更新', total);
+      const back = document.createElement('button');
+      back.className = 'btn-text primary';
+      back.style.marginTop = '14px';
+      back.textContent = t('返回列表');
+      back.addEventListener('click', () => { this.tab = 'review'; this._render(); this._load(); });
+      doneEl.appendChild(back);
+      this.contentHost.appendChild(doneEl);
+      return;
+    }
+
+    const card = session.cards[session.index];
+    const wrap = document.createElement('div');
+    wrap.className = 'kb-session';
+    wrap.innerHTML = `
+      <div class="kb-session-progress"><span class="kb-session-bar"><span class="kb-session-bar-fill"></span></span><span class="kb-session-count"></span></div>
+      <div class="kb-session-card">
+        <div class="kb-session-q">
+          <div class="kb-session-title"></div>
+          <div class="kb-session-hint"></div>
+          <button class="btn-text primary kb-session-reveal"></button>
+        </div>
+        <div class="kb-session-a" style="display:none">
+          <div class="kb-hl-text"></div>
+          <div class="kb-session-note" style="display:none"></div>
+          <div class="kb-session-hint2"></div>
+          <div class="kb-review-actions">
+            <button class="btn-text" data-q="1"></button>
+            <button class="btn-text" data-q="3"></button>
+            <button class="btn-text primary" data-q="5"></button>
+          </div>
+        </div>
+      </div>
+      <div class="kb-session-foot"><button class="btn-text kb-session-exit"></button></div>`;
+    wrap.querySelector('.kb-session-title').textContent = card.articleTitle || t('未知文章');
+    wrap.querySelector('.kb-session-hint').textContent = t('回忆这段高亮的内容，然后翻面');
+    wrap.querySelector('.kb-session-reveal').textContent = t('显示答案');
+    wrap.querySelector('.kb-session-count').textContent = (session.index + 1) + ' / ' + total;
+    wrap.querySelector('.kb-session-bar-fill').style.width = Math.round((done / total) * 100) + '%';
+    if (card.highlightText) wrap.querySelector('.kb-hl-text').textContent = card.highlightText;
+    if (card.highlightNote) {
+      const note = wrap.querySelector('.kb-session-note');
+      note.style.display = '';
+      note.textContent = t('笔记') + '：' + card.highlightNote;
+    }
+    wrap.querySelector('.kb-session-hint2').textContent = t('按记忆曲线评分：忘了 → 明天再见；简单 → 间隔拉长');
+    const qLabels = { 1: '😵 ' + t('忘了'), 3: '🤔 ' + t('想起来了'), 5: '😎 ' + t('简单') };
+    wrap.querySelectorAll('[data-q]').forEach((btn) => {
+      const q = Number(btn.dataset.q);
+      btn.textContent = qLabels[q] || String(q);
+      btn.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        if (!session.revealed) return;
+        try { await window.robin.kbReview(card.id, q); } catch (_) { /* 单卡失败不断会话 */ }
+        session.index += 1;
+        this._renderSession();
+      });
+    });
+    wrap.querySelector('.kb-session-exit').textContent = t('结束本次复习');
+    wrap.querySelector('.kb-session-exit').addEventListener('click', () => {
+      this._reviewSession = null;
+      this.tab = 'review';
+      this._render();
+      this._load();
+    });
+    const revealBtn = wrap.querySelector('.kb-session-reveal');
+    const answer = wrap.querySelector('.kb-session-a');
+    revealBtn.addEventListener('click', () => {
+      session.revealed = true;
+      wrap.querySelector('.kb-session-q').style.display = 'none';
+      answer.style.display = '';
+    });
+    this.contentHost.appendChild(wrap);
   }
 
   async _renderCollections(collections) {
