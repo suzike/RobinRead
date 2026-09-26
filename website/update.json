@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.5.0",
-  "name": "知更 RobinRead 2.5.0",
+  "tag_name": "v2.6.0",
+  "name": "知更 RobinRead 2.6.0",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-01T00:00:00Z",
-  "body": "知更 RobinRead v2.5.0 —— 排版引擎与每日刊：报纸级中文排版（盘古之白/标点挤压/首行缩进/两端对齐/首字下沉），内置霞鹜文楷与得意黑开源字库；杂志视图每日刊头（封面故事+本期目录），一键导出整期/单篇 EPUB 电子书；同题报道 AI 对比速读；精读卡片六款模板导出 PNG；命令面板 Ctrl+Shift+P；聚焦模式 F；自定义 CSS。前往 GitHub 或官网下载最新安装包。"
+  "body": "知更 RobinRead v2.6.0 —— 神经语音电台：微软 Neural 真人情感朗读（晓晓/云希等 8 款中文音色，免费），「连播」读完自动接列表下一篇；支持接入自定义 TTS 服务（OpenAI 兼容 / 局域网 CosyVoice）；智能稍后读（超 14 天一键清理）；纸刊级打印精排。前往 GitHub 下载最新安装包。"
 }
