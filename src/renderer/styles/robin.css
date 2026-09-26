@@ -16,8 +16,8 @@
   --note-background: #e8e6d6;    /* rgb(0.910, 0.902, 0.840) */
   --note-border: rgba(97, 115, 87, 0.28);
   --text-primary: rgba(41, 38, 32, 0.92);
-  --text-secondary: rgba(41, 38, 32, 0.58);
-  --text-tertiary: rgba(41, 38, 32, 0.38);
+  --text-secondary: rgba(41, 38, 32, 0.66); /* R9: 4.74:1 on page bg (AA) */
+  --text-tertiary: rgba(41, 38, 32, 0.54); /* R9: 3.34:1, decorative only */
   --separator: rgba(41, 38, 32, 0.10);
   --row-hover: rgba(97, 115, 87, 0.08);
   --row-selected: rgba(97, 115, 87, 0.16);
@@ -72,7 +72,7 @@ body.dark {
   --note-border: rgba(122, 138, 107, 0.42);
   --text-primary: rgba(238, 234, 224, 0.92);
   --text-secondary: rgba(238, 234, 224, 0.56);
-  --text-tertiary: rgba(238, 234, 224, 0.36);
+  --text-tertiary: rgba(238, 234, 224, 0.42); /* R9: 3.58:1, decorative only */
   --separator: rgba(238, 234, 224, 0.10);
   --row-hover: rgba(238, 234, 224, 0.05);
   --row-selected: rgba(151, 178, 134, 0.14);
@@ -3822,6 +3822,35 @@ body.dark .reader-article img.nj-invert-art {
 body.dark .sidebar-row .sidebar-health-warn { background: #e08a3c; color: #20180c; }
 body.dark .sidebar-row .sidebar-health-warn.dead { background: #d0554a; color: #fff; }
 
+
+/* ── 可访问性（R9）：focus-visible 焦点环铺开至全部可交互元素 ── */
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.digest-btn:focus-visible,
+.reader-capsule .cap-btn:focus-visible,
+.footer-nav-btn:focus-visible,
+.modal-nav-item:focus-visible,
+.nj-edition-cover:focus-visible,
+.nj-mag-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── 可访问性（R9）：reduced-motion 全局收敛——停用骨架 shimmer 与全部非必要动画 ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ── 复习会话（SM-2 专注流）── */
 .kb-session-btn { margin-bottom: 14px; }

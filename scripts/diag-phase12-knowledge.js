@@ -133,6 +133,11 @@ app.whenReady().then(async () => {
     const cssSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles', 'robin.css'), 'utf8');
     // R1 设计令牌体系：token 层存在且被消费
     assert.ok(cssSrc.includes('--radius-md') && cssSrc.includes('--dur-base') && cssSrc.includes('--ease-out') && cssSrc.includes('--shadow-3'), 'css 应含设计令牌层');
+    // R9 可访问性：对比度达标 token + focus-visible 铺开 + reduced-motion 收敛
+    assert.ok(cssSrc.includes('rgba(41, 38, 32, 0.66)'), 'LIGHT secondary 应为 0.66 alpha（4.74:1 AA）');
+    assert.ok(cssSrc.includes('rgba(41, 38, 32, 0.54)'), 'LIGHT tertiary 应为 0.54 alpha（3.34:1）');
+    assert.ok(cssSrc.includes('rgba(238, 234, 224, 0.42)'), 'DARK tertiary 应为 0.42 alpha（3.58:1）');
+    assert.ok(cssSrc.includes('button:focus-visible') && cssSrc.includes('prefers-reduced-motion: reduce'), 'focus-visible 与 reduced-motion 收敛块应存在');
     assert.ok(!/border-radius: (?:4|6|7|8|10|12|14)px/.test(cssSrc), 'radius 硬编码应已系统化替换');
     const readerSrc3 = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'views', 'reader.js'), 'utf8');
     assert.ok(readerSrc3.includes('nj-lightbox-nav') && readerSrc2.includes('nj-lightbox-thumbs') && readerSrc2.includes('nj-lightbox-count'), '灯箱应含画廊导航/缩略图');
