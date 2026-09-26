@@ -20,6 +20,7 @@ import { SettingsView, showAddFeed, showAddFolder, showRenameFolder, showFreshRS
 import { ShortcutsView } from './views/shortcuts.js';
 import { ContextMenu } from './views/context-menu.js';
 import { CommandPalette } from './views/command-palette.js';
+import { ReadingControls } from './views/reading-controls.js';
 import {
   normalizeTokens, switchModeTokens, fullPalette, applyPalette, clearPalette,
   persistTokens, clearTokens, pushRecent,
@@ -567,6 +568,16 @@ function toggleZenMode() {
   requestAnimationFrame(() => views.reader?.refreshScrollMetrics());
 }
 
+let readingControls = null;
+function openReadingControls() {
+  if (!state.selectedEntryID) { showToast(t('先打开一篇文章')); return; }
+  readingControls = readingControls || new ReadingControls(views.reader, {
+    onToggleFocus: () => toggleFocusMode(),
+    onToggleZen: () => toggleZenMode(),
+  });
+  readingControls.open();
+}
+
 /** 聚焦模式（方向 11）：非当前段落渐暗，指针所在段保持清晰；会话级开关，再按退出。 */
 function toggleFocusMode() {
   const on = document.body.classList.toggle('rp-focus');
@@ -585,6 +596,7 @@ function buildPaletteCommands() {
     { label: t('打开：稍后读'), keywords: 'later 稍后读 read later', icon: 'clock', action: () => handleScopeSelect({ kind: 'later' }) },
     { label: t('切换：杂志视图 / 列表视图'), keywords: 'magazine list view 杂志 列表 视图', icon: 'newspaper', action: () => window.robin.setReaderLayout({ listViewMode: window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine' }) },
     { label: t('切换：浅色 / 深色主题'), keywords: 'theme dark light 主题 深色 浅色', icon: 'appearance', action: () => window.robin.setTheme(document.body.classList.contains('dark') ? 'light' : 'dark') },
+    { label: t('阅读控制中心'), keywords: 'reading controls 控制中心 阅读面板 aa', icon: 'textLarger', action: () => openReadingControls() },
     { label: t('自动滚动阅读'), keywords: 'auto scroll 自动滚动 悦读', icon: 'chevronDown', action: () => views.reader?.toggleAutoScroll?.() },
     { label: t('切换：聚焦模式'), keywords: 'focus 聚焦 渐暗', icon: 'eye', hint: 'F', action: toggleFocusMode },
     { label: t('切换：禅模式'), keywords: 'zen 禅 全屏', icon: 'expand', action: toggleZenMode },
@@ -1252,6 +1264,8 @@ function setActiveColumn(index, { autoSelect = true } = {}) {
 
 // MARK: - 键盘（1:1 对应 ReaderShortcutPolicy + 三栏协调器）
 
+document.addEventListener('rc-focus-toggle', () => toggleFocusMode());
+document.addEventListener('rc-zen-toggle', () => toggleZenMode());
 function bindKeyboard() {
   document.addEventListener('keydown', (event) => {
     const target = event.target;
@@ -1298,6 +1312,12 @@ function bindKeyboard() {
     if (event.code === 'KeyF' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
       event.preventDefault();
       toggleFocusMode();
+      return;
+    }
+    // A：阅读控制中心（阅读器栏聚焦时）
+    if (event.code === 'KeyA' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && state.selectedEntryID) {
+      event.preventDefault();
+      openReadingControls();
       return;
     }
     // Shift+G 跳到文末；g g 双击跳到文首（vim 惯例）

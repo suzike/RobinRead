@@ -16,6 +16,7 @@ import { renderMarkdown } from '../markdown.js';
 import { ContextMenu } from './context-menu.js';
 import * as CJKMicro from './cjk-micro.js';
 import { ArticleSearch } from './article-search.js';
+import { ReadingControls } from './reading-controls.js';
 import { parseArtifactToCard, extractFirstImage, base64ImageToDataURI } from '../card-export/parse.js';
 import { openCardExportModal } from '../card-export/preview.js';
 
@@ -85,6 +86,10 @@ export class ReaderView {
     // 朗读引擎配置变更（设置页/播放器切换）：失效缓存，下次朗读按新引擎走
     document.addEventListener('robinread:tts-config', () => { this._ttsCfg = null; });
     this.articleSearch = new ArticleSearch(this);
+    this.readingControls = new ReadingControls(this, {
+      onToggleFocus: () => window.dispatchEvent(new CustomEvent('rc-focus-toggle')),
+      onToggleZen: () => window.dispatchEvent(new CustomEvent('rc-zen-toggle')),
+    });
     // 朗读中点击段落：从该段继续播（选区/链接/图片等交互元素不触发）
     this.scrollEl.addEventListener('click', (event) => this._onParagraphClickJump(event));
     window.robin.ttsNeuralVoices?.().then((voices) => { this._neuralVoices = voices || []; }).catch(() => {});

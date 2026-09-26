@@ -3793,3 +3793,49 @@ body.dark .sidebar-row .sidebar-health-warn.dead { background: #d0554a; color: #
 .kb-session-done-icon svg { width: 42px; height: 42px; }
 .kb-session-done-title { font-family: var(--font-serif); font-size: 1.3em; font-weight: 700; margin-top: 10px; }
 .kb-session-done-sub { color: var(--text-secondary); margin-top: 6px; font-size: 0.9em; }
+
+/* ── 阅读控制中心（R3）── */
+.rc-overlay {
+  position: fixed; inset: 0; z-index: 380;
+  background: rgba(20, 17, 12, 0.30);
+  display: flex; justify-content: center; align-items: flex-start;
+  padding-top: 10vh;
+}
+.rc-panel {
+  width: min(560px, 92vw);
+  max-height: 78vh;
+  overflow-y: auto;
+  background: var(--page-background);
+  border: 1px solid var(--note-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-5);
+  animation: kb-pop var(--dur-mid) var(--ease-spring);
+}
+.rc-head { margin-bottom: var(--space-4); }
+.rc-title { font-family: var(--font-serif); font-size: 1.1em; font-weight: 700; }
+.rc-section { margin-bottom: var(--space-4); }
+.rc-section-label {
+  font-size: 0.74em; letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+.rc-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.rc-seg-btn {
+  border: 1px solid var(--note-border);
+  background: var(--note-background);
+  color: var(--text-primary);
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: 0.85em;
+  font-family: inherit;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.rc-seg-btn:hover { border-color: var(--accent); }
+.rc-seg-btn.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.rc-tts-row { display: flex; gap: 8px; }
