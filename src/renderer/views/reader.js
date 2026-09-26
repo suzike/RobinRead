@@ -3109,8 +3109,10 @@ export class ReaderView {
       thumbsHost.querySelectorAll('.nj-lightbox-thumb').forEach((t, i) => t.classList.toggle('active', i === gIndex));
     };
     const step = (dir) => { if (items) showAt(gIndex + dir); };
-    lightbox.querySelector('.nj-lightbox-prev').addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
-    lightbox.querySelector('.nj-lightbox-next').addEventListener('click', (e) => { e.stopPropagation(); step(1); });
+    if (items) {
+      lightbox.querySelector('.nj-lightbox-prev').addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
+      lightbox.querySelector('.nj-lightbox-next').addEventListener('click', (e) => { e.stopPropagation(); step(1); });
+    }
     if (items) {
       items.forEach((it, i) => {
         const tEl = document.createElement('img');
