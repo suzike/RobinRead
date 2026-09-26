@@ -3123,7 +3123,7 @@ export class ReaderView {
       });
       countEl.textContent = `${gIndex + 1} / ${items.length}`;
     } else {
-      countEl.style.display = 'none';
+      if (countEl) countEl.style.display = 'none';
     }
     // gotcha：esc 挂在 document 上，任何关闭路径（点击/Esc）都必须移除它，否则长会话每开一张图泄漏一个监听
     const esc = (event) => {
