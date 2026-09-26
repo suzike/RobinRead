@@ -80,7 +80,7 @@ app.whenReady().then(async () => {
       assert.ok(kbSrc.includes(token), `knowledge.js 应含 ${token}`);
     }
     const cssSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'styles', 'robin.css'), 'utf8');
-    for (const token of ['.kb-graph-canvas', '.kb-graph-panel', '.kb-ask-answer', '.nj-reveal-pending', 'kb-pop', '.nj-edition-cover:hover', '.read-min']) {
+    for (const token of ['.kb-graph-canvas', '.kb-graph-panel', '.kb-ask-answer', '.nj-reveal-pending', 'kb-pop', '.nj-edition-cover:hover', '.read-min', '.nj-code-copy', '.nj-lightbox-zoom', '.nj-find-bar']) {
       assert.ok(cssSrc.includes(token), `robin.css 应含 ${token}`);
     }
     const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'app.js'), 'utf8');

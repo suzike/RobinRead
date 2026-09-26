@@ -709,11 +709,43 @@ export class SettingsView {
         ttsCfg.engine || 'edge',
         saveTTS('engine'),
       )),
-      row(t('神经音色'), t('晓晓温暖自然、云希阳光、云健磁性、云扬新闻腔；自定义引擎时此音色作 voice 参数。'), selectControl(
-        neuralVoices.map((v) => [v.id, v.label || v.id]),
-        ttsCfg.neuralVoice || 'zh-CN-XiaoxiaoNeural',
-        saveTTS('neuralVoice'),
-      )),
+      row(t('神经音色'), t('晓晓温暖自然、云希阳光、云健磁性、云扬新闻腔；自定义引擎时此音色作 voice 参数。'), (() => {
+        const wrap = document.createElement('div');
+        wrap.className = 'setting-control';
+        const voiceSelect = selectControl(
+          neuralVoices.map((v) => [v.id, v.label || v.id]),
+          ttsCfg.neuralVoice || 'zh-CN-XiaoxiaoNeural',
+          saveTTS('neuralVoice'),
+        );
+        const previewBtn = document.createElement('button');
+        previewBtn.className = 'btn-text bordered';
+        previewBtn.textContent = t('试听');
+        previewBtn.addEventListener('click', async () => {
+          if (previewBtn.disabled) return;
+          previewBtn.disabled = true;
+          previewBtn.textContent = t('试听中…');
+          try {
+            const base64 = await window.robin.ttsSynthesize({
+              engine: 'edge',
+              voice: voiceSelect.value,
+              rate: 1,
+              text: '你好，我是知更神经语音，很高兴为你朗读今天的文章。',
+            });
+            if (base64) {
+              const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
+              audio.onended = () => { previewBtn.textContent = t('试听'); previewBtn.disabled = false; };
+              await audio.play();
+              return;
+            }
+            throw new Error('empty');
+          } catch (_) {
+            previewBtn.textContent = t('试听失败');
+            setTimeout(() => { previewBtn.textContent = t('试听'); previewBtn.disabled = false; }, 1800);
+          }
+        });
+        wrap.append(voiceSelect, previewBtn);
+        return wrap;
+      })()),
       row(t('自定义端点'), t('例如 https://api.openai.com/v1/audio/speech，或局域网语音服务地址（如 CosyVoice / GPT-SoVITS）。'), (() => {
         const wrap = document.createElement('div');
         wrap.className = 'setting-control';

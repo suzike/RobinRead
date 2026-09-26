@@ -3163,6 +3163,47 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
 /* 朗读中：段落可点击跳播 */
 .nj-tts-open .reader-article .robin-body > [data-nj-id] { cursor: pointer; }
 
+/* 灯箱缩放徽标 */
+.nj-lightbox-zoom {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 代码块悬浮复制按钮 */
+.reader-article pre.nj-code-pre { position: relative; }
+.nj-code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-family: inherit;
+}
+.reader-article pre.nj-code-pre:hover .nj-code-copy { opacity: 1; }
+.nj-code-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 弹层统一进入动效（设置/知识中心/AIHOT/各类弹窗；尊重 reduced-motion） */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-overlay { animation: kb-fade-in 0.18s ease; }
+  .modal { animation: kb-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+}
+
 /* ── 知识中心：图谱（知识增强）与问知识库 ── */
 .kb-graph-head {
   display: flex;

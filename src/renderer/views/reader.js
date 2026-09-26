@@ -942,6 +942,33 @@ export class ReaderView {
         }
       } catch (_) { /* 单块失败不影响其余 */ }
     }
+    this._decorateCodeBlocks();
+  }
+
+  /** 代码块悬浮复制按钮（阅读功能加强）：pre 右上角浮动「复制」，点击写入剪贴板。 */
+  _decorateCodeBlocks() {
+    if (!this.body) return;
+    for (const pre of this.body.querySelectorAll('pre')) {
+      if (pre.dataset.njCopyDecorated === '1') continue;
+      pre.dataset.njCopyDecorated = '1';
+      pre.classList.add('nj-code-pre');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'nj-code-copy';
+      btn.textContent = t('复制');
+      btn.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(pre.textContent || '');
+          btn.textContent = t('已复制');
+        } catch (_) {
+          btn.textContent = t('复制失败');
+        }
+        setTimeout(() => { btn.textContent = t('复制'); }, 1600);
+      });
+      pre.appendChild(btn);
+    }
   }
 
   /**
@@ -2877,15 +2904,72 @@ export class ReaderView {
     lightbox.innerHTML = `
       <div class="nj-lightbox-backdrop"></div>
       <img class="nj-lightbox-img" src="${attr(src)}" alt="${attr(alt)}"/>
+      <span class="nj-lightbox-zoom" title="${attr(t('滚轮缩放 · 拖拽平移 · 双击复位'))}"></span>
       <button class="nj-lightbox-close" title="${attr(t('关闭（Esc）'))}">${icon('close')}</button>
     `;
+    const img = lightbox.querySelector('.nj-lightbox-img');
+    const zoomBadge = lightbox.querySelector('.nj-lightbox-zoom');
+    // 缩放/平移：滚轮 1×~5×，放大后可拖拽平移，双击复位
+    let scale = 1;
+    let tx = 0;
+    let ty = 0;
+    let panning = false;
+    let px = 0;
+    let py = 0;
+    const apply = () => {
+      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      zoomBadge.textContent = `${Math.round(scale * 100)}%`;
+      zoomBadge.style.display = scale > 1.01 ? '' : 'none';
+      img.style.cursor = scale > 1.01 ? 'grab' : 'zoom-out';
+    };
+    const wheel = (event) => {
+      event.preventDefault();
+      const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+      scale = Math.max(1, Math.min(5, scale * factor));
+      if (scale <= 1.01) { tx = 0; ty = 0; }
+      apply();
+    };
+    const down = (event) => {
+      if (scale <= 1.01) return;
+      panning = true;
+      px = event.clientX - tx;
+      py = event.clientY - ty;
+      img.style.cursor = 'grabbing';
+      event.preventDefault();
+    };
+    const move = (event) => {
+      if (!panning) return;
+      tx = event.clientX - px;
+      ty = event.clientY - py;
+      apply();
+    };
+    const up = () => {
+      panning = false;
+      if (scale > 1.01) img.style.cursor = 'grab';
+    };
+    const dbl = () => {
+      scale = 1; tx = 0; ty = 0;
+      apply();
+    };
+    lightbox.addEventListener('wheel', wheel, { passive: false });
+    img.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    img.addEventListener('dblclick', dbl);
     // gotcha：esc 挂在 document 上，任何关闭路径（点击/Esc）都必须移除它，否则长会话每开一张图泄漏一个监听
     const esc = (event) => { if (event.key === 'Escape') dismiss(); };
     const dismiss = () => {
       document.removeEventListener('keydown', esc);
+      lightbox.removeEventListener('wheel', wheel);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
       lightbox.remove();
     };
-    lightbox.addEventListener('click', dismiss);
+    // 放大态下点击图片不关闭（可拖拽/双击复位）；缩小态点击图片或背景 = 关闭（沿用原交互）
+    lightbox.addEventListener('click', (event) => {
+      if (scale > 1.01 && event.target === img) return;
+      dismiss();
+    });
     document.addEventListener('keydown', esc);
     document.body.appendChild(lightbox);
   }
