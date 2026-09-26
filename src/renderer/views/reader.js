@@ -15,6 +15,7 @@ import { formatFullDate } from './list.js';
 import { renderMarkdown } from '../markdown.js';
 import { ContextMenu } from './context-menu.js';
 import * as CJKMicro from './cjk-micro.js';
+import { ArticleSearch } from './article-search.js';
 import { parseArtifactToCard, extractFirstImage, base64ImageToDataURI } from '../card-export/parse.js';
 import { openCardExportModal } from '../card-export/preview.js';
 
@@ -82,6 +83,9 @@ export class ReaderView {
     this._neuralVoices = null; // 神经音色清单（预取，播放器声音下拉用）
     // 朗读引擎配置变更（设置页/播放器切换）：失效缓存，下次朗读按新引擎走
     document.addEventListener('robinread:tts-config', () => { this._ttsCfg = null; });
+    this.articleSearch = new ArticleSearch(this);
+    // 朗读中点击段落：从该段继续播（选区/链接/图片等交互元素不触发）
+    this.scrollEl.addEventListener('click', (event) => this._onParagraphClickJump(event));
     window.robin.ttsNeuralVoices?.().then((voices) => { this._neuralVoices = voices || []; }).catch(() => {});
     window.robin.ttsGetConfig?.().then((cfg) => { this._ttsCfg = cfg || this._ttsCfg; }).catch(() => {});
     this._ttsHeaderBtn = null;
@@ -452,6 +456,7 @@ export class ReaderView {
 
   _render() {
     this._ttsStop(); // 正文重排（打开新文/原文精读）：段落锚点重建，朗读必须先停
+    this.articleSearch?.reset(); // 正文重建：搜索高亮与命中导航一并失效
     this.scrollEl.scrollTop = 0;
     this.scrollEl.innerHTML = '';
 
@@ -3297,6 +3302,15 @@ export class ReaderView {
       return;
     }
 
+    // Ctrl/Cmd+F：文章内搜索（阅读器栏聚焦时）
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.code === 'KeyF') {
+      if (!this.entryID || !this._readerFocused()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.articleSearch.open();
+      return;
+    }
+
     if (event.key !== 'r' && event.key !== 'R') return;
     if (event.ctrlKey || event.metaKey || event.altKey) return; // Ctrl+Shift+R 刷新等全局组合不碰
     if (!this.entryID || !this._readerFocused()) return;
@@ -3363,6 +3377,22 @@ export class ReaderView {
       btn.disabled = false; // 朗读中按钮 = 「停」，始终可点
       btn.title = t('停止朗读（快捷键 R / Esc）');
     }
+  }
+
+  /** 朗读中点击段落：从该段继续播（选区拖选中不触发）。 */
+  _onParagraphClickJump(event) {
+    if (!this._tts) return;
+    const selection = window.getSelection?.();
+    if (selection && !selection.isCollapsed) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('a, img, video, button, mark, .nj-t, .nj-translation, .katex, .nj-note-marker')) return;
+    const block = target.closest('[data-nj-id]');
+    if (!block || !this.body?.contains(block)) return;
+    const index = this._tts.chunks.findIndex((c) => c.paraID === block.dataset.njId);
+    if (index < 0) return;
+    if (this._tts.engine === 'neural') this._ttsRestartNeural(index);
+    else this._ttsRestartFrom(index);
   }
 
   toggleTTS() {
@@ -3800,6 +3830,7 @@ export class ReaderView {
     }
     tts.utterances = [];
     tts.gen += 1;
+    tts.index = index; // 跳播/进度条依赖：重建后 index 与高亮一致
     tts.state = 'playing'; // 暂停中调语速/声音 → 直接以新参数继续播
     this._ttsEnqueueFrom(index);
     this._ttsSyncHeaderButton();
@@ -3843,6 +3874,7 @@ export class ReaderView {
     player.innerHTML = `
       <button type="button" class="nj-tts-pbtn nj-tts-toggle" title="${attr(t('暂停 / 继续朗读'))}">${TTS_PAUSE_SVG}</button>
       <button type="button" class="nj-tts-pbtn nj-tts-stop" title="${attr(t('停止朗读（Esc）'))}">${TTS_STOP_SVG}</button>
+      <span class="nj-tts-progress" title="${attr(t('朗读进度'))}"></span>
       <button type="button" class="nj-tts-pbtn nj-tts-rate" title="${attr(t('点击切换语速（0.75 / 1 / 1.25 / 1.5）'))}"></button>
       <button type="button" class="nj-tts-pbtn nj-tts-queue" title="${attr(t('连播：本篇读完自动接列表下一篇'))}"></button>
       <button type="button" class="nj-tts-pbtn nj-tts-engine" title="${attr(t('切换朗读引擎：神经语音（需联网，真人情感）↔ 本地语音'))}"></button>
@@ -3869,6 +3901,11 @@ export class ReaderView {
     if (toggle) {
       toggle.innerHTML = tts.state === 'paused' ? TTS_PLAY_SVG : TTS_PAUSE_SVG;
       toggle.title = tts.state === 'paused' ? t('继续朗读') : t('暂停朗读');
+    }
+    const progress = player.querySelector('.nj-tts-progress');
+    if (progress) {
+      const total = tts.chunks?.length || 0;
+      progress.textContent = total ? `${Math.min(100, Math.round(((tts.index + 1) / total) * 100))}%` : '';
     }
     const rateBtn = player.querySelector('.nj-tts-rate');
     if (rateBtn) rateBtn.textContent = `${tts.rate}×`;

@@ -422,6 +422,30 @@ app.whenReady().then(async () => {
     })()`);
     check('e6 连播：最后块播完触发 onTTSAdvance（知更电台）', eQueue.ok === true, JSON.stringify(eQueue));
 
+    // 段落点击跳播（朗读中点击正文段 → 高亮跳到该段）
+    const eJump = await run(`(async () => {
+      try {
+        const r = window.__robinReader;
+        r.toggleTTS();
+        let queue = window.__ttsQueue || [];
+        for (let i = 0; i < 20 && queue.length === 0; i++) {
+          await new Promise((res) => setTimeout(res, 150));
+          queue = window.__ttsQueue || [];
+        }
+        if (!queue.length) return { ok: false, why: 'no-enqueue' };
+        const blocks = r.body.querySelectorAll('[data-nj-id]');
+        const block = blocks[1] || blocks[0]; // 种子正文块数不定，取第二个块（首个为标题）
+        if (!block) return { ok: false, why: 'no-block' };
+        block.click();
+        await new Promise((res) => setTimeout(res, 300));
+        const active = document.querySelector('.nj-tts-active')?.dataset.njId || '';
+        const ok = active && active !== 'title';
+        window.__robinReader._ttsStop();
+        return { ok, active };
+      } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+    })()`);
+    check('e7 段落点击跳播：高亮跳到所点段落', eJump.ok === true, JSON.stringify(eJump));
+
     code = results.every(Boolean) ? 0 : 1;
     console.log(code === 0 ? 'PHASE5 TTS PROBE: ALL PASSED' : 'PHASE5 TTS PROBE: FAILED');
   } catch (err) {

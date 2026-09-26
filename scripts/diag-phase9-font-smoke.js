@@ -119,6 +119,27 @@ app.whenReady().then(async () => {
     }
     log(`PASS 预计阅读时长展示「${String(readTime.text).match(/约 \d+ 分钟/)?.[0] || '分钟'}」`);
 
+    // 3c. 文章内搜索：打开 → 查询 → 命中高亮计数
+    const search = await run(`
+      const reader = window.__robinReader;
+      reader.articleSearch.open();
+      reader.articleSearch.input.value = '的';
+      reader.articleSearch.input.dispatchEvent(new Event('input'));
+      await new Promise((r) => setTimeout(r, 700));
+      const count = document.querySelector('.nj-find-count')?.textContent || '';
+      const hl = CSS.highlights.get('nj-find');
+      return { count, hits: hl ? [...hl].length : 0 };
+    `);
+    if (!search || !/^\d+\/\d+$/.test(search.count || '') || search.hits < 1) {
+      throw new Error(`正文搜索未命中: ${JSON.stringify(search)?.slice(0, 140)}`);
+    }
+    const searchClose = await run(`
+      window.__robinReader.articleSearch.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return !document.querySelector('.nj-find-bar') && !CSS.highlights.get('nj-find');
+    `);
+    if (searchClose !== true) throw new Error('搜索条 Esc 未关闭');
+    log(`PASS 文章内搜索：命中 ${search.count} 处，Esc 关闭并清除高亮`);
+
     // 4. 同题对比速读：无 API Key 的受控失败路径（不崩溃、错误信息可读）
     const single = await run(`return await window.robin.clusterBrief([{ id: 'a', title: '只有一篇' }]);`);
     if (!single || single.ok !== false) throw new Error(`单篇入参应受控拒绝: ${JSON.stringify(single)}`);

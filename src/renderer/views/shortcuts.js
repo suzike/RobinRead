@@ -18,6 +18,8 @@ const SECTIONS = [
       { keys: ['M'], title: t('切换收藏'), detail: t('收藏或取消收藏当前文章；收藏后可点提示中的「查看收藏」，或到侧栏「收藏」。') },
       { keys: ['H'], title: t('高亮选中文字'), detail: t('先选中正文文字再按 H，快速加黄色高亮；划词菜单可选其他颜色、写批注笔记。') },
       { keys: ['Space'], title: t('向下阅读'), detail: t('滚动正文；到达底部后再次按空格切换下一篇。') },
+      { keys: ['Ctrl+F'], title: t('搜索正文'), detail: t('高亮全部命中，Enter / Shift+Enter 在命中间跳转，Esc 关闭。') },
+      { keys: ['F'], title: t('聚焦模式'), detail: t('非当前段落渐暗，指针所在段保持清晰。') },
     ],
   },
   {

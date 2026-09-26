@@ -3107,6 +3107,62 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
 }
 .nj-tts-pbtn.nj-tts-queue.active { color: var(--accent); border-color: var(--accent); }
 
+/* 播放器句块进度 */
+.nj-tts-progress {
+  font-size: 0.72em;
+  color: var(--text-secondary);
+  min-width: 30px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 文章内搜索（Ctrl+F）：Custom Highlight 不动 DOM */
+::highlight(nj-find) { background-color: rgba(255, 196, 0, 0.32); color: inherit; }
+::highlight(nj-find-current) { background-color: rgba(245, 166, 35, 0.85); color: #fff; }
+.nj-find-bar {
+  position: absolute;
+  top: 14px;
+  right: 24px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--page-background);
+  border: 1px solid var(--note-border);
+  border-radius: 10px;
+  padding: 6px 8px;
+  box-shadow: 0 8px 24px rgba(20, 17, 12, 0.16);
+}
+.nj-find-bar input {
+  width: 200px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+.nj-find-count {
+  font-size: 0.78em;
+  color: var(--text-secondary);
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.nj-find-nav, .nj-find-close {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.nj-find-nav:hover, .nj-find-close:hover { background: var(--row-selected); color: var(--text-primary); }
+
+/* 朗读中：段落可点击跳播 */
+.nj-tts-open .reader-article .robin-body > [data-nj-id] { cursor: pointer; }
+
 /* ── 知识中心：图谱（知识增强）与问知识库 ── */
 .kb-graph-head {
   display: flex;

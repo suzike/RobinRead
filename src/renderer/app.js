@@ -577,6 +577,7 @@ function buildPaletteCommands() {
     { label: t('打开：今日简报'), keywords: 'digest 简报 日报 ai', icon: 'spark', action: () => showTodayDigest() },
     { label: t('打开：AI 热点'), keywords: 'aihot 热点 趋势', icon: 'flame', action: openAihotView },
     { label: t('打开：知识库'), keywords: 'knowledge 知识 高亮 复习', icon: 'bookOpen', hint: 'Ctrl+K', action: openKnowledgeCenter },
+    { label: t('搜索正文'), keywords: 'find search 搜索 正文 查找', icon: 'search', hint: 'Ctrl+F', action: () => { if (!state.selectedEntryID) { showToast(t('先打开一篇文章')); return; } views.reader?.articleSearch?.open(); } },
     { label: t('打开：设置'), keywords: 'settings 设置 preference', icon: 'gear', action: () => showSettings('appearance') },
     { label: t('刷新全部订阅'), keywords: 'refresh 刷新 订阅', icon: 'refresh', action: () => window.robin.refresh() },
     { label: t('增大字号'), keywords: 'font size larger 字号 增大', icon: 'textLarger', action: () => adjustFontSize(1) },
