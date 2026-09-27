@@ -615,6 +615,14 @@ export class ReaderView {
     const header = document.createElement('header');
     header.className = 'robin-header-container';
 
+    // 刊头眉题（R15）：来源独立成行，杂志式小字距层级
+    if (this.feed?.title) {
+      const kicker = document.createElement('div');
+      kicker.className = 'robin-header-kicker';
+      kicker.textContent = this.feed.title;
+      header.appendChild(kicker);
+    }
+
     const h1 = document.createElement('h1');
     h1.className = 'robin-header-title';
     h1.dataset.njId = 'title';
@@ -636,7 +644,7 @@ export class ReaderView {
     const meta = document.createElement('div');
     meta.className = 'robin-header-meta';
     const parts = [];
-    if (this.feed?.title) parts.push(escapeHTML(this.feed.title));
+    // 来源已在眉题行展示，meta 保留作者/日期/时长
     if (entry.author) parts.push(escapeHTML(entry.author));
     if (entry.publishedAt) parts.push(escapeHTML(formatFullDate(entry.publishedAt)));
     // 预计阅读时长（中文 400 字/分钟、英文 220 词/分钟混合估算）
