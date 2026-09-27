@@ -1848,3 +1848,25 @@ const D9_PRINT = `
 .xc-t-note { background-image: repeating-linear-gradient(0deg, rgba(160,120,60,.02) 0 1px, transparent 1px 3px), linear-gradient(180deg,#faf6ee 0%,#f8f4ea 50%,#f4eedd 100%); }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D9_PRINT;
+
+/* ══ D10 品牌一致性 ══
+   页脚治理：全部模板品牌区统一「羽图标+知更 RobinRead+英文副标」语言、
+   品牌色锁定模板主色、英文字距/大小写规范、二维码白底规范。 */
+const D10_BRAND = `
+/* 品牌名字号/字距/大小写统一 */
+.xc-card .xc-brand-name { letter-spacing: 0.12em; text-transform: none; }
+.xc-card .xc-brand-sub { letter-spacing: 0.18em; text-transform: uppercase; font-size: 10.5px; }
+/* 品牌羽图标语言：统一 16px、主色 */
+.xc-card .xc-brand svg { width: 16px; height: 16px; }
+/* 二维码白底衬托+细边（扫描可靠性） */
+.xc-card .xc-qr { border: 1px solid rgba(0,0,0,0.08) !important; }
+/* 品牌色收束：各模板 brand 图标锁主色（无主色声明的用羽翼橄榄绿兜底） */
+.xc-t-paper .xc-brand svg, .xc-t-mesh .xc-brand svg { color: #617357; }
+.xc-t-ink .xc-brand svg, .xc-t-aurora .xc-brand svg { color: #8f7bff; }
+.xc-t-mag .xc-brand svg { color: #e0301e; }
+.xc-t-news .xc-brand svg { color: #8c2f1b; }
+.xc-t-jade .xc-brand svg { color: #c34a2f; }
+.xc-t-blue .xc-brand svg { color: #8fd0ff; }
+.xc-t-min .xc-brand svg, .xc-t-note .xc-brand svg { color: currentColor; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D10_BRAND;
