@@ -769,6 +769,36 @@ export class SettingsView {
       this.state.snapshot.llm = { ...(this.state.snapshot.llm || {}), [patch]: value };
     };
 
+    // ── AI 精读风格（人格预设）：多种可选 + 自定义提示词 ──
+    container.appendChild(await (async () => {
+      const personas = (await window.robin.aiPersonas?.().catch(() => [])) || [];
+      const saved = (await window.robin.aiPersona?.().catch(() => null)) || { id: 'scholar', custom: '' };
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;align-items:flex-end;min-width:220px;';
+      const customBox = document.createElement('textarea');
+      customBox.className = 'nj-css-input';
+      customBox.style.cssText = 'width:280px;height:88px;font-size:12px;resize:vertical;';
+      customBox.placeholder = t('输入你的精读提示词，例如：用经济学人风格输出，并附三条反方观点…');
+      customBox.value = saved.custom || '';
+      const persist = () => { window.robin.aiSetPersona?.({ id: select.value, custom: customBox.value.trim() }); };
+      const select = selectControl(
+        (personas.length ? personas : [{ id: 'scholar', label: t('严谨学者（默认）') }]).map((p) => [p.id, t(p.label)]),
+        saved.id || 'scholar',
+        () => {
+          customBox.style.display = select.value === 'custom' ? '' : 'none';
+          persist();
+        },
+      );
+      select.style.minWidth = '190px';
+      customBox.addEventListener('change', persist);
+      customBox.style.display = saved.id === 'custom' ? '' : 'none';
+      wrap.appendChild(select);
+      wrap.appendChild(customBox);
+      return group(t('AI 精读风格'), t('同一篇文章按不同视角产出精读笔记：学者=结构化笔记、讲述者=故事化、评论员=批判审视、外行版=通俗类比、教练=行动清单、自定义=你的提示词。切换后重新点「一键精读」即按新风格重写。'), [
+        row(t('精读人格'), null, wrap),
+      ]);
+    })());
+
     // ── 朗读引擎（方向 18）：神经语音 / 本地语音 / 自定义 TTS ──
     const ttsCfg = (await window.robin.ttsGetConfig?.().catch(() => null)) || { engine: 'edge' };
     const neuralVoices = (await window.robin.ttsNeuralVoices?.().catch(() => null)) || [];

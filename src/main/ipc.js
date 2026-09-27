@@ -551,6 +551,9 @@ function registerIPCHandlers(store, window) {
   handle('prefs:setRefreshInterval', (raw) => store.setRefreshInterval(raw));
   handle('prefs:setRefreshOnLaunch', (enabled) => store.setRefreshOnLaunch(enabled));
   handle('prefs:setLLM', (patch) => store.setLLMConfiguration(patch));
+  handle('ai:persona', () => store.aiPersona());
+  handle('ai:setPersona', (patch) => store.setAIPersona(patch || {}));
+  handle('ai:personas', () => store.aiPersonaList());
 
   // MARK: 高品质朗读（神经语音 / 自定义 TTS）
   handle('tts:neuralVoices', () => NEURAL_VOICES);

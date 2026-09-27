@@ -85,10 +85,10 @@ class LLMService {
   }
 
   /** 一键精读：中文深读笔记（主旨/脉络/概念/证据/局限/金句/行动）。 */
-  async deepRead(text, configuration, apiKey, onDelta = null, signal = null) {
+  async deepRead(text, configuration, apiKey, onDelta = null, signal = null, systemOverride = null) {
     return this.complete({
       prompt: `文章全文：\n\n${ArticleChunker.truncate(text, 60000)}`,
-      system: `你是一位严谨的中文深度阅读助手，为读者做一次精读笔记。严格基于原文，禁止编造。用 Markdown 输出以下结构：
+      system: systemOverride || `你是一位严谨的中文深度阅读助手，为读者做一次精读笔记。严格基于原文，禁止编造。用 Markdown 输出以下结构：
 **主旨**：这篇文章的核心主张，1-2 句。
 **论证脉络**：按文章结构梳理 2-5 段，每段以加粗小标题概括该部分在论证中的作用。
 **关键概念**：解释文中出现的专业术语/缩写（术语：解释），最多 8 个。

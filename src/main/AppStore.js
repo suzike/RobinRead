@@ -23,6 +23,7 @@ const OPMLService = require('./OPMLService');
 const ArticleExtractor = require('./ArticleExtractor');
 const EpubBuilder = require('./EpubBuilder');
 const { LLMService, LLMServiceError, ArticleChunker } = require('./LLMService');
+const { AI_PERSONAS, resolveDeepReadSystem } = require('./AIPersonas');
 const { ReaderAPIClient, ReaderAPIAuthenticator, canonicalBaseURL, normalizeMinifluxEndpoint } = require('./FreshRSS/FreshRSSClient');
 const { KnowledgeEngine } = require('./KnowledgeEngine');
 const { EvolutionEngine } = require('./EvolutionEngine');
@@ -2305,7 +2306,11 @@ class AppStore extends EventEmitter {
     const { config, apiKey } = this._requireAIReady();
     const cache = this.cachesRepo.cache(entryID);
     const text = this._entrySourceText(entry, cache);
-    const contentHash = stableDigest(text);
+    const personaPref = kind === AIArtifactKind.deepRead
+      ? this.preferences.get('RobinRead.ai.persona', { id: 'scholar', custom: '' })
+      : null;
+    const deepReadSystem = personaPref ? resolveDeepReadSystem(personaPref) : '';
+    const contentHash = stableDigest(deepReadSystem ? text + '\u0000persona:' + deepReadSystem : text);
 
     const key = `summary:${entryID}`;
     if (this.activeAICancellers.has(key)) throw new LLMServiceError('requestInProgress');
@@ -2404,7 +2409,7 @@ class AppStore extends EventEmitter {
       this.artifactsRepo.saveArtifact(artifact);
 
       const llmCall = kind === AIArtifactKind.deepRead
-        ? (onDelta) => this.llm.deepRead(text, config, apiKey, onDelta, canceller.controller.signal)
+        ? (onDelta) => this.llm.deepRead(text, config, apiKey, onDelta, canceller.controller.signal, deepReadSystem || null)
         : (onDelta) => this.llm.richSummary(text, config, apiKey, onDelta, canceller.controller.signal);
       const content = await llmCall(async (delta) => {
         if (canceller.cancelled) throw new Error('cancelled');
@@ -2557,6 +2562,21 @@ class AppStore extends EventEmitter {
     return this._aihotState();
   }
 
+  /** AI 精读人格预设：读取/设置（含自定义提示词文本）。 */
+  aiPersona() {
+    return this.preferences.get('RobinRead.ai.persona', { id: 'scholar', custom: '' });
+  }
+
+  setAIPersona(patch) {
+    const id = String(patch?.id || 'scholar');
+    const custom = String(patch?.custom || '').slice(0, 4000);
+    this.preferences.set('RobinRead.ai.persona', { id, custom });
+    return this.aiPersona();
+  }
+
+  aiPersonaList() {
+    return AI_PERSONAS.map(({ id, label, desc }) => ({ id, label, desc }));
+  }
   /** AI 深读：结合热点上下文生成中文深度解读（Markdown）。 */
   async aihotDeepRead({ title, context }) {
     const { config, apiKey } = this._requireAIReady();
