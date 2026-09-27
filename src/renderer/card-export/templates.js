@@ -1836,8 +1836,8 @@ const D9_PRINT = `
   writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.4em;
   color: currentColor; opacity: 0.34;
 }
-.xc-t-news .xc-masthead, .xc-t-mag .xc-masthead { position: relative; }
-.xc-t-news .xc-masthead::before, .xc-t-mag .xc-masthead::before {
+.xc-t-news .xc-masthead { position: relative; }
+.xc-t-news .xc-masthead::before {
   content: '知更 · 精读'; position: absolute; right: 6px; top: 8px;
   writing-mode: vertical-rl; white-space: nowrap;
   font-size: 9px; letter-spacing: 0.3em;
