@@ -1748,10 +1748,8 @@ const D4_STATS = `
 .xc-stat-v { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .xc-stat-n { font-size: 1.18em; font-weight: 800; font-variant-numeric: tabular-nums; }
 .xc-stat-u { font-size: 0.52em; font-weight: 700; margin-left: 2px; letter-spacing: 0.06em; }
-`;
-for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
-
-/* D4 修正：渐变裁切主题的单位显式实色（text-fill-color 继承会导致单位消失） */
 .xc-t-paper .xc-stat-u { -webkit-text-fill-color: #8b8574; }
 .xc-t-ink .xc-stat-u { -webkit-text-fill-color: #c9a86a; }
 .xc-t-aurora .xc-stat-u { -webkit-text-fill-color: #8d9ac2; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
