@@ -473,8 +473,8 @@ function registerIPCHandlers(store, window) {
   handle('app:smartFolderSearch', (query, limit) => store.smartFolderSearch(query, { limit: Number(limit) || 200 }));
 
   // MARK: 今日简报（流式 + 当日缓存秒开）
-  handle('ai:digest', () => store.generateTodayDigest((delta) => send('ai:digest-delta', { delta })));
-  handle('ai:digestCache', () => store.cachedTodayDigest());
+  handle('ai:digest', (mode) => store.generateTodayDigest((delta) => send('ai:digest-delta', { delta }), mode === 'deep' ? 'deep' : 'brief'));
+  handle('ai:digestCache', (mode) => store.cachedTodayDigest(mode === 'deep' ? 'deep' : 'brief'));
 
   // MARK: 阅读排版
   handle('prefs:setReaderLayout', (patch) => store.setReaderLayout(patch));

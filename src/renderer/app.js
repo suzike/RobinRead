@@ -770,9 +770,10 @@ function renderDigestVisual(raw, refs, meta, onClose = null) {
   const hero = document.createElement('div');
   hero.className = 'dg-hero';
   const topicCount = (String(raw).match(/^## 主题：/gm) || []).length;
+  const modeLabel = meta?.mode === 'deep' ? t('精读版') : t('简报版');
   hero.innerHTML = `
     <div class="dg-hero-date"></div>
-    <div class="dg-hero-sub">${escapeHTMLInline(t('今日 AI 简报'))} · ${t('星期' + week)}</div>
+    <div class="dg-hero-sub">${escapeHTMLInline(t('今日 AI 简报'))} · ${escapeHTMLInline(modeLabel)} · ${t('星期' + week)}</div>
     <div class="dg-hero-stats">
       <span class="dg-stat"><b>${meta?.items ?? '—'}</b>${escapeHTMLInline(t('篇文章'))}</span>
       <span class="dg-stat"><b>${topicCount || '—'}</b>${escapeHTMLInline(t('个主题'))}</span>
@@ -849,6 +850,28 @@ function renderDigestVisual(raw, refs, meta, onClose = null) {
       host.appendChild(card);
       continue;
     }
+    // 精读版：逐篇深度解读节
+    const deepSec = line.match(/^##\s*精读[：:]\s*(.+)$/);
+    if (deepSec) {
+      mode = 'deepsec';
+      topicNo += 1;
+      card = document.createElement('div');
+      card.className = 'dg-topic dg-deep-sec';
+      card.innerHTML = `<div class="dg-topic-head"><span class="dg-topic-no"></span><span class="dg-topic-title"></span></div><div class="dg-topic-body"></div>`;
+      card.querySelector('.dg-topic-no').textContent = String(topicNo).padStart(2, '0');
+      card.querySelector('.dg-topic-title').textContent = deepSec[1].replace(/\*\*/g, '');
+      host.appendChild(card);
+      continue;
+    }
+    if (/^##\s*今日一句话/.test(line)) {
+      mode = 'deepread';
+      card = document.createElement('div');
+      card.className = 'dg-deepread';
+      card.innerHTML = `<div class="dg-deepread-head">${icon('spark')}<span></span></div><div class="dg-deepread-body"></div>`;
+      card.querySelector('span').textContent = t('今日一句话');
+      host.appendChild(card);
+      continue;
+    }
     if (/^#/.test(line) || mode === 'plain') continue; // 其它标题忽略
     const bullet = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+[.、]\s+(.+)$/);
     if (mode === 'overview' && card === null) {
@@ -864,6 +887,19 @@ function renderDigestVisual(raw, refs, meta, onClose = null) {
       continue;
     }
     if (mode === 'topic' && card) { if (bullet) addBullet(bullet[1], card.querySelector('.dg-topic-list')); continue; }
+    if (mode === 'deepsec' && card) {
+      // 精读节正文：段落文本 + 行内 [n] 来源芯片
+      const bodyEl = card.querySelector('.dg-topic-body');
+      const p = document.createElement('p');
+      for (const part of line.split(/(\[\d+\])/)) {
+        const m = part.match(/^\[(\d+)\]$/);
+        if (m) { p.appendChild(chip(Number(m[1]))); continue; }
+        if (!part) continue;
+        p.appendChild(document.createTextNode(part.replace(/\*\*/g, '')));
+      }
+      bodyEl.appendChild(p);
+      continue;
+    }
     if (mode === 'deepread' && card) {
       const bodyEl = card.querySelector('.dg-deepread-body');
       if (bullet) addBullet(bullet[1], bodyEl);
@@ -874,13 +910,18 @@ function renderDigestVisual(raw, refs, meta, onClose = null) {
   return host;
 }
 
-async function showTodayDigest({ forceRegenerate = false } = {}) {
+async function showTodayDigest({ forceRegenerate = false, mode = 'brief' } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
   modal.className = 'modal digest-modal';
   modal.innerHTML = `
     <div class="modal-header"><h3>${escapeHTMLInline(t('今日 AI 简报'))}</h3>
+      <div class="dg-mode-seg" role="tablist">
+        <button id="digest-mode-brief" class="${mode === 'brief' ? 'on' : ''}">${escapeHTMLInline(t('简报版'))}</button>
+        <button id="digest-mode-deep" class="${mode === 'deep' ? 'on' : ''}">${escapeHTMLInline(t('精读版'))}</button>
+      </div>
+      <button class="btn icon-only" id="digest-full" title="${escapeHTMLInline(t('全屏'))}" style="margin-right:8px;">${icon('expand')}</button>
       <button class="btn-text" id="digest-copy" style="display:none;margin-right:8px;"></button>
       <button class="btn-text" id="digest-regen" style="display:none;margin-right:8px;"></button>
       <button class="btn icon-only" id="digest-close">${''}</button></div>
@@ -890,6 +931,17 @@ async function showTodayDigest({ forceRegenerate = false } = {}) {
   overlay.addEventListener('mousedown', (event) => { if (event.target === overlay) overlay.remove(); });
   modal.querySelector('#digest-close').innerHTML = icon('close');
   modal.querySelector('#digest-close').addEventListener('click', () => overlay.remove());
+  const fullBtn = modal.querySelector('#digest-full');
+  fullBtn.addEventListener('click', () => {
+    const on = modal.classList.toggle('is-full');
+    fullBtn.innerHTML = icon(on ? 'collapse' : 'expand');
+  });
+  modal.querySelector('#digest-mode-brief').addEventListener('click', () => {
+    if (mode !== 'brief') { overlay.remove(); showTodayDigest({ mode: 'brief' }); }
+  });
+  modal.querySelector('#digest-mode-deep').addEventListener('click', () => {
+    if (mode !== 'deep') { overlay.remove(); showTodayDigest({ mode: 'deep' }); }
+  });
 
   const body = modal.querySelector('.digest-body');
   const regenBtn = modal.querySelector('#digest-regen');
@@ -904,7 +956,7 @@ async function showTodayDigest({ forceRegenerate = false } = {}) {
   });
   regenBtn.addEventListener('click', () => {
     overlay.remove();
-    showTodayDigest({ forceRegenerate: true });
+    showTodayDigest({ forceRegenerate: true, mode });
   });
 
   const renderInto = (content, refs, meta, streaming) => {
@@ -913,13 +965,13 @@ async function showTodayDigest({ forceRegenerate = false } = {}) {
     body.classList.remove('loading');
     body.classList.toggle('streaming', !!streaming);
     body.innerHTML = '';
-    body.appendChild(renderDigestVisual(content, refs, meta, () => overlay.remove()));
+    body.appendChild(renderDigestVisual(content, refs, { ...meta, mode }, () => overlay.remove()));
     body.scrollTop = body.scrollHeight;
   };
 
   // 当日缓存：秒开渲染 + 提供「重新生成」；强制重新生成或无缓存时走流式
   if (!forceRegenerate) {
-    const cached = await window.robin.cachedDigest();
+    const cached = await window.robin.cachedDigest(mode);
     if (cached?.ok && cached.data?.content) {
       renderInto(cached.data.content, cached.data.entryRefs, cached.data, false);
       regenBtn.style.display = '';
@@ -945,7 +997,7 @@ async function showTodayDigest({ forceRegenerate = false } = {}) {
     renderInto(streamed, [], { items: null }, true);
   });
 
-  const result = await window.robin.generateDigest();
+  const result = await window.robin.generateDigest(mode);
   done = true;
   unsubscribe?.();
   if (!result.ok) {

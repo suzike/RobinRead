@@ -1391,15 +1391,15 @@ class AppStore extends EventEmitter {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  /** 当日已生成的简报缓存（秒开），跨天自动失效。v2 为结构化版本。 */
-  cachedTodayDigest() {
-    const key = `RobinRead.digest.v2.${this._digestDateKey()}`;
+  /** 当日已生成的简报缓存（秒开），跨天自动失效。v2 为结构化版本；deep（精读版）独立缓存。 */
+  cachedTodayDigest(mode = 'brief') {
+    const key = `RobinRead.digest.v2.${this._digestDateKey()}${mode === 'deep' ? '.deep' : ''}`;
     return this.preferences.get(key, null);
   }
 
-  _saveTodayDigest(content, itemCount, entryRefs = []) {
+  _saveTodayDigest(content, itemCount, entryRefs = [], mode = 'brief') {
     const date = this._digestDateKey();
-    const key = `RobinRead.digest.v2.${date}`;
+    const key = `RobinRead.digest.v2.${date}${mode === 'deep' ? '.deep' : ''}`;
     // 只保留当天的缓存：清掉更早日期的 digest 键
     const latestDate = this.preferences.get('RobinRead.digest.latestDate', null);
     if (latestDate && latestDate !== date) {
@@ -1410,7 +1410,7 @@ class AppStore extends EventEmitter {
     this.preferences.set(key, { date, content, items: itemCount, entryRefs, at: nowSeconds() });
   }
 
-  async generateTodayDigest(onDelta) {
+  async generateTodayDigest(onDelta, mode = 'brief') {
     const { config, apiKey } = this._requireAIReady();
     const items = this.listItems({ kind: 'today' }, { limit: 40 });
     let source = items;
@@ -1422,10 +1422,16 @@ class AppStore extends EventEmitter {
       return `${index + 1}. ${item.title}${preview ? ' — ' + preview : ''}`;
     });
     // 提示词 v2：结构化主题分组 + [n] 来源编号标注（渲染端把 [n] 变为可点击跳转的来源芯片）
-    const prompt = `以下是信息流中的 ${lines.length} 篇文章（每篇前的编号即其来源编号）：\n${lines.join('\n')}\n\n请生成今日中文科技简报，严格输出以下 Markdown 结构（不要添加结构之外的标题）：\n## 总览\n一两句话概括今日整体动态。\n## 主题：<名称>\n3-6 个主题小节，每节 2-4 条要点，每条以「- 」开头、一句加粗短语 + 一句说明，并在该条末尾标注来源编号，如 [3]。同一主题可引多篇。\n## 值得深读\n一条最值得完整阅读的文章：一句推荐理由 + 来源编号。\n只基于给定文章，禁止编造。`;
+    // deep（精读版）：逐篇深度解读；brief（简报版）：主题分组速览
+    const structurePrompt = mode === 'deep'
+      ? `请生成今日「精读版」简报：对信息量最大的 5-8 篇文章逐篇深度解读。严格输出以下 Markdown 结构（不要添加结构之外的标题）：\n## 总览\n两三句话概括今日整体动态与最值得关注的方向。\n## 精读：<文章标题>\n每篇一节（共 5-8 节），每节 3-5 段：先讲清这篇文章的核心内容与结论，再展开关键细节、数据或论据，最后单独一行给「为什么值得读：…」。行文中首次提到该文处标注来源编号，如 [3]。\n## 今日一句话\n一句话总结今天最不可错过的事。`
+      : `请生成今日中文科技简报，严格输出以下 Markdown 结构（不要添加结构之外的标题）：\n## 总览\n一两句话概括今日整体动态。\n## 主题：<名称>\n3-6 个主题小节，每节 2-4 条要点，每条以「- 」开头、一句加粗短语 + 一句说明，并在该条末尾标注来源编号，如 [3]。同一主题可引多篇。\n## 值得深读\n一条最值得完整阅读的文章：一句推荐理由 + 来源编号。`;
+    const prompt = `以下是信息流中的 ${lines.length} 篇文章（每篇前的编号即其来源编号）：\n${lines.join('\n')}\n\n${structurePrompt}\n只基于给定文章，禁止编造。`;
     const content = await this.llm.complete({
       prompt,
-      system: `你是一位顶级中文科技编辑，为读者产出高质量、信息密度高的每日简报。输出为简体中文 Markdown，遵循用户给定的结构；来源编号必须只使用文章列表中真实存在的编号。`,
+      system: mode === 'deep'
+        ? `你是一位顶级中文科技编辑，为读者做每日「精读」：对重要文章逐篇讲透——核心内容、关键细节与数据、为什么值得读。输出简体中文 Markdown，遵循用户给定的结构；来源编号必须只使用文章列表中真实存在的编号；不编造材料之外的事实。`
+        : `你是一位顶级中文科技编辑，为读者产出高质量、信息密度高的每日简报。输出为简体中文 Markdown，遵循用户给定的结构；来源编号必须只使用文章列表中真实存在的编号。`,
       configuration: config,
       apiKey,
       onDelta,
@@ -1434,7 +1440,7 @@ class AppStore extends EventEmitter {
     });
     // 来源引用表：编号 → 文章（渲染端点击跳转）
     const entryRefs = source.slice(0, 40).map((item, index) => ({ n: index + 1, id: item.id, title: item.title }));
-    this._saveTodayDigest(content, source.length, entryRefs);
+    this._saveTodayDigest(content, source.length, entryRefs, mode);
 
     const entry = {
       id: 'digest:today',
