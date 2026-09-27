@@ -4136,3 +4136,18 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .aihot-title { transition: color var(--dur-fast) var(--ease-out); }
 .aihot-rank { font-family: var(--font-serif); font-weight: 700; }
 .aihot-card:nth-child(1) .aihot-rank, .aihot-card:nth-child(2) .aihot-rank, .aihot-card:nth-child(3) .aihot-rank { color: var(--warm-accent); font-size: 17px; }
+
+/* ── R21 设置页与主题设计器精修 ── */
+.modal-nav-item { position: relative; transition: background var(--dur-fast) var(--ease-out); }
+.modal-nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px;
+  border-radius: var(--radius-full); background: var(--accent);
+}
+.setting-row { transition: background var(--dur-fast) var(--ease-out); }
+.setting-row:hover { background: color-mix(in srgb, var(--row-hover) 55%, transparent); }
+.setting-group, .settings .group { border-radius: var(--radius-lg); overflow: hidden; }
+.setting-row .setting-label .desc { color: var(--text-tertiary); }
+.td-side-row { transition: background var(--dur-fast) var(--ease-out); }
+.td-side-row:hover { background: var(--row-hover); }
+.td-side-row.active { background: var(--row-selected); box-shadow: inset 3px 0 0 var(--accent); }
+.td-range-hue::-webkit-slider-runnable-track { height: 10px; border-radius: var(--radius-full); }
