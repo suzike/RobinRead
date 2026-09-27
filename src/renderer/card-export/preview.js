@@ -66,6 +66,22 @@ const STYLE_CSS = `
 .cardx-status { flex: 1; font-size: 12.5px; color: var(--text-secondary); }
 .cardx-status.err { color: #c93b3b; }
 .cardx-foot .btn { min-width: 96px; }
+.cardx-more { border-top: 1px solid var(--separator); margin-top: 12px; padding-top: 10px; }
+.cardx-more summary { list-style: none; cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  color: var(--text-tertiary); padding: 4px 8px 8px; display: flex; align-items: center; gap: 6px; }
+.cardx-more summary::-webkit-details-marker { display: none; }
+.cardx-more summary::before { content: '▸'; font-size: 10px; transition: transform var(--dur-fast) var(--ease-out); }
+.cardx-more[open] summary::before { transform: rotate(90deg); }
+.cardx-more[open] summary { color: var(--accent); }
+.cardx-more .cardx-side-h { margin-top: 10px; }
+.cardx-more .cardx-side-h:first-child { margin-top: 2px; }
+.cardx-side-h.cardx-variant-h { margin-top: 12px; }
+.cardx-seg { flex-wrap: wrap; }
+.cardx-seg button { white-space: nowrap; flex: 1 1 auto; min-width: 44px; padding: 4px 8px; }
+.cardx-fav { width: 100%; margin: 8px 0 2px; padding: 6px 9px; border: 1px dashed var(--note-border); border-radius: 8px;
+  background: transparent; color: var(--text-tertiary); font-size: 11.5px; cursor: pointer; text-align: left; }
+.cardx-fav:hover { color: var(--accent); border-color: var(--accent); }
+.cardx-fav.on { color: var(--accent); border-style: solid; font-weight: 600; }
 `;
 
 function sanitizeFileName(s) {
@@ -146,20 +162,26 @@ export async function openCardExportModal({ data, link = '' }) {
         <div class="cardx-side-h">${t('样式模板')}</div>
         <div class="cardx-tpls"></div>
         <div class="cardx-optgroup">
-          <div class="cardx-side-h">${t('画幅比例')}</div>
+          <div class="cardx-side-h">${t('画幅与配色')}</div>
           <div class="cardx-seg cardx-ratio"></div>
+          <div class="cardx-side-h cardx-variant-h">${t('配色变体')}</div>
           <div class="cardx-seg cardx-variant"></div>
-          <div class="cardx-row-label">${escapeHTML(t('封面滤镜'))}</div>
+        </div>
+        <details class="cardx-more">
+          <summary>${t('更多设置')}</summary>
+          <div class="cardx-side-h">${t('封面滤镜')}</div>
           <div class="cardx-seg cardx-filter"></div>
-          <div class="cardx-row-label">${escapeHTML(t('排版密度'))}</div>
+          <div class="cardx-side-h">${t('排版密度')}</div>
           <div class="cardx-seg cardx-density"></div>
-          <div class="cardx-row-label">${escapeHTML(t('字体搭配'))}</div>
+          <div class="cardx-side-h">${t('字体搭配')}</div>
           <div class="cardx-seg cardx-fontpair"></div>
-          <div class="cardx-row-label">${escapeHTML(t('水印样式'))}</div>
+          <div class="cardx-side-h">${t('水印样式')}</div>
           <div class="cardx-seg cardx-wmstyle"></div>
-          <div class="cardx-row-label">${escapeHTML(t('内容长度'))}</div>
+          <div class="cardx-side-h">${t('内容长度')}</div>
           <div class="cardx-seg cardx-lenmode"></div>
-          <label class="cardx-check"><input type="checkbox" data-opt="vtitle-check" ${state.verticalTitle ? 'checked' : ''}/>${escapeHTML(t('竖排标题（无封面时生效）'))}</label>
+          <label class="cardx-check"><input type="checkbox" data-opt="vtitle-check" ${state.verticalTitle ? 'checked' : ''}/>${escapeHTML(t('竖排标题'))}</label>
+        </details>
+        <div class="cardx-optgroup">
           <div class="cardx-side-h">${t('清晰度')}</div>
           <div class="cardx-seg cardx-zoom"></div>
         </div>
