@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.12.6",
-  "name": "知更 RobinRead 2.12.6",
+  "tag_name": "v2.12.7",
+  "name": "知更 RobinRead v2.12.7",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
-  "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.12.6 —— 借鉴上游 v1.4.4/v1.4.5：正文图片失败自动重试、杂志纸张质感三选（纸感/素白/书卷）、AI 摘要一键复制、TTS 播放音浪律动条。"
+  "published_at": "2026-09-28T00:00:00Z",
+  "body": "知更 RobinRead v2.12.7 —— 导出弹窗侧栏重构、D15 标题自动译中文、D18 真实频谱音浪、D19 翻页过渡打磨、全量回归 9/9 绿。"
 }
