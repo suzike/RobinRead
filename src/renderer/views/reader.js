@@ -718,6 +718,15 @@ export class ReaderView {
         this.generateSummary(true);
         return;
       }
+      if (event.target.closest('[data-action="copy-summary"]')) {
+        const btn = event.target.closest('[data-action="copy-summary"]');
+        const content = this.summary?.artifact?.content || '';
+        window.robin.copyText(content).then((ok) => {
+          btn.textContent = ok ? '✓' : '✕';
+          setTimeout(() => { btn.innerHTML = icon('doc'); }, 1400);
+        });
+        return;
+      }
       if (event.target.closest('[data-action="card-export"]')) {
         this._openCardExport('summary');
         return;
@@ -1531,6 +1540,7 @@ export class ReaderView {
         footer = `<div class="robin-summary-feedback">
           <span class="robin-summary-feedback-label">${escapeHTML(t('这条摘要怎么样？'))}</span>
           <button class="robin-summary-action-btn" data-action="card-export" title="${attr(t('导出卡片图'))}">${icon('export')}</button>
+          <button class="robin-summary-action-btn" data-action="copy-summary" title="${attr(t('复制摘要全文'))}">${icon('doc')}</button>
           <button class="robin-summary-feedback-btn" data-action="feedback" data-rating="1" title="${attr(t('有帮助'))}">👍</button>
           <button class="robin-summary-feedback-btn" data-action="feedback" data-rating="-1" title="${attr(t('没帮助'))}">👎</button>
         </div>`;
@@ -4194,6 +4204,7 @@ export class ReaderView {
     player.innerHTML = `
       <button type="button" class="nj-tts-pbtn nj-tts-toggle" title="${attr(t('暂停 / 继续朗读'))}">${TTS_PAUSE_SVG}</button>
       <button type="button" class="nj-tts-pbtn nj-tts-stop" title="${attr(t('停止朗读（Esc）'))}">${TTS_STOP_SVG}</button>
+      <span class="nj-tts-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
       <span class="nj-tts-progress" title="${attr(t('朗读进度'))}"></span>
       <button type="button" class="nj-tts-pbtn nj-tts-rate" title="${attr(t('点击切换语速（0.75 / 1 / 1.25 / 1.5）'))}"></button>
       <button type="button" class="nj-tts-pbtn nj-tts-queue" title="${attr(t('连播：本篇读完自动接列表下一篇'))}"></button>
@@ -4217,6 +4228,7 @@ export class ReaderView {
     const player = tts?.player;
     if (!player || !player.isConnected) return;
     const neural = tts.engine === 'neural';
+    player.classList.toggle('is-live', tts.state === 'playing');
     const toggle = player.querySelector('.nj-tts-toggle');
     if (toggle) {
       toggle.innerHTML = tts.state === 'paused' ? TTS_PLAY_SVG : TTS_PAUSE_SVG;
