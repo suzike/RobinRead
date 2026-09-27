@@ -118,6 +118,8 @@ export class ListView {
       this._renderMagazine(items, selectedID);
       return;
     }
+    // 非杂志模式：清除杂志纸张质感底色，避免纸感底泄漏进列表视图
+    this.rowsHost.closest('.list-scroll')?.classList.remove('nj-mag-paper', 'nj-mag-white', 'nj-mag-book');
     const clusters = clusterSimilar(items);
     // 渐进渲染（R6）：大量条目分帧 append，避免长列表一次性阻塞主线程
     const BATCH = 60;
