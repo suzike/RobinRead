@@ -72,6 +72,31 @@ const coverBlock = (d, o, ghost = 4) => {
   </div>`;
 };
 
+/** 杂志级 hero 封面：图占满上半幅，渐变蒙版上压 kicker/标题/元信息（有封面图时启用；无图返回 null 走原构图）。 */
+const heroBlock = (d, o, theme = 'paper') => {
+  if (o.cover === false || !d.cover) return null;
+  const bits = [esc(d.date || '')];
+  if (d.meta?.minutes) bits.push(`约 ${d.meta.minutes} 分钟`);
+  if (d.meta?.words) bits.push(`${d.meta.words} 字`);
+  return `
+    <header class="xc-hero xc-hero-${theme}">
+      <img class="xc-hero-img" src="${d.cover}" alt=""/>
+      <div class="xc-hero-scrim"></div>
+      <div class="xc-hero-text">
+        <div class="xc-hero-kicker">
+          <span class="xc-hero-badge">${icon('feather', 12, 2)}${esc(KIND_BADGES[d.kind] || '阅读笔记')}</span>
+          <span class="xc-hero-feed">${esc(d.feedTitle || '')}</span>
+        </div>
+        <h1 class="xc-hero-title">${esc(d.title)}</h1>
+        <div class="xc-hero-meta">${bits.join('<span class="xc-hero-dot">·</span>')}</div>
+      </div>
+    </header>`;
+};
+
+/** hero 存在时替代「badge+标题+元信息+普通封面」的组合；否则返回 null 用原构图。 */
+const heroOrHead = (d, o, theme, ghost) =>
+  heroBlock(d, o, theme) || `${badgeRow(d)}<h1 class="xc-title">${esc(d.title)}</h1>${metaStrip(d)}${coverBlock(d, o, ghost)}`;
+
 const leadBlock = (d) => {
   if (!d.lead) return '';
   // 导语以引号/标点开头时跳过首字下沉（下沉一个引号非常难看）
@@ -163,6 +188,17 @@ const BASE_CSS = `
   padding:0 !important; color:inherit !important; font-weight:inherit !important; }
 .xc-stats { justify-content:center; }
 .xc-stat { flex:1 1 0; max-width:250px; }
+/* hero 封面结构（配色由各模板 xc-hero-<theme> 定义） */
+.xc-hero { position:relative; overflow:hidden; }
+.xc-hero-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.xc-hero-scrim { position:absolute; inset:0; }
+.xc-hero-text { position:absolute; left:0; right:0; bottom:0; padding:24px 34px 22px; display:flex; flex-direction:column; gap:10px; }
+.xc-hero-kicker { display:flex; align-items:center; gap:10px; }
+.xc-hero-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:999px; font-size:12px; letter-spacing:2px; }
+.xc-hero-feed { font-size:12.5px; letter-spacing:2px; }
+.xc-hero-title { font-size:30px; line-height:1.34; font-weight:700; text-wrap:balance; }
+.xc-hero-meta { font-size:12.5px; letter-spacing:1px; display:flex; align-items:center; gap:7px; }
+.xc-hero-dot { opacity:.6; }
 `;
 
 /* ================================================================ T1 知更书页 */
@@ -264,10 +300,7 @@ const PAPER = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        ${badgeRow(d)}
-        <h1 class="xc-title">${esc(d.title)}</h1>
-        ${metaStrip(d)}
-        ${coverBlock(d, o, 3)}
+        ${heroOrHead(d, o, 'paper', 3)}
         ${leadBlock(d)}
         ${stepsBlock(d)}
         ${chipsBlock(d)}
@@ -963,10 +996,7 @@ const AURORA = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        ${badgeRow(d)}
-        <h1 class="xc-title">${esc(d.title)}</h1>
-        ${metaStrip(d)}
-        ${coverBlock(d, o, 3)}
+        ${heroOrHead(d, o, 'aurora', 3)}
         ${leadBlock(d)}
         ${stepsBlock(d)}
         ${chipsBlock(d)}
@@ -1084,10 +1114,7 @@ const MESH = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        ${badgeRow(d)}
-        <h1 class="xc-title">${esc(d.title)}</h1>
-        ${metaStrip(d)}
-        ${coverBlock(d, o, 3)}
+        ${heroOrHead(d, o, 'mesh', 3)}
         ${leadBlock(d)}
         ${stepsBlock(d)}
         ${chipsBlock(d)}
@@ -1351,6 +1378,13 @@ const TEMPLATE_MAP = { paper: PAPER, ink: INK, mag: MAG, note: NOTE, min: MIN, n
 /* 现有六款的色块/配色升级层：以同优先级追加规则在级联中覆盖原样式（隔离于原 CSS，便于回退）。 */
 const TEMPLATE_UPGRADES = {
   paper: `
+/* hero 封面（有图时）：全出血 + 白衬线标题压图 */
+.xc-t-paper .xc-hero { height:480px; margin:-52px -56px 34px; }
+.xc-t-paper .xc-hero-scrim { background:linear-gradient(180deg,rgba(24,30,20,.22) 0%,rgba(22,28,18,.05) 36%,rgba(13,18,11,.84) 100%); }
+.xc-t-paper .xc-hero-title { color:#fff; text-shadow:0 2px 20px rgba(0,0,0,.5); letter-spacing:.5px; }
+.xc-t-paper .xc-hero-badge { background:#617357; color:#f4f6ef; }
+.xc-t-paper .xc-hero-feed { color:rgba(255,255,255,.88); }
+.xc-t-paper .xc-hero-meta { color:rgba(255,255,255,.82); }
 .xc-t-paper .xc-title { background:linear-gradient(transparent 86%, rgba(163,87,61,.18) 86%); }
 .xc-t-paper .xc-stat { background:linear-gradient(180deg,rgba(97,115,87,.1),rgba(97,115,87,.04)); border-color:rgba(97,115,87,.3); position:relative; overflow:hidden; }
 .xc-t-paper .xc-stat::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#617357,#8a9a7c); }
@@ -1362,6 +1396,25 @@ const TEMPLATE_UPGRADES = {
 .xc-t-paper .xc-quote p { background:linear-gradient(transparent 82%, rgba(163,87,61,.16) 82%); }
 .xc-t-paper .xc-conclusion { background:linear-gradient(90deg,rgba(97,115,87,.12),rgba(97,115,87,.04)); }
 .xc-t-paper .xc-counter { background:linear-gradient(90deg,#f5e6d8,#f3ead6); }
+`,
+  mesh: `
+/* hero 封面：全出血 + 暮色蒙版 */
+.xc-t-mesh .xc-hero { height:470px; margin:-52px -56px 34px; }
+.xc-t-mesh .xc-hero-scrim { background:linear-gradient(180deg,rgba(30,24,50,.16) 0%,rgba(30,24,50,.04) 38%,rgba(20,16,40,.8) 100%); }
+.xc-t-mesh .xc-hero-title { color:#fff; text-shadow:0 2px 20px rgba(20,16,40,.55); }
+.xc-t-mesh .xc-hero-badge { background:linear-gradient(90deg,#7c66dd,#5b9dd4); color:#fff; }
+.xc-t-mesh .xc-hero-feed { color:rgba(255,255,255,.9); }
+.xc-t-mesh .xc-hero-meta { color:rgba(255,255,255,.85); }
+`,
+  aurora: `
+/* hero 封面：全出血 + 暗夜蒙版，标题保持渐变但上压图时改纯白保证可读 */
+.xc-t-aurora .xc-hero { height:480px; margin:-52px -56px 34px; }
+.xc-t-aurora .xc-hero-scrim { background:linear-gradient(180deg,rgba(8,10,20,.3) 0%,rgba(8,10,20,.06) 36%,rgba(6,8,16,.86) 100%); }
+.xc-t-aurora .xc-hero-title { color:#fff; -webkit-text-fill-color:#fff; text-shadow:0 2px 22px rgba(0,0,0,.6); }
+.xc-t-aurora .xc-hero-badge { border:1px solid transparent; color:#c0b2ff;
+  background:linear-gradient(rgba(16,19,36,.92),rgba(16,19,36,.92)) padding-box,linear-gradient(90deg,#7c5cff,#22d3ee) border-box; }
+.xc-t-aurora .xc-hero-feed { color:rgba(232,236,250,.85); }
+.xc-t-aurora .xc-hero-meta { color:rgba(232,236,250,.8); }
 `,
   ink: `
 .xc-t-ink .xc-title { background:linear-gradient(115deg,#ffffff 40%,#b9c8ff 75%,#8fd8ff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
