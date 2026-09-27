@@ -1790,3 +1790,20 @@ const D6_COVER = `
 }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D6_COVER;
+
+/* ══ D7 图文混排 ══ */
+const D7_MIX = `
+/* 配图圆角/边框语言按模板分化；正文内图片统一圆角+题注间距 */
+.xc-card .xc-body img, .xc-card .robin-body img { border-radius: 10px; }
+.xc-card figure { margin: 18px 0; }
+.xc-card figcaption { margin-top: 8px; font-size: 12px; color: var(--text-tertiary, #999); letter-spacing: 0.04em; }
+/* 纯色主题配图边框语言 */
+.xc-t-paper .xc-cover { border-radius: 14px; }
+.xc-t-min .xc-cover { border-radius: 6px; border: 1px solid #d5d8de !important; }
+.xc-t-news .xc-cover { border-radius: 0; }
+.xc-t-mag .xc-cover { border-radius: 0; }
+.xc-t-jade .xc-cover { border-radius: 8px; }
+.xc-t-blue .xc-cover { border-radius: 2px; }
+.xc-t-note .xc-cover { border-radius: 2px; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D7_MIX;
