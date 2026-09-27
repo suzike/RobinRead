@@ -438,8 +438,8 @@ export class KnowledgeCenter {
     const today = new Date();
     let max = 1;
     for (const v of Object.values(map)) max = Math.max(max, v.intensity || 0);
-    // GitHub 式年度热力：窗口锚定 today 一端，end 对齐本周日，start=end-364（必为周日），
-    // 共 371 格（53 列 × 7 行，列=周 行=星期，CSS grid-auto-flow:column）；today 之后的未来格置灰
+    // GitHub 式年度热力：窗口锚定 today 一端，end 对齐本周六、start=end-364（周六锚，365 格），
+    // 53 列 × 7 行（列=周 行=星期恒定对齐，CSS grid-auto-flow:column）；today 之后为隐藏占位格
     const end = new Date(today);
     end.setDate(end.getDate() + (6 - end.getDay()));
     const start = new Date(end);
