@@ -1908,7 +1908,7 @@ const D11_V2 = `
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_V2;
 
 /* D11 v4：mag 竖题下移至页眉带之下并去红底（!important 压制散布规则） */
-D11_V2 += `
+const D11_MAG = `
 .xc-card.xc-vtitle.xc-t-mag .xc-title { top: 118px !important; background: none !important; -webkit-text-fill-color: currentColor; }
 `;
-for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_V2;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_MAG;
