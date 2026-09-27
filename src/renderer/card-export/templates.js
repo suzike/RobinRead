@@ -1591,15 +1591,30 @@ const TEMPLATE_UPGRADES = {
  * @param {object} options { templateId, cover:true, stats:true, qr:svgString|null, watermark:true }
  * @returns {{ html:string, css:string, width:number, bg:string }}
  */
+export function applyLengthMode(data, mode = 'standard') {
+  if (mode === 'standard' || !data) return data;
+  const d = { ...data };
+  const cap = mode === 'short' ? 3 : 99;
+  if (Array.isArray(d.steps)) d.steps = d.steps.slice(0, cap);
+  if (Array.isArray(d.points)) d.points = d.points.slice(0, cap);
+  if (Array.isArray(d.concepts)) d.concepts = d.concepts.slice(0, mode === 'short' ? 4 : 8);
+  if (Array.isArray(d.quotes)) d.quotes = d.quotes.slice(0, mode === 'short' ? 1 : 3);
+  if (Array.isArray(d.actions)) d.actions = d.actions.slice(0, mode === 'short' ? 1 : 2);
+  if (Array.isArray(d.prose)) d.prose = mode === 'short' ? d.prose.slice(0, 2) : d.prose;
+  return d;
+}
+
 export function renderCard(data, options = {}) {
   const tpl = TEMPLATE_MAP[options.templateId] || PAPER;
   const o = { cover: true, stats: true, watermark: true, qr: null, ...options };
+  if (options.lengthMode && options.lengthMode !== 'long') data = applyLengthMode(data, options.lengthMode);
   return {
     html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
     css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
       + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
       + fontPairCss(options.fontPair)
-      + (options.orientation === 'landscape' ? `
+      + (options.accentColor ? `.xc-card{border-bottom:6px solid ${options.accentColor}}` : '')
+            + (options.orientation === 'landscape' ? `
 .xc-card.landscape .xc-inner { columns: 2; column-gap: 40px; column-fill: auto; }
 .xc-card.landscape .xc-hero, .xc-card.landscape .xc-badgerow, .xc-card.landscape .xc-title,
 .xc-card.landscape .xc-meta, .xc-card.landscape .xc-cover, .xc-card.landscape .xc-foot,
@@ -1619,7 +1634,7 @@ export function renderFullPage(data, options = {}, zoom = 1) {
   const card = renderCard(data, options);
   return {
     html: `<!doctype html><html><head><meta charset="utf-8"><style>
-      html,body{margin:0;padding:0;background:${card.bg}}
+      html,body{margin:0;padding:0;background:${options.bgGradient || card.bg}}
       .xc-stage{zoom:${zoom}}
     </style><style>${card.css}${vcss}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`,
     bg: card.bg,
@@ -1633,6 +1648,20 @@ export function renderFullPage(data, options = {}, zoom = 1) {
  *   ratio 为 null 时自然高度流式布局；否则卡片等比缩放完整放入 750×(750*ratio) 画幅（居中，不裁切）。
  * @returns {{html:string, bg:string, width:number, height:number}}
  */
+export function seededGradient(title) {
+  const palettes = [
+    'linear-gradient(135deg,#f6f2e7,#e7e0cf 55%,#d9d0b8)',
+    'linear-gradient(135deg,#eef3ee,#dfe9df 55%,#ccdbd2)',
+    'linear-gradient(135deg,#f3eef7,#e6def0 55%,#d5cbe6)',
+    'linear-gradient(135deg,#eef4f8,#ddeaf4 55%,#c8d9e8)',
+    'linear-gradient(135deg,#faf1ec,#f2e2d8 55%,#e6cfc0)',
+  ];
+  const h = String(title || '');
+  let acc = 0;
+  for (let i = 0; i < h.length; i++) acc = (acc * 31 + h.charCodeAt(i)) >>> 0;
+  return palettes[acc % palettes.length];
+}
+
 export function renderStagePage(data, options = {}, fit = {}) {
   const vf = variantFilter(options.variant);
   const vstyle = vf !== 'none' ? `filter:${vf}` : '';
@@ -1649,7 +1678,7 @@ export function renderStagePage(data, options = {}, fit = {}) {
     html: `<!doctype html><html><head><meta charset="utf-8"><style>
       html,body{margin:0;padding:0;background:${card.bg}}
       .xc-export{zoom:${zoom};${vstyle}}
-      .xc-stage{width:${boxW}px;height:${boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${card.bg}}
+      .xc-stage{width:${boxW}px;height:${boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${options.bgGradient || seededGradient(data.title)}}
       .xc-stage > .xc-card{zoom:${f}}
     </style><style>${card.css}</style></head><body><div class="xc-export"><div class="xc-stage">${card.html}</div></div></body></html>`,
     bg: card.bg,

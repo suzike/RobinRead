@@ -4,7 +4,7 @@
    预览与导出走同一 renderCard 代码，保证所见即所得。
    ========================================================================== */
 import { t } from '../i18n.js';
-import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, variantFilter, renderCard } from './templates.js';
+import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, renderFullPage, variantFilter, renderCard } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';
 const CARD_HIST_KEY = 'robinread.cardExport.history';
@@ -72,8 +72,8 @@ function sanitizeFileName(s) {
 }
 
 function loadPrefs() {
-  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
-  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand' }; }
+  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', lengthMode: 'standard', format: 'png', ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
+  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', lengthMode: 'standard', format: 'png' }; }
 }
 
 let qrCache = { link: null, svg: null };
@@ -156,6 +156,8 @@ export async function openCardExportModal({ data, link = '' }) {
           <div class="cardx-seg cardx-fontpair"></div>
           <div class="cardx-row-label">${escapeHTML(t('水印样式'))}</div>
           <div class="cardx-seg cardx-wmstyle"></div>
+          <div class="cardx-row-label">${escapeHTML(t('内容长度'))}</div>
+          <div class="cardx-seg cardx-lenmode"></div>
           <div class="cardx-side-h">${t('清晰度')}</div>
           <div class="cardx-seg cardx-zoom"></div>
         </div>
@@ -175,7 +177,8 @@ export async function openCardExportModal({ data, link = '' }) {
     <div class="cardx-foot">
       <span class="cardx-status"></span>
       <button class="btn cardx-copy">${t('复制到剪贴板')}</button>
-      <button class="btn primary cardx-save">${t('保存 PNG')}</button>
+      <button class="btn cardx-html">${t('保存 HTML')}</button>
+      <button class="btn primary cardx-save">${t('保存图片')}</button>
     </div>`;
   modal.querySelector('.cardx-close').addEventListener('click', dismiss);
 
@@ -200,6 +203,8 @@ export async function openCardExportModal({ data, link = '' }) {
     density: state.density,
     fontPair: state.fontPair,
     watermarkStyle: state.watermarkStyle,
+    lengthMode: state.lengthMode,
+    accentColor: state.accentColor || null,
     qr: state.qr ? qrSvg : null,
   });
 
@@ -211,6 +216,31 @@ export async function openCardExportModal({ data, link = '' }) {
       <div class="cardx-scale">${card.html}</div>`;
     // 画幅适配：卡片高于目标比例时整体等比缩小完整放入（与导出逻辑一致，不裁切）
     const cardEl = shadow.querySelector('.xc-card');
+    // 取色（C4）：有封面时提取主色做卡片底部色带
+    if (data.cover && data.cover.startsWith('data:image') && !state.accentColor) {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = 24; c.height = 24;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, 24, 24);
+          const px = ctx.getImageData(0, 0, 24, 24).data;
+          let r = 0, g = 0, b = 0, n = 0;
+          for (let i = 0; i < px.length; i += 4) {
+            const [R, G, B] = [px[i], px[i + 1], px[i + 2]];
+            const sat = Math.max(R, G, B) - Math.min(R, G, B);
+            if (sat < 12 && R > 235) continue; // 跳过近白
+            r += R; g += G; b += B; n += 1;
+          }
+          if (n > 0) {
+            state.accentColor = '#' + [r / n, g / n, b / n].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+            renderPreview();
+          }
+        } catch (_) { /* 取色失败不阻塞 */ }
+      };
+      img.src = data.cover;
+    }
     // 卡上双击编辑（C6）：双击标题/导语改字，失焦写回数据并重渲染
     cardEl.addEventListener('dblclick', (e) => {
       const el = e.target.closest('.xc-title, .xc-lead');
@@ -287,6 +317,7 @@ export async function openCardExportModal({ data, link = '' }) {
       ['cardx-density', DENSITY, 'density'],
       ['cardx-fontpair', FONT_PAIRS, 'fontPair'],
       ['cardx-wmstyle', [{ id: 'brand', label: '标准' }, { id: 'minimal', label: '极简' }], 'watermarkStyle'],
+      ['cardx-lenmode', [{ id: 'short', label: '短' }, { id: 'standard', label: '标准' }, { id: 'long', label: '长' }], 'lengthMode'],
     ];
     for (const [cls, list, key] of segDef) {
       const box = modal.querySelector('.' + cls);
@@ -377,10 +408,11 @@ export async function openCardExportModal({ data, link = '' }) {
     h.unshift({ ts: Date.now(), tpl: state.tpl, variant: state.variant, ratio: state.ratio, coverFilter: state.coverFilter, density: state.density, fontPair: state.fontPair, title: String(data && data.title || '').slice(0, 40) });
     saveHist(h);
   };
-  const exportPng = async () => {
+  const exportPng = async (format = 'png') => {
     const png = unwrap(await window.robin.renderCardPng({
       templateId: state.tpl, data, options: cardOptions(), zoom: state.zoom,
       ratio: RATIOS.find((r) => r.id === state.ratio)?.ratio || null,
+      format,
     }), '卡片渲染失败');
     return png;
   };
@@ -389,12 +421,13 @@ export async function openCardExportModal({ data, link = '' }) {
     if (busy) return;
     try {
       const defaultName = `${t('知更')}·${KIND_BADGES[data.kind] || ''}·${sanitizeFileName(data.title)}.png`;
+      const isJpeg = state.format === 'jpeg';
       const picked = await window.robin.pickSavePath(defaultName);
       const filePath = picked?.ok ? picked.data : null;
       if (!filePath) return; // 用户取消
       setBusy(true);
       setStatus(t('正在渲染高清卡片…'));
-      const png = await exportPng();
+      const png = await exportPng(state.format);
       pushHistory();
       unwrap(await window.robin.writeBinaryFile(filePath, png.base64), '保存失败');
       setStatus(`${t('已保存')} ✓  ${png.width}×${png.height}px${png.truncated ? ` · ${t('注意：内容超长，尾部已截断')}` : ''}`);

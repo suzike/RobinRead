@@ -815,11 +815,11 @@ function registerIPCHandlers(store, window) {
   handle('card:renderPng', ({ templateId, data, options, zoom = 2, ratio = null } = {}) => {
     // 串行化：隐藏窗口同一时刻只渲染一张（排队执行，结果按序返回）
     const task = cardExportChain.catch(() => {}).then(() =>
-      renderCardPngOnce({ templateId, data, options, zoom, ratio }));
+      renderCardPngOnce({ templateId, data, options, zoom, ratio, format: payload && payload.format === 'jpeg' ? 'jpeg' : 'png' }));
     cardExportChain = task.catch(() => {});
     return task;
   });
-  async function renderCardPngOnce({ templateId, data, options, zoom, ratio }) {
+  async function renderCardPngOnce({ templateId, data, options, zoom, ratio, format = 'png' }) {
     const { renderStagePage } = await loadTemplatesModule();
     const win = getCardExportWindow();
     const opts = { zoom, ratio, naturalHeight: null };
@@ -852,9 +852,10 @@ function registerIPCHandlers(store, window) {
       win.setBackgroundColor(finalPage.bg);
       await new Promise((r) => setTimeout(r, 140));
       const image = await win.webContents.capturePage();
-      const png = image.toPNG();
+      const isJpeg = format === 'jpeg';
+      const png = isJpeg ? image.toJPEG(92) : image.toPNG();
       if (png.length < 1000) throw new Error('卡片渲染结果为空');
-      return { base64: png.toString('base64'), width: rect.w, height, truncated: rect.h > 16000 };
+      return { base64: png.toString('base64'), width: rect.w, height, truncated: rect.h > 16000, format: isJpeg ? 'jpeg' : 'png' };
     } finally {
       try { fs.unlinkSync(tmpPath); } catch (_) { /* 临时文件清理失败可忽略 */ }
     }
