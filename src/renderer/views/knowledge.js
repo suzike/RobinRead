@@ -198,7 +198,7 @@ export class KnowledgeCenter {
         <div class="kb-stat-card"><span class="kb-stat-num">${d.review || 0}</span><span class="kb-stat-label">复习卡片</span></div>
         <div class="kb-stat-card"><span class="kb-stat-num">${d.due || 0}</span><span class="kb-stat-label">今日待复习</span></div>
         <div class="kb-stat-card"><span class="kb-stat-num">${d.collections || 0}</span><span class="kb-stat-label">收藏集</span></div>
-        <div class="kb-stat-card"><span class="kb-stat-num">${d.tags || 0}</span><span class="kb-stat-label">标签</span></div>
+        <div class="kb-stat-card"><span class="kb-stat-num">${Array.isArray(d.tags) ? d.tags.length : (d.tags || 0)}</span><span class="kb-stat-label">标签</span></div>
         <div class="kb-stat-card"><span class="kb-stat-num">${d.streak || 0}</span><span class="kb-stat-label">连续天数</span></div>
       </div>`;
     // ── 每日目标进度环（R13）：今日已读 / 目标篇数，达成后环体点亮 ──

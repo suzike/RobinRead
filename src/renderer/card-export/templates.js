@@ -523,7 +523,7 @@ const MAG = {
       </div>
       <h1 class="xc-title">${esc(d.title)}</h1>
       ${metaStrip(d)}
-      ${heroBlock(d, o, 'mag', true) || ''}
+      ${heroBlock(d, o, 'mag', true) || coverBlock(d, o, 2)}
       ${leadBlock(d)}
       ${statsBlock(d, o)}
       ${colBody ? `<div class="xc-cols">${colBody}</div>` : quotesBlock(d)}
@@ -876,7 +876,7 @@ const NEWS = {
       </div>
       <h1 class="xc-title">${esc(d.title)}</h1>
       ${metaStrip(d)}
-      ${heroBlock(d, o, 'news', true) || ''}
+      ${heroBlock(d, o, 'news', true) || coverBlock(d, o, 2)}
       ${statsBand}
       ${colBody ? `<div class="xc-cols">${colBody}</div>` : quotesBlock(d)}
       ${colBody ? quotesBlock(d) : ''}
@@ -1386,6 +1386,10 @@ const TEMPLATE_UPGRADES = {
 .xc-t-paper .xc-quote p { background:linear-gradient(transparent 82%, rgba(163,87,61,.16) 82%); }
 .xc-t-paper .xc-conclusion { background:linear-gradient(90deg,rgba(97,115,87,.12),rgba(97,115,87,.04)); }
 .xc-t-paper .xc-counter { background:linear-gradient(90deg,#f5e6d8,#f3ead6); }
+/* gen 封面：纸纹+虚线内框+巨型鬼影字 */
+.xc-t-paper .xc-cover-gen::before { content:''; position:absolute; inset:10px; border:1px dashed rgba(97,115,87,.4); }
+.xc-t-paper .xc-cover-gen::after { content:''; position:absolute; inset:0; background: radial-gradient(80% 100% at 88% 12%, rgba(163,87,61,.16), transparent 60%); }
+.xc-t-paper .xc-ghost { font-size:130px; left:18px; bottom:2px; opacity:.85; }
 `,
   mesh: `
 /* hero 封面：全出血 + 暮色蒙版 */
@@ -1395,6 +1399,9 @@ const TEMPLATE_UPGRADES = {
 .xc-t-mesh .xc-hero-badge { background:linear-gradient(90deg,#7c66dd,#5b9dd4); color:#fff; }
 .xc-t-mesh .xc-hero-feed { color:rgba(255,255,255,.9); }
 .xc-t-mesh .xc-hero-meta { color:rgba(255,255,255,.85); }
+/* gen 封面：晨雾斑点放大 + 描边鬼影 */
+.xc-t-mesh .xc-cover-gen::before { content:''; position:absolute; inset:0; background: radial-gradient(240px 140px at 82% 20%, rgba(147,197,253,.5), transparent 70%), radial-gradient(220px 130px at 12% 85%, rgba(255,196,160,.5), transparent 70%); }
+.xc-t-mesh .xc-ghost { font-size:130px; -webkit-text-stroke:2px rgba(109,79,212,.4); -webkit-text-fill-color:transparent; left:18px; bottom:6px; }
 `,
   aurora: `
 /* hero 封面：全出血 + 暗夜蒙版，标题保持渐变但上压图时改纯白保证可读 */
@@ -1405,6 +1412,9 @@ const TEMPLATE_UPGRADES = {
   background:linear-gradient(rgba(16,19,36,.92),rgba(16,19,36,.92)) padding-box,linear-gradient(90deg,#7c5cff,#22d3ee) border-box; }
 .xc-t-aurora .xc-hero-feed { color:rgba(232,236,250,.85); }
 .xc-t-aurora .xc-hero-meta { color:rgba(232,236,250,.8); }
+/* gen 封面：极光带 + 渐变描边鬼影 */
+.xc-t-aurora .xc-cover-gen::before { content:''; position:absolute; left:-10%; right:-10%; top:38%; height:2px; background:linear-gradient(90deg,transparent,rgba(124,92,255,.8),rgba(34,211,238,.8),transparent); filter:blur(1px); transform:rotate(-4deg); }
+.xc-t-aurora .xc-ghost { font-size:126px; -webkit-text-stroke:2px rgba(143,216,255,.5); -webkit-text-fill-color:transparent; left:20px; bottom:8px; }
 `,
   ink: `
 .xc-t-ink .xc-title { background:linear-gradient(115deg,#ffffff 40%,#b9c8ff 75%,#8fd8ff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
@@ -1423,6 +1433,10 @@ const TEMPLATE_UPGRADES = {
 .xc-t-ink .xc-hero-badge { border:1px solid transparent; color:#c0b2ff; background:linear-gradient(rgba(16,19,36,.92),rgba(16,19,36,.92)) padding-box,linear-gradient(90deg,#7c5cff,#22d3ee) border-box; }
 .xc-t-ink .xc-hero-feed { color:rgba(232,236,250,.85); }
 .xc-t-ink .xc-hero-meta { color:rgba(232,236,250,.8); }
+/* gen 封面：暗夜网格 + 空心鬼影 + 光晕 */
+.xc-t-ink .xc-cover-gen { background: repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 28px), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 28px), radial-gradient(100% 130% at 80% 10%, #1a2138 0%, #0d101f 60%); }
+.xc-t-ink .xc-cover-gen::after { content:''; position:absolute; right:26px; top:20px; width:90px; height:90px; border-radius:50%; background:radial-gradient(closest-side, rgba(124,92,255,.4), transparent 72%); filter:blur(6px); }
+.xc-t-ink .xc-ghost { font-size:130px; -webkit-text-stroke:2px rgba(255,255,255,.34); -webkit-text-fill-color:transparent; left:22px; bottom:6px; }
 `,
   mag: `
 .xc-t-mag .xc-cols .xc-sec { break-inside: avoid; }
@@ -1442,6 +1456,11 @@ const TEMPLATE_UPGRADES = {
 .xc-t-mag .xc-hero-badge { background:#e0301e; color:#fff; }
 .xc-t-mag .xc-hero-feed { color:rgba(255,255,255,.9); }
 .xc-t-mag .xc-hero-meta { color:rgba(255,255,255,.85); }
+/* gen 封面：黑白分割 + 红角标 + 巨型白字 */
+.xc-t-mag .xc-cover-gen { background: linear-gradient(115deg, #141414 0 58%, #e0301e 58% 66%, #f5f2ec 66%); }
+.xc-t-mag .xc-cover-gen::after { content:''; position:absolute; left:26px; top:22px; width:56px; height:8px; background:#e0301e; }
+.xc-t-mag .xc-ghost { font-size:150px; font-weight:800; color:#fff; left:22px; bottom:-8px; letter-spacing:2px; }
+.xc-t-mag .xc-gen-ic { color:rgba(255,255,255,.8); z-index:1; }
 `,
   note: `
 .xc-t-note .xc-stat { background:#fffdf4; border:1.5px dashed #c9a86a; transform:rotate(-.6deg); }
@@ -1454,6 +1473,12 @@ const TEMPLATE_UPGRADES = {
 .xc-t-note .xc-conclusion { background:#fff4d6; border:1.5px dashed #c9a86a; }
 /* 封面质感：拍立得白框+微旋 */
 .xc-t-note .xc-cover { border:8px solid #fff; box-shadow:0 8px 18px rgba(90,70,40,.25); transform:rotate(-1.4deg); }
+/* gen 封面：牛皮纸纹 + 双胶带 + 手写鬼影 */
+.xc-t-note .xc-cover-gen { background: repeating-linear-gradient(45deg, rgba(160,120,60,.06) 0 6px, transparent 6px 12px), #efe3c8; }
+.xc-t-note .xc-cover-gen::before { content:''; position:absolute; left:8%; top:-7px; width:110px; height:22px; background:rgba(196,181,253,.55); transform:rotate(-5deg); }
+.xc-t-note .xc-cover-gen::after { content:''; position:absolute; right:10%; bottom:-7px; width:90px; height:22px; background:rgba(167,243,208,.5); transform:rotate(4deg); }
+.xc-t-note .xc-cover-gen { overflow:hidden; }
+.xc-t-note .xc-ghost { font-size:86px; color:rgba(160,82,45,.3); left:20px; bottom:10px; }
 `,
   min: `
 .xc-t-min .xc-stat { background:transparent; border:none; border-top:2.5px solid #16181d; border-radius:0; padding:14px 6px 12px; text-align:left; }
@@ -1466,6 +1491,11 @@ const TEMPLATE_UPGRADES = {
 /* 封面质感：细线框+降饱和 */
 .xc-t-min .xc-cover { border:1px solid #d5d8de; }
 .xc-t-min .xc-cover img { filter: saturate(.82); }
+/* gen 封面：极简基线 + 细描边鬼影 */
+.xc-t-min .xc-cover-gen { background:#fff; border:1px solid #e8eaee; }
+.xc-t-min .xc-cover-gen::after { content:''; position:absolute; left:24px; right:24px; bottom:44px; height:1px; background:#e8eaee; }
+.xc-t-min .xc-ghost { font-size:120px; font-weight:300; -webkit-text-stroke:1.5px #d5d8de; -webkit-text-fill-color:transparent; left:20px; bottom:20px; letter-spacing:4px; }
+.xc-t-min .xc-gen-ic { display:none; }
 `,
   news: `
 .xc-t-news .xc-cols .xc-sec { break-inside: avoid; }
@@ -1482,6 +1512,10 @@ const TEMPLATE_UPGRADES = {
 .xc-t-news .xc-hero-badge { background:#8c2f1b; color:#f6f1e4; }
 .xc-t-news .xc-hero-feed { color:rgba(255,255,255,.9); }
 .xc-t-news .xc-hero-meta { color:rgba(255,255,255,.85); }
+/* gen 封面：半调网点 + 题花条 */
+.xc-t-news .xc-cover-gen { background: radial-gradient(circle at 5px 5px, rgba(42,37,28,.22) 2.2px, transparent 2.6px) 0 0/14px 14px, #efe8d6; }
+.xc-t-news .xc-cover-gen::after { content:''; position:absolute; left:0; right:0; top:0; height:10px; background:repeating-linear-gradient(90deg, #2a251c 0 26px, transparent 26px 34px); }
+.xc-t-news .xc-ghost { font-size:124px; color:rgba(140,47,27,.34); left:20px; bottom:6px; }
 `,
   jade: `
 /* jade hero：青瓷暗夜蒙版 + 白衬线 */
@@ -1491,6 +1525,11 @@ const TEMPLATE_UPGRADES = {
 .xc-t-jade .xc-hero-badge { background:#1f5d50; color:#eef5f0; }
 .xc-t-jade .xc-hero-feed { color:rgba(255,255,255,.9); }
 .xc-t-jade .xc-hero-meta { color:rgba(255,255,255,.85); }
+/* gen 封面：青瓷釉 + 瓷白大圆 + 朱砂点 */
+.xc-t-jade .xc-cover-gen { background: radial-gradient(90% 130% at 78% 6%, #f2f7f0 0%, #d8e4da 46%, #b4c8ba 100%); }
+.xc-t-jade .xc-cover-gen::after { content:''; position:absolute; right:36px; top:50%; transform:translateY(-50%); width:120px; height:120px; border:2.5px solid rgba(31,93,80,.32); border-radius:50%; }
+.xc-t-jade .xc-cover-gen::before { content:''; position:absolute; right:120px; bottom:24px; width:12px; height:12px; background:#c34a2f; border-radius:2px; opacity:.8; }
+.xc-t-jade .xc-ghost { font-size:122px; color:rgba(31,93,80,.18); left:20px; bottom:8px; }
 `,
   blue: `
 /* blue hero：蓝晒蒙版 + 制图徽标 */
@@ -1500,6 +1539,10 @@ const TEMPLATE_UPGRADES = {
 .xc-t-blue .xc-hero-badge { border:1.5px solid rgba(255,255,255,.6); color:#cfe8ff; font-family:Consolas,"Courier New",monospace; background:rgba(255,255,255,.06); }
 .xc-t-blue .xc-hero-feed { color:rgba(220,235,247,.9); }
 .xc-t-blue .xc-hero-meta { color:rgba(220,235,247,.85); }
+/* gen 封面：蓝图坐标圆 + 十字准星 */
+.xc-t-blue .xc-cover-gen { background: repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 24px), #14395c; }
+.xc-t-blue .xc-cover-gen::after { content:''; position:absolute; right:40px; top:50%; transform:translateY(-50%); width:150px; height:150px; border:1.5px solid rgba(143,208,255,.6); border-radius:50%; box-shadow: inset 0 0 0 18px rgba(143,208,255,.1); }
+.xc-t-blue .xc-ghost { font-size:110px; -webkit-text-stroke:1.5px rgba(143,208,255,.5); -webkit-text-fill-color:transparent; left:22px; bottom:12px; font-family:Consolas,monospace; }
 `,
 };
 

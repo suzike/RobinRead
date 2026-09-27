@@ -429,3 +429,20 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .kb-hour-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .kb-hour-col i { display: block; width: 100%; max-width: 18px; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.8; min-height: 4px; }
 .kb-hour-col span { font-size: 9.5px; color: var(--text-tertiary); height: 12px; line-height: 12px; }
+
+/* ── 今日简报 v3：版本切换 / 全屏 / 精读节排版 ── */
+.dg-mode-seg { display:inline-flex; align-items:center; border:1px solid var(--separator); border-radius:999px; overflow:hidden; margin-left:10px; flex:none; }
+.dg-mode-seg button { border:none; background:transparent; padding:4px 13px; font-size:12px; letter-spacing:1px; color:var(--text-secondary); cursor:pointer; font-family:inherit; }
+.dg-mode-seg button.on { background:var(--row-selected); color:var(--accent); font-weight:700; }
+.modal.digest-modal.is-full { width:min(1240px, 96vw); height:92vh; max-height:92vh; display:flex; flex-direction:column; }
+.modal.digest-modal.is-full .digest-body { flex:1; max-height:none; }
+.modal.modal.digest-modal.is-full .dg-overview p { font-size:1.05em; }
+.dg-deep-sec { margin-top:18px; }
+.dg-deep-sec .dg-topic-head { margin-bottom:6px; }
+.dg-deep-sec .dg-topic-body { display:flex; flex-direction:column; gap:9px; }
+.dg-deep-sec .dg-topic-body p { margin:0; font-size:14px; line-height:1.95; color:var(--text-primary); }
+
+/* ── R17 简报刊头强化：报头仪式感 ── */
+.digest-modal .modal-header { border-bottom: 3px double var(--separator); padding-bottom: 12px; }
+.digest-modal .modal-header h3 { font-family: var(--font-serif); font-size: 18px; letter-spacing: 0.1em; }
+.modal.digest-modal.is-full .modal-header h3 { font-size: 20px; }
