@@ -1699,3 +1699,27 @@ const D1_RHYTHM = `/* D1 垂直节奏：节距统一、导语与正文行高基�
 .xc-card .xc-title { text-wrap: balance; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D1_RHYTHM;
+
+/* ══ D2 OKLCH 色彩科学化 ══
+   暗色模板次级文字提升至 WCAG AA 边距安全区；paper 数据卡轮廓加强；mesh 概念签色彩纪律化。
+   新值全部以 OKLCH 感知均匀色彩空间表达（Chromium 111+ 支持），亮度和 chroma 可预测。 */
+const D2_COLOR = `
+/* aurora：次级文字对比提升（oklch 亮度 L≈0.82） */
+.xc-t-aurora .xc-step-d, .xc-t-aurora .xc-point-d, .xc-t-aurora .xc-prose-p { color: oklch(0.86 0.02 260); }
+.xc-t-aurora .xc-meta, .xc-t-aurora .xc-stat-l, .xc-t-aurora .xc-hero-feed { color: oklch(0.82 0.03 260); }
+/* blue：正文与标注对比提升（oklch 冷蓝轴） */
+.xc-t-blue .xc-step-d, .xc-t-blue .xc-point-d, .xc-t-blue .xc-prose-p { color: oklch(0.87 0.03 240); }
+.xc-t-blue .xc-meta, .xc-t-blue .xc-stat-l { color: oklch(0.84 0.04 240); }
+/* ink：正文提亮 */
+.xc-t-ink .xc-step-d, .xc-t-ink .xc-point-d, .xc-t-ink .xc-prose-p { color: oklch(0.85 0.01 260); }
+/* paper：数据卡轮廓加强 */
+.xc-t-paper .xc-stat { border-color: oklch(0.55 0.04 140 / 0.5); }
+.xc-t-paper .xc-stat-v { color: oklch(0.48 0.06 145); }
+/* mesh：概念签色彩纪律化（统一淡底+彩色描边+深字） */
+.xc-t-mesh .xc-chip { background: color-mix(in srgb, currentColor 8%, #fff) !important; border: 1.5px solid currentColor; color: inherit; }
+.xc-t-mesh .xc-chip:nth-child(4n + 1) { color: #a04a22; }
+.xc-t-mesh .xc-chip:nth-child(4n + 2) { color: #5b46b4; }
+.xc-t-mesh .xc-chip:nth-child(4n + 3) { color: #1c6394; }
+.xc-t-mesh .xc-chip:nth-child(4n + 4) { color: #1c6b47; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D2_COLOR;
