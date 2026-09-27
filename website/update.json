@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.9.2",
-  "name": "知更 RobinRead 2.9.2",
+  "tag_name": "v2.9.3",
+  "name": "知更 RobinRead 2.9.3",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.9.2 —— 精读卡片扩展至 10 款模板（新增霞光/晨雾/蓝图/青瓷，六款配色升级）、神经语音朗读修复（自动重试、不再回退本地语音）、聚焦模式修复、应用内在线更新（设置→关于中检查并一键静默安装）。"
+  "body": "知更 RobinRead v2.9.3 —— 修复神经语音播放失败（CSP 拦截音频数据 URI，试听与朗读现可正常出声）；修复版式预设行高不生效。"
 }
