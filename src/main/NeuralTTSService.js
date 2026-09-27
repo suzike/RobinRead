@@ -95,8 +95,22 @@ class NeuralTTSService {
     } catch (_) { /* 忽略 */ }
   }
 
-  /** Edge 神经语音：msedge-tts WebSocket 通道。 */
+  /** Edge 神经语音：msedge-tts WebSocket 通道。偶发握手/流失败（冷启动、网络抖动）自动重试，共 3 次。 */
   async _synthEdge(text, voice, rate) {
+    let lastError = null;
+    const backoff = [500, 1200];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this._synthEdgeOnce(text, voice, rate);
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, backoff[attempt]));
+      }
+    }
+    throw lastError;
+  }
+
+  async _synthEdgeOnce(text, voice, rate) {
     let mod;
     try {
       mod = require('msedge-tts');

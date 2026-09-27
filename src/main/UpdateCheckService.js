@@ -56,15 +56,16 @@ function normalizeGitHubPayload(payload) {
     htmlURL: payload.html_url ?? null,
     publishedAt: payload.published_at ?? null,
     body: (payload.body || '').slice(0, 2000),
+    assets: (payload.assets || []).map((a) => ({ name: a.name, size: a.size, browser_download_url: a.browser_download_url })),
     source: 'github',
   };
 }
 
 async function fetchLatestRelease() {
-  // 官网优先；失败或 payload 不完整时走 GitHub 兜底（GitHub API 直连失败即整体放弃）
-  const fromSite = normalizeWebsitePayload(await fetchJSON(UPDATE_FEED));
-  if (fromSite && fromSite.tagName) return fromSite;
-  return normalizeGitHubPayload(await fetchJSON(GITHUB_RELEASES_API));
+  // GitHub 优先（官网托管停用中，避免每次检查白等 15s 超时）；GitHub 失败再试官网源
+  const fromGitHub = normalizeGitHubPayload(await fetchJSON(GITHUB_RELEASES_API));
+  if (fromGitHub) return fromGitHub;
+  return normalizeWebsitePayload(await fetchJSON(UPDATE_FEED));
 }
 
 function normalizeVersion(tag) {

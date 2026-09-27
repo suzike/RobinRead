@@ -1161,15 +1161,86 @@ export class SettingsView {
       row(t('主题'), t('OKLCH 设计器 · 中国传统色 · 明暗并排'), staticText('')),
     ]));
 
-    container.appendChild(group(t('官网与更新'), t('新版本发布后，应用会提示更新；也可随时前往官网下载最新安装包。'), [
+    container.appendChild(group(t('官网与更新'), t('支持应用内直接更新：检查新版本 → 下载 → 静默安装重启。'), [
+      row(t('当前版本'), null, staticText(`v${this.state?.snapshot?.version || this.state?.version || '?'}`)),
+      row(t('软件更新'), t('从 GitHub Releases 下载官方安装包并自动安装。'), this._updaterControl()),
       row(t('前往官网'), t('产品介绍 · 功能一览 · 下载'), websiteButton('前往官网', WEBSITE_URL)),
-      row(t('下载最新版'), null, websiteButton('前往下载', `${WEBSITE_URL}#download`)),
     ]));
 
     container.appendChild(group(t('关于本机数据'), null, [
       row(t('数据位置'), `%APPDATA%\\RobinRead`, staticText('')),
       row(t('隐私'), t('订阅、文章与 AI 配置全部保存在本机，不经过任何第三方服务器。'), staticText('')),
     ]));
+  }
+
+  /** 应用内更新控件：检查 → 展示新版 → 下载（进度条）→ 重启并安装。 */
+  _updaterControl() {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:180px;';
+    const status = document.createElement('div');
+    status.style.cssText = 'font-size:12px;color:var(--text-secondary);text-align:right;max-width:300px;';
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:none;width:180px;height:5px;border-radius:999px;background:var(--separator);overflow:hidden;';
+    const fill = document.createElement('div');
+    fill.style.cssText = 'width:0%;height:100%;background:var(--accent);transition:width .25s ease;';
+    bar.appendChild(fill);
+    const button = document.createElement('button');
+    button.className = 'btn-text bordered';
+    button.textContent = t('检查更新');
+    let phase = 'idle';
+    const setStatus = (s) => { status.textContent = s; };
+    button.addEventListener('click', async () => {
+      try {
+        if (phase === 'idle') {
+          button.disabled = true;
+          setStatus(t('正在检查更新…'));
+          const result = await window.robin.checkUpdate();
+          if (!result?.available) {
+            setStatus(t('已是最新版本'));
+            button.textContent = t('重新检查');
+          } else {
+            phase = 'ready';
+            const latest = String(result.release?.tagName || '').replace(/^v/i, '');
+            setStatus(t('发现新版本') + ` v${latest}`);
+            button.textContent = t('立即更新');
+          }
+          button.disabled = false;
+        } else if (phase === 'ready') {
+          button.disabled = true;
+          phase = 'downloading';
+          bar.style.display = 'block';
+          const un = window.robin.onUpdateProgress?.((p) => {
+            if (p?.total) fill.style.width = `${Math.min(100, p.percent)}%`;
+            setStatus(t('正在下载') + ` ${p?.percent || 0}%`);
+          }) || null;
+          try {
+            await window.robin.updateDownload();
+          } finally {
+            un?.();
+          }
+          bar.style.display = 'none';
+          fill.style.width = '0%';
+          phase = 'done';
+          setStatus(t('下载完成'));
+          button.textContent = t('重启并安装');
+          button.disabled = false;
+        } else if (phase === 'done') {
+          button.disabled = true;
+          setStatus(t('正在退出并安装…'));
+          await window.robin.updateInstall();
+        }
+      } catch (error) {
+        phase = 'idle';
+        bar.style.display = 'none';
+        button.disabled = false;
+        button.textContent = phase === 'idle' ? t('重试') : button.textContent;
+        setStatus(`${t('更新失败')}：${String(error?.message || error).slice(0, 120)}`);
+      }
+    });
+    wrap.appendChild(status);
+    wrap.appendChild(bar);
+    wrap.appendChild(button);
+    return wrap;
   }
 }
 

@@ -825,8 +825,10 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 }
 .nj-css-input:focus { outline: none; border-color: var(--accent); }
 
-/* ── 聚焦模式（方向 11）：非当前段落渐暗，指针所在块保持清晰 ── */
-body.rp-focus .reader-article .robin-body > * { opacity: 0.25; transition: opacity var(--dur-slow) var(--ease-out); }
+/* ── 聚焦模式（方向 11）：非当前段落渐暗，指针所在块保持清晰 ──
+   注意必须 animation:none：入场动画 article-rise 的 fill:both 会用 to 关键帧永久锁死 opacity，
+   动画样式在级联中高于普通声明，不摘掉动画则 0.25 永不生效。 */
+body.rp-focus .reader-article .robin-body > * { opacity: 0.25; animation: none; transition: opacity var(--dur-slow) var(--ease-out); }
 body.rp-focus .reader-article .robin-body > *:hover { opacity: 1; }
 body.rp-focus .reader-article .robin-header-container,
 body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: opacity var(--dur-slow) var(--ease-out); }

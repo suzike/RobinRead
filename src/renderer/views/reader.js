@@ -3816,7 +3816,11 @@ export class ReaderView {
           voice: this._ttsCfg?.neuralVoice || 'zh-CN-XiaoxiaoNeural',
           rate: tts.rate,
         });
+      } else {
+        b64 = await b64;
       }
+      // IPC 失败信封会被 data() 吞成 undefined：显式判废，走回退并给出可读原因
+      if (typeof b64 !== 'string' || b64.length < 512) throw new Error(t('合成服务无响应（检查网络后重试）'));
     } catch (error) {
       this._ttsNeuralFallbackLocal(index, error);
       return;
@@ -3857,31 +3861,12 @@ export class ReaderView {
     promise.catch(() => { tts.pending.delete(index); });
   }
 
-  /** 神经语音失败（断网/接口不可达/播放被拦）：toast 说明并回退本地语音从当前块续播。 */
+  /** 神经语音失败（断网/接口不可达/播放异常）：不再自动回退本地 SAPI（音质不可用），停播并给出可操作原因。 */
   _ttsNeuralFallbackLocal(index, error) {
-    const chunks = this._tts?.chunks;
-    const rate = this._tts?.rate || this._ttsReadRate();
-    const reason = String(error?.message || error || '');
+    const reason = String(error?.message || error || '').slice(0, 80) || '未知错误';
     this._ttsStop();
-    if (!this._ttsSynth() || !chunks?.length) {
-      this.handlers.onFeedback?.(t('神经语音不可用（需联网），且本地语音缺失，已停止朗读。'));
-      return;
-    }
-    this._ttsGen += 1;
-    this._tts = {
-      state: 'playing',
-      chunks,
-      index,
-      gen: this._ttsGen,
-      rate,
-      player: null,
-      utterances: [],
-    };
-    this._ttsBuildPlayer();
-    this.scrollEl.classList.add('nj-tts-open');
-    this._ttsEnqueueFrom(index);
     this._ttsSyncHeaderButton();
-    this.handlers.onFeedback?.(`${t('神经语音不可用，已回退本地语音')}（${reason.slice(0, 60)}）`);
+    this.handlers.onFeedback?.(`${t('神经语音暂时不可用，已停止朗读（引擎保持神经语音）')}：${reason}`);
   }
 
   /** 播放器「品质」按钮：local → edge → custom（配置了端点才参与）→ local，切换后从当前块重播。 */

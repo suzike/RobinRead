@@ -8,12 +8,14 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, session, nativeImage, protocol, shell, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, clipboard, session, nativeImage, protocol, shell, Notification, net } = require('electron');
 const { checkForUpdate } = require('./UpdateCheckService');
+const { UpdaterService } = require('./UpdaterService');
 const { errorMessage } = require('./AppStore');
 const ArticleExtractor = require('./ArticleExtractor');
 const { NeuralTTSService, NEURAL_VOICES } = require('./NeuralTTSService');
 let neuralTTS = null;
+let updater = null;
 
 // 自定义图标协议必须先注册为 privileged（仅限 app ready 之前调用）。
 // 生产入口 main.js 在 ready 前 require 本模块，特权始终生效；
@@ -580,6 +582,20 @@ function registerIPCHandlers(store, window) {
   handle('update:check', async () => checkForUpdate(store.preferences.get('RobinRead.ignoredVersion', null)));
   handle('update:ignoreVersion', (version) => {
     store.preferences.set('RobinRead.ignoredVersion', version);
+  });
+  // 应用内更新：下载 GitHub release 的 setup.exe（进度推 update:progress），随后 /S 静默重装
+  handle('update:download', async () => {
+    updater = updater || new UpdaterService(app.getPath('userData'));
+    const result = await checkForUpdate(store.preferences.get('RobinRead.ignoredVersion', null));
+    const assetURL = updater.resolveSetupAssetURL(result?.release);
+    if (!assetURL) throw new Error('更新源未提供安装包直链，请到 GitHub Releases 页下载');
+    const tag = String(result.release.tagName || '').replace(/^v/i, '');
+    const push = (p) => { try { if (!window.isDestroyed()) window.webContents.send('update:progress', p); } catch (_) { /* 窗口已关 */ } };
+    return await updater.download(assetURL, `RobinRead-${tag}-setup.exe`, push, (url, opts) => net.fetch(url, opts));
+  });
+  handle('update:install', () => {
+    if (!updater) throw new Error('尚未下载更新包');
+    return updater.install();
   });
 
   // MARK: 无边框窗口控制
