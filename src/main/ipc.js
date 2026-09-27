@@ -866,6 +866,18 @@ function registerIPCHandlers(store, window) {
     closeToTray: store.preferences.get('RobinRead.closeToTray', false) === true,
     newArticleNotify: store.preferences.get('RobinRead.newArticleNotify', true) !== false,
   }));
+  // 批量导出：当前卡片一次渲染全部模板，打包 ZIP
+  handle('card:renderAllTemplates', async ({ data, options, zoom, ratio }) => {
+    const mod = await loadTemplatesModule();
+    const out = [];
+    for (const tpl of mod.CARD_TEMPLATES) {
+      const png = await renderCardPngOnce({ templateId: tpl.id, data, options: { ...options, templateId: tpl.id }, zoom, ratio });
+      out.push({ name: `RobinRead-card-${tpl.id}.png`, base64: png.base64 });
+    }
+    const { buildZip } = require('./EpubBuilder');
+    const zip = buildZip(out.map((r) => ({ name: r.name, data: Buffer.from(r.base64, 'base64') })), Date.now());
+    return { base64: zip.toString('base64'), count: out.length };
+  });
   handle('prefs:setGeneral', (patch) => {
     const p = patch || {};
     if (typeof p.closeToTray === 'boolean') store.preferences.set('RobinRead.closeToTray', p.closeToTray);

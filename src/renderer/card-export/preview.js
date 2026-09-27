@@ -178,6 +178,7 @@ export async function openCardExportModal({ data, link = '' }) {
       <span class="cardx-status"></span>
       <button class="btn cardx-copy">${t('复制到剪贴板')}</button>
       <button class="btn cardx-html">${t('保存 HTML')}</button>
+      <button class="btn cardx-batch">${t('打包全部模板')}</button>
       <button class="btn primary cardx-save">${t('保存图片')}</button>
     </div>`;
   modal.querySelector('.cardx-close').addEventListener('click', dismiss);
@@ -416,6 +417,35 @@ export async function openCardExportModal({ data, link = '' }) {
     }), '卡片渲染失败');
     return png;
   };
+
+  modal.querySelector('.cardx-html').addEventListener('click', async () => {
+    if (busy) return;
+    try {
+      setBusy(true);
+      const page = renderFullPage(data, cardOptions(), state.zoom);
+      const picked = await window.robin.pickSavePath('robinread-card.html');
+      const filePath = picked?.ok ? picked.data : null;
+      if (!filePath) { setBusy(false); return; }
+      const b64 = btoa(unescape(encodeURIComponent(page.html)));
+      unwrap(await window.robin.writeBinaryFile(filePath, b64), '保存失败');
+      setStatus(t('已保存 HTML') + ' ✓');
+    } catch (e) { setStatus(e?.message || String(e), true); } finally { setBusy(false); }
+  });
+
+  modal.querySelector('.cardx-batch').addEventListener('click', async () => {
+    if (busy) return;
+    try {
+      setBusy(true);
+      setStatus(t('正在渲染全部模板…'));
+      const zip = unwrap(await window.robin.renderAllTemplates({ data, options: cardOptions(), zoom: state.zoom, ratio: RATIOS.find((r) => r.id === state.ratio)?.ratio || null }), '批量渲染失败');
+      pushHistory();
+      const picked = await window.robin.pickSavePath('robinread-cards-all-templates.zip');
+      const filePath = picked?.ok ? picked.data : null;
+      if (!filePath) { setBusy(false); return; }
+      unwrap(await window.robin.writeBinaryFile(filePath, zip.base64), '保存失败');
+      setStatus(t('已打包') + ' ' + zip.count + ' ' + t('张模板卡片') + ' ✓');
+    } catch (e) { setStatus(e?.message || String(e), true); } finally { setBusy(false); }
+  });
 
   modal.querySelector('.cardx-save').addEventListener('click', async () => {
     if (busy) return;

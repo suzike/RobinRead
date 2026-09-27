@@ -234,6 +234,7 @@ contextBridge.exposeInMainWorld('robin', {
 
   // 精读/摘要卡片导出（PNG 渲染 / 二进制写盘 / 图片进剪贴板 / 封面降采样）
   renderCardPng: (payload) => invoke('card:renderPng', payload),
+  renderAllTemplates: (payload) => invoke('card:renderAllTemplates', payload),
   writeBinaryFile: (filePath, base64) => invoke('app:writeBinaryFile', { filePath, base64 }),
   copyImage: (base64) => invoke('app:copyImage', { base64 }),
   fetchCardCover: (url) => invoke('net:fetchCardCover', url),
