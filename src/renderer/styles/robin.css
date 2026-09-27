@@ -4110,7 +4110,7 @@ body.dark .reader-article .robin-summary-card {
 }
 
 /* 高亮标记：柔角 + 悬停投影 */
-.reader-article mark.nj-hl { border-radius: 4px 4px 2px 2px; }
+.reader-article mark.nj-hl { border-radius: var(--radius-xs) var(--radius-xs) var(--radius-xs) var(--radius-xs); }
 .reader-article mark.nj-hl:hover { box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); }
 
 /* 双语对照卡：圆角纸底渐变 */
