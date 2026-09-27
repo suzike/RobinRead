@@ -165,7 +165,8 @@ const statsBlock = (d, o) => {
   if (o.stats === false) return '';
   const items = (d.stats || []).map((s) => {
     const m = String(s.v).match(/^([^\d.]*)([\d.,]+)(.*)$/) || [null, '', s.v, ''];
-    const val = m[2] ? `<span class="xc-stat-n">${esc(m[2])}</span><small class="xc-stat-u">${esc(m[1] + m[3])}</small>` : esc(s.v);
+    const hasRangeDigit = m[2] && /[d]/.test(m[3]);
+    const val = m[2] && !hasRangeDigit ? `<span class="xc-stat-n">${esc(m[2])}</span><small class="xc-stat-u">${esc(m[1] + m[3])}</small>` : esc(s.v);
     return `
     <div class="xc-stat"><div class="xc-stat-v">${val}</div><div class="xc-stat-l">${esc(s.l)}</div></div>`;
   }).join('');
@@ -1739,3 +1740,7 @@ const D3_TYPE = `
 .xc-card .xc-counter, .xc-card .xc-conclusion { text-align: justify; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D3_TYPE;
+
+/* ══ D4 数据可视化卡 ══ */
+const D4_STATS = ;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
