@@ -4008,3 +4008,41 @@ textarea:focus-visible,
 .dg-deep-sec .dg-topic-head { margin-bottom:6px; }
 .dg-deep-sec .dg-topic-body { display:flex; flex-direction:column; gap:9px; }
 .dg-deep-sec .dg-topic-body p { margin:0; font-size:14px; line-height:1.95; color:var(--text-primary); }
+
+/* ── R13：每日目标进度环 / 滚动条 / 选区 / 空状态精修 ── */
+.kb-goal-ring { display: flex; align-items: center; gap: 16px; padding: 16px 18px; margin-bottom: 14px;
+  border-radius: 14px; background: var(--page-background); border: 1px solid var(--separator); }
+.kb-goal-figure { position: relative; width: 88px; height: 88px; flex: none; }
+.kb-goal-svg { width: 88px; height: 88px; display: block; transform: rotate(-90deg); }
+.kb-goal-track { fill: none; stroke: var(--separator); stroke-width: 7; }
+.kb-goal-fill { fill: none; stroke: url(#kbGoalGrad); stroke-width: 7; stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-slow) var(--ease-out); }
+.kb-goal-center { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px; }
+.kb-goal-center b { font-family: var(--font-serif); font-size: 25px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+.kb-goal-center span { font-size: 11.5px; color: var(--text-tertiary); }
+.kb-goal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; }
+.kb-goal-sub { margin-top: 5px; font-size: 12.5px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; }
+.kb-goal-ring.done .kb-goal-fill { stroke: url(#kbGoalGrad); }
+.kb-goal-ring.done .kb-goal-sub { color: var(--accent); font-weight: 700; }
+
+/* 细滚动条：极窄圆角，悬停浮现强调色（替代完全隐藏，恢复位置感） */
+.reader-scroll::-webkit-scrollbar, .list-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.reader-scroll::-webkit-scrollbar-track, .list-scroll::-webkit-scrollbar-track { background: transparent; }
+.reader-scroll::-webkit-scrollbar-thumb, .list-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px; background: var(--note-border); }
+.reader-scroll::-webkit-scrollbar-thumb:hover, .list-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* 全局选区：纸感绿（阅读区原有规则保持兼容） */
+::selection { background: rgba(116, 137, 100, 0.26); }
+
+/* 空状态精修：装饰圆底 + 衬线标题 */
+.list-empty, .reader-empty { gap: 10px; }
+.list-empty .glyph, .reader-empty .glyph {
+  width: 72px; height: 72px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 30px; opacity: 0.9;
+  background: radial-gradient(circle at 32% 28%, var(--row-selected), var(--page-background) 78%);
+  border: 1px solid var(--separator);
+}
+.list-empty h3, .reader-empty h3 { font-family: var(--font-serif); font-size: 16.5px; letter-spacing: 0.06em; color: var(--text-primary); }
+.list-empty p, .reader-empty p { color: var(--text-tertiary); }

@@ -399,6 +399,7 @@ class AppStore extends EventEmitter {
       feedTypography: this.feedTypographyMap(),
       refreshInterval: this.preferences.get(PreferenceKey.refreshInterval, 'thirtyMinutes'),
       refreshOnLaunch: this.preferences.get(PreferenceKey.refreshOnLaunch, true),
+      dailyGoal: this.preferences.get('RobinRead.stats.dailyGoal', 5),
       appLanguage: this.preferences.get(PreferenceKey.appLanguage, 'zh'),
       aiOutputLanguage: this.preferences.get(PreferenceKey.aiOutputLanguage, null),
       automaticallyGenerateSummary: this.llmConfiguration.automaticallyGenerateSummary,
@@ -3024,6 +3025,17 @@ class AppStore extends EventEmitter {
       // 默认关闭：文章打开不自动翻译，由用户手动触发（设置里可开启自动精读）
       autoTranslateEnglish: this.preferences.get('RobinRead.autoTranslateEnglish', false) === true,
     };
+  }
+
+  /** 每日阅读目标（篇数）。 */
+  dailyGoal() {
+    return this.preferences.get('RobinRead.stats.dailyGoal', 5);
+  }
+
+  setDailyGoal(n) {
+    const v = Math.min(99, Math.max(1, Number(n) || 5));
+    this.preferences.set('RobinRead.stats.dailyGoal', v);
+    return this.dailyGoal();
   }
 
   setReaderLayout(patch) {

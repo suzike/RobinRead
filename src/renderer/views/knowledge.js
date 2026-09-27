@@ -75,12 +75,13 @@ export class KnowledgeCenter {
   async _load() {
     const loads = {
       dashboard: async () => {
-        const [dash, heat, tags] = await Promise.all([
+        const [dash, heat, tags, goal] = await Promise.all([
           window.robin.kbDashboard(),
           window.robin.kbHeatmap(30),
           window.robin.kbTags(),
+          window.robin.statsGetGoal?.() ?? 5,
         ]);
-        return { ...dash, heat: heat?.map || {}, tags };
+        return { ...dash, heat: heat?.map || {}, tags, goal };
       },
       highlights: async () => (await window.robin.kbAllHighlights()).slice(0, 100),
       notes: async () => (await window.robin.kbNotes()).slice(0, 80),
@@ -200,6 +201,37 @@ export class KnowledgeCenter {
         <div class="kb-stat-card"><span class="kb-stat-num">${d.tags || 0}</span><span class="kb-stat-label">标签</span></div>
         <div class="kb-stat-card"><span class="kb-stat-num">${d.streak || 0}</span><span class="kb-stat-label">连续天数</span></div>
       </div>`;
+    // ── 每日目标进度环（R13）：今日已读 / 目标篇数，达成后环体点亮 ──
+    {
+      const goal = Number(d.goal) || 5;
+      const tk = new Date();
+      const todayKey = new Date(tk.getTime() - tk.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      const todayRead = Number(d.heat?.[todayKey]?.read) || 0;
+      const pct = Math.max(0, Math.min(1, todayRead / goal));
+      const done = todayRead >= goal;
+      const R = 34;
+      const C = 2 * Math.PI * R;
+      const ringWrap = document.createElement('div');
+      ringWrap.className = 'kb-goal-ring' + (done ? ' done' : '');
+      ringWrap.innerHTML = `
+        <div class="kb-goal-figure">
+          <svg class="kb-goal-svg" viewBox="0 0 88 88" role="img">
+            <defs>
+              <linearGradient id="kbGoalGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#617357"/><stop offset="1" stop-color="#a3573d"/>
+              </linearGradient>
+            </defs>
+            <circle class="kb-goal-track" cx="44" cy="44" r="${R}"/>
+            <circle class="kb-goal-fill" cx="44" cy="44" r="${R}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - pct)).toFixed(1)}"/>
+          </svg>
+          <div class="kb-goal-center"><b>${todayRead}</b><span>/ ${goal}</span></div>
+        </div>
+        <div class="kb-goal-text">
+          <div class="kb-goal-title">${escapeHTML(t('今日阅读目标'))}</div>
+          <div class="kb-goal-sub">${done ? `${icon('check', 13)} ${escapeHTML(t('已达成，读得漂亮'))}` : escapeHTML(t('再读') + ' ' + (goal - todayRead) + ' ' + t('篇即达成'))}</div>
+        </div>`;
+      el.insertBefore(ringWrap, el.firstChild);
+    }
     if (d.due > 0) {
       const cta = document.createElement('button');
       cta.className = 'btn-text primary';

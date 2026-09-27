@@ -188,6 +188,8 @@ contextBridge.exposeInMainWorld('robin', {
   kbSearchKnowledge: (query, options) => data('kb:searchKnowledge', query, options),
   kbHeatmap: (days) => data('kb:heatmap', days),
   kbStatsExtras: () => data('kb:statsExtras'),
+  statsGetGoal: () => data('stats:getGoal'),
+  statsSetGoal: (n) => data('stats:setGoal', n),
   kbGraph: (limit) => data('kb:graph', limit),
   kbAsk: (question) => invoke('kb:ask', question),
   kbDashboard: () => data('kb:dashboard'),

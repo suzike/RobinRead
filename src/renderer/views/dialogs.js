@@ -135,6 +135,14 @@ export class SettingsView {
       )),
     ]));
 
+    container.appendChild(group(t('阅读目标'), t('每日读完目标篇数后，知识看板的进度环即点亮。'), [
+      row(t('每日篇数'), null, segmented(
+        [[3, '3'], [5, '5'], [8, '8'], [12, '12'], [20, '20']],
+        Number(prefs.dailyGoal) || 5,
+        (value) => window.robin.statsSetGoal(Number(value)),
+      )),
+    ]));
+
     // ── 主题（提案 + 设计器入口，独立分组）──
     const themeGroup = group(t('主题'), t('OKLCH 三通道调色 · 中国传统色 · 配色关系 · 对比度检测'), []);
     container.appendChild(themeGroup);

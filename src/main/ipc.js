@@ -668,6 +668,8 @@ function registerIPCHandlers(store, window) {
   handle('kb:searchKnowledge', (query, options) => K().searchKnowledge(query, options || {}));
   handle('kb:heatmap', (days) => K().readingHeatmap(days || 90));
   handle('kb:statsExtras', () => K().statsExtras());
+  handle('stats:getGoal', () => store.dailyGoal());
+  handle('stats:setGoal', (n) => store.setDailyGoal(n));
   handle('kb:graph', (limit) => K().getGraphData(limit));
   handle('kb:ask', (question) => store.knowledgeAsk(question, { onDelta: (delta) => send('ai:delta', { key: 'kb:ask', delta }) }));
   handle('kb:dashboard', () => K().dashboard());
