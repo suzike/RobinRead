@@ -1476,7 +1476,7 @@ export class ReaderView {
         img.classList.add('nj-img-loading');
       }
     };
-    img.addEventListener('load', () => img.classList.remove('nj-img-loading', 'nj-img-failed'));
+    img.addEventListener('load', () => img.classList.remove('nj-img-loading', 'nj-img-retrying', 'nj-img-failed'));
     img.addEventListener('error', () => {
       // 图片失败自动重试（借鉴上游 v1.4.5）：首次失败经代理通道重取一次，仍失败才标记
       const retries = Number(img.dataset.retryCount || 0);

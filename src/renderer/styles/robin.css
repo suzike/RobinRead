@@ -4165,3 +4165,18 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 @media (prefers-reduced-motion: reduce) {
   .nj-tts-player.is-live .nj-tts-wave i { animation: none; height: 9px; }
 }
+
+/* ── R22 杂志纸张质感三选（借鉴上游 v1.4.5）+ 图片重试态 ── */
+.nj-edition-paper {
+  appearance: none; border: 1px solid var(--separator); border-radius: var(--radius-full);
+  background: var(--page-background); color: var(--text-secondary);
+  font-size: 11px; padding: 3px 12px; cursor: pointer; letter-spacing: 0.1em;
+}
+.nj-edition-paper:hover { border-color: var(--accent); color: var(--accent); }
+.list-scroll.nj-mag-paper { background: linear-gradient(180deg, #f7f3e8, #f2ecdc); }
+.list-scroll.nj-mag-white { background: #fdfdfb; }
+.list-scroll.nj-mag-book { background: linear-gradient(180deg, #efe6d4, #e8dcc2); }
+.list-scroll.nj-mag-book .nj-edition-brand, .list-scroll.nj-mag-book .nj-edition-date { color: #6b5335; }
+.list-scroll.nj-mag-book .nj-mag-card { background: rgba(255, 251, 240, 0.92); }
+.list-scroll.nj-mag-paper .nj-mag-card { background: rgba(255, 253, 246, 0.92); }
+.nj-img-retrying { opacity: 0.45; filter: blur(1px); }
