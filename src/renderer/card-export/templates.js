@@ -1723,3 +1723,15 @@ const D2_COLOR = `
 .xc-t-mesh .xc-chip:nth-child(4n + 4) { color: #1c6b47; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D2_COLOR;
+
+/* ══ D3 中文排版艺术 ══
+   避头尾（line-break: strict）、标点挤压（text-spacing-trim，Chromium 123+）、
+   长文两端对齐（inter-ideograph）、导语悬挂引号。 */
+const D3_TYPE = `
+.xc-card { line-break: strict; text-spacing-trim: space-first; }
+.xc-card .xc-lead, .xc-card .xc-prose-p { text-align: justify; text-justify: inter-ideograph; }
+.xc-card .xc-point-d, .xc-card .xc-step-d { text-align: justify; }
+.xc-card .xc-lead-plain { text-indent: -0.9em; padding-left: 0.9em; }
+.xc-card .xc-counter, .xc-card .xc-conclusion { text-align: justify; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D3_TYPE;
