@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.9.1",
-  "name": "知更 RobinRead 2.9.1",
+  "tag_name": "v2.9.2",
+  "name": "知更 RobinRead 2.9.2",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.9.1 —— 修复精读卡片极简白模板标题竖排塌陷（封面图覆盖挤压标题宽度）；设计令牌体系 v2、可访问性收敛（focus-visible/减少动效/对比度达标）、灯箱多图画廊导航、阅读控制中心、命令面板 2.0、复习会话键盘化等十轮前端打磨收口。前往 GitHub 下载最新安装包。"
+  "body": "知更 RobinRead v2.9.2 —— 精读卡片扩展至 10 款模板（新增霞光/晨雾/蓝图/青瓷，六款配色升级）、神经语音朗读修复（自动重试、不再回退本地语音）、聚焦模式修复、应用内在线更新（设置→关于中检查并一键静默安装）。"
 }
