@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.9.7",
-  "name": "知更 RobinRead 2.9.7",
+  "tag_name": "v2.9.8",
+  "name": "知更 RobinRead 2.9.8",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.9.7 —— 数据可视化升级：阅读热力图年度化（365 天、今日描边、年度统计行）、看板新增来源 Top 榜与时段分布（近 30 天）；精读卡片封面质感升级（极简白细线框/晨读手帖拍立得）。"
+  "body": "知更 RobinRead v2.9.8 —— 数据口径统一：统计/热力图/每日回顾日期键改本地时区（凌晨阅读不再归前一天）；渐进渲染期间抑制提前翻页；冗余样式清理。"
 }
