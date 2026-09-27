@@ -4183,3 +4183,6 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 
 /* ── D15 列表标题译文副行 ── */
 .nj-title-zh { font-size: 12px; color: var(--accent); margin-top: 3px; letter-spacing: 0.02em; }
+
+/* D18：真实频谱模式下禁用 CSS 律动（柱高由 AnalyserNode 逐帧驱动） */
+.nj-tts-player.is-spectrum .nj-tts-wave i { animation: none !important; }

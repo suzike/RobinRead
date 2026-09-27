@@ -3859,6 +3859,7 @@ export class ReaderView {
     const audio = new Audio(`data:audio/mpeg;base64,${b64}`);
     audio.playbackRate = tts.rate;
     tts.audio = audio;
+    this._ttsHookSpectrum(audio); // D18：真实频谱驱动播放器音浪
     audio.onended = () => {
       if (this._tts === tts && tts.gen === this._ttsGen) this._ttsSpeakNeural(index + 1);
     };
@@ -4091,6 +4092,41 @@ export class ReaderView {
       return;
     }
     this._ttsSyncPlayer();
+  }
+
+  /** D18 真实频谱音浪：WebAudio AnalyserNode 读播放音频的频段能量，驱动播放器五柱高度。 */
+  _ttsHookSpectrum(audioEl) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this._ttsAC = this._ttsAC || new AC();
+      if (this._ttsAC.state === 'suspended') this._ttsAC.resume().catch(() => {});
+      const source = this._ttsAC.createMediaElementSource(audioEl);
+      const analyser = this._ttsAC.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.75;
+      source.connect(analyser);
+      analyser.connect(this._ttsAC.destination);
+      const bins = new Uint8Array(analyser.frequencyBinCount);
+      const bars = this.scrollEl?.parentElement?.querySelectorAll('.nj-tts-wave i');
+      if (!bars || bars.length === 0) return;
+      const playerEl = this.scrollEl?.parentElement?.querySelector('.nj-tts-player');
+      playerEl?.classList.add('is-spectrum');
+      const tick = () => {
+        if (!this._tts || this._tts !== this._ttsActiveSpectrum) return; // 过期/停止：停帧
+        analyser.getByteFrequencyData(bins);
+        const seg = Math.floor(bins.length / bars.length) || 1;
+        bars.forEach((bar, i) => {
+          let sum = 0;
+          for (let j = 0; j < seg; j += 1) sum += bins[i * seg + j] || 0;
+          const h = 4 + Math.round((sum / seg / 255) * 12);
+          bar.style.height = `${h}px`;
+        });
+        requestAnimationFrame(tick);
+      };
+      this._ttsActiveSpectrum = this._tts;
+      requestAnimationFrame(tick);
+    } catch (_) { /* 频谱失败不影响播放 */ }
   }
 
   /** 语速循环切换：写 localStorage；播放中 local 从当前句块重建队列，neural 直接改 playbackRate 即时生效。 */
