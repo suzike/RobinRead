@@ -1744,3 +1744,11 @@ for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D3_TYPE;
 /* ══ D4 数据可视化卡 ══ */
 const D4_STATS = ;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
+
+/* ══ D4 数据可视化卡 ══ */
+const D4_STATS = `
+.xc-stat-v { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.xc-stat-n { font-size: 1.18em; font-weight: 800; font-variant-numeric: tabular-nums; }
+.xc-stat-u { font-size: 0.52em; font-weight: 700; margin-left: 2px; opacity: 0.78; letter-spacing: 0.06em; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
