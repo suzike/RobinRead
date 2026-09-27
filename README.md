@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.12.5 — 设置页与设计器精修](https://github.com/suzike/RobinRead/releases/tag/v2.12.5)**（2026-09-27）：分区导航指示条、设置行悬停、分组圆角、设计器侧栏与滑轨精修
 - **[v2.12.4 — 热点榜与商店精修](https://github.com/suzike/RobinRead/releases/tag/v2.12.4)**（2026-09-27）：AIHOT 悬停浮起/前三名暖色排名、商店侧栏指示条统一
 - **[v2.12.3 — 正文组件精修](https://github.com/suzike/RobinRead/releases/tag/v2.12.3)**（2026-09-27）：AI 摘要卡强调色侧线渐变纸面、高亮柔角悬停投影、双语卡圆角纸底、悬浮胶囊玻璃拟态
 - **[v2.12.2 — 导出弹窗修复](https://github.com/suzike/RobinRead/releases/tag/v2.12.2)**（2026-09-27）：修复导出弹窗运行时崩溃（E2E 探针揪出的引用错误）
