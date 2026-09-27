@@ -1774,3 +1774,19 @@ const D5_QUOTES = `
 .xc-t-note .xc-qmark { font-size: 58px !important; color: #a0522d; -webkit-text-fill-color: #a0522d; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D5_QUOTES;
+
+/* ══ D6 封面构图系统 ══ */
+const D6_COVER = `
+/* 文字安全区：hero 文本区加大内边距，蒙版下缘加深保证白字对比 */
+.xc-card .xc-hero-text { padding: 26px 38px 24px; }
+.xc-card .xc-hero-scrim { background: linear-gradient(180deg, rgba(0,0,0,.26) 0%, rgba(0,0,0,.06) 40%, rgba(0,0,0,.86) 100%) !important; }
+/* 生成封面安全区：鬼影字不再贴边 */
+.xc-card .xc-cover-gen .xc-ghost { left: 26px; }
+.xc-card .xc-cover-gen { overflow: hidden; }
+/* 纯图带暗角渐晕：图文融合 */
+.xc-t-mag .xc-hero-plain::after, .xc-t-news .xc-hero-plain::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,.22) 100%);
+}
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D6_COVER;
