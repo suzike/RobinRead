@@ -1838,8 +1838,9 @@ const D9_PRINT = `
 }
 .xc-t-news .xc-masthead, .xc-t-mag .xc-masthead { position: relative; }
 .xc-t-news .xc-masthead::before, .xc-t-mag .xc-masthead::before {
-  content: '知更 · 精读'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.4em;
+  content: '知更 · 精读'; position: absolute; right: 6px; top: 8px;
+  writing-mode: vertical-rl; white-space: nowrap;
+  font-size: 9px; letter-spacing: 0.3em;
   color: currentColor; opacity: 0.4;
 }
 /* 纸感模板细纹 */
