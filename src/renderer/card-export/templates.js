@@ -1861,7 +1861,7 @@ const D10_BRAND = `
 /* 二维码白底衬托+细边（扫描可靠性） */
 .xc-card .xc-qr { border: 1px solid rgba(0,0,0,0.08) !important; }
 /* 品牌色收束：各模板 brand 图标锁主色（无主色声明的用羽翼橄榄绿兜底） */
-.xc-t-paper .xc-brand svg, .xc-t-mesh .xc-brand svg { color: #7c66dd; }
+.xc-t-mesh .xc-brand svg { color: #7c66dd; }
 .xc-t-ink .xc-brand svg, .xc-t-aurora .xc-brand svg { color: #8f7bff; }
 .xc-t-mag .xc-brand svg { color: #e0301e; }
 .xc-t-news .xc-brand svg { color: #8c2f1b; }
