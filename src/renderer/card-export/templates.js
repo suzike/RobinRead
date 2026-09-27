@@ -1818,3 +1818,26 @@ const D8_SPACE = `
 .xc-card .xc-stats { margin-top: 18px; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D8_SPACE;
+
+/* ══ D9 印刷细节 ══ */
+const D9_PRINT = `
+/* 页脚印刷刻度：分隔线两端短竖刻度（印刷标尺语言） */
+.xc-t-paper .xc-foot::before, .xc-t-news .xc-foot::before, .xc-t-jade .xc-foot::before, .xc-t-blue .xc-foot::before {
+  content: ''; position: absolute; left: 0; top: -6px; width: 1px; height: 12px;
+  background: currentColor; opacity: 0.4;
+}
+.xc-t-paper .xc-foot::after, .xc-t-news .xc-foot::after, .xc-t-jade .xc-foot::after, .xc-t-blue .xc-foot::after {
+  content: ''; position: absolute; right: 0; top: -6px; width: 1px; height: 12px;
+  background: currentColor; opacity: 0.4;
+}
+/* 右上竖排角标：知更·精读（印刷签条） */
+.xc-t-paper .xc-inner::before, .xc-t-news .xc-inner::before, .xc-t-mag .xc-inner::before, .xc-t-jade .xc-inner::before {
+  content: '知更 · 精读'; position: absolute; right: -6px; top: 0;
+  writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.4em;
+  color: currentColor; opacity: 0.34;
+}
+/* 纸感模板细纹 */
+.xc-t-paper { background-image: repeating-linear-gradient(0deg, rgba(120,100,60,.022) 0 1px, transparent 1px 3px), linear-gradient(180deg,#faf6ec 0%,#f7f3e8 34%,#f2ecdc 100%); }
+.xc-t-note { background-image: repeating-linear-gradient(0deg, rgba(160,120,60,.02) 0 1px, transparent 1px 3px), linear-gradient(180deg,#faf6ee 0%,#f8f4ea 50%,#f4eedd 100%); }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D9_PRINT;
