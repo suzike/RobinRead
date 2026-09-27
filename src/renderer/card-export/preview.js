@@ -4,6 +4,7 @@
    预览与导出走同一 renderCard 代码，保证所见即所得。
    ========================================================================== */
 import { t } from '../i18n.js';
+const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, renderFullPage, variantFilter, renderCard } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';

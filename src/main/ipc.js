@@ -812,10 +812,11 @@ function registerIPCHandlers(store, window) {
     }
     return templatesModule;
   };
-  handle('card:renderPng', ({ templateId, data, options, zoom = 2, ratio = null } = {}) => {
+  handle('card:renderPng', (payload = {}) => {
+    const { templateId, data, options, zoom = 2, ratio = null, format = 'png' } = payload || {};
     // 串行化：隐藏窗口同一时刻只渲染一张（排队执行，结果按序返回）
     const task = cardExportChain.catch(() => {}).then(() =>
-      renderCardPngOnce({ templateId, data, options, zoom, ratio, format: payload && payload.format === 'jpeg' ? 'jpeg' : 'png' }));
+      renderCardPngOnce({ templateId, data, options, zoom, ratio, format }));
     cardExportChain = task.catch(() => {});
     return task;
   });

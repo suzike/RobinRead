@@ -115,7 +115,7 @@ app.whenReady().then(async () => {
     ok(result.save === true, 'IPC app:writeBinaryFile');
     ok(result.copy === true, 'IPC app:copyImage');
     ok(result.modalOpen === true, 'preview.js 弹窗打开');
-    ok(result.tplCount === 6, '模板清单 6 款', `count=${result.tplCount}`);
+    ok(result.tplCount === 10, '模板清单 10 款', `count=${result.tplCount}`);
     ok(result.previewCard === true, 'shadow DOM 卡片预览渲染');
     ok(result.switchedTpl === true, '切换模板后重渲染（墨岩）');
     ok(result.modalClosed === true, 'Esc 关闭弹窗');
