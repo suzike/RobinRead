@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.11.1 — 卡片 2.0 C3+C5](https://github.com/suzike/RobinRead/releases/tag/v2.11.1)**（2026-09-27）：封面滤镜四款、排版密度三档、字体搭配三套、水印样式切换
 - **[v2.11.0 — 精读卡片 2.0 开篇](https://github.com/suzike/RobinRead/releases/tag/v2.11.0)**（2026-09-27）：平台尺寸预设（1:1/4:3/16:9/2.35:1 等 7 种画幅）；配色变体系统（4 色系一键换色，导出全链路生效）
 - **[v2.10.4 — 简报全屏报纸版面](https://github.com/suzike/RobinRead/releases/tag/v2.10.4)**（2026-09-27）：报头通栏大字日期、主题卡双栏、正文限宽居中、滚动条精修
 - **[v2.10.3 — 生成式封面与简报修复](https://github.com/suzike/RobinRead/releases/tag/v2.10.3)**（2026-09-27）：十款生成式封面（无图也有设计感）；简报全屏/排版精修级联修复；看板标签计数修复
