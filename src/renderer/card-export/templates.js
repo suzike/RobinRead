@@ -72,9 +72,10 @@ const coverBlock = (d, o, ghost = 4) => {
   </div>`;
 };
 
-/** 杂志级 hero 封面：图占满上半幅，渐变蒙版上压 kicker/标题/元信息（有封面图时启用；无图返回 null 走原构图）。 */
-const heroBlock = (d, o, theme = 'paper') => {
+/** 杂志级 hero 封面。plain=true 时仅全出血图片带（供自带刊头/标题的 mag/news 使用，避免标题重复）。 */
+const heroBlock = (d, o, theme = 'paper', plain = false) => {
   if (o.cover === false || !d.cover) return null;
+  if (plain) return `<header class="xc-hero xc-hero-plain xc-hero-${theme}"><img class="xc-hero-img" src="${d.cover}" alt=""/></header>`;
   const bits = [esc(d.date || '')];
   if (d.meta?.minutes) bits.push(`约 ${d.meta.minutes} 分钟`);
   if (d.meta?.words) bits.push(`${d.meta.words} 字`);
@@ -417,12 +418,7 @@ const INK = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        <div class="xc-head">
-          ${badgeRow(d)}
-          <h1 class="xc-title">${esc(d.title)}</h1>
-          ${metaStrip(d)}
-          ${coverBlock(d, o, 2)}
-        </div>
+        ${heroOrHead(d, o, 'ink', 2)}
         ${leadBlock(d)}
         ${statsBlock(d, o)}
         ${stepsBlock(d)}
@@ -527,7 +523,7 @@ const MAG = {
       </div>
       <h1 class="xc-title">${esc(d.title)}</h1>
       ${metaStrip(d)}
-      ${coverBlock(d, o, 2)}
+      ${heroBlock(d, o, 'mag', true) || ''}
       ${leadBlock(d)}
       ${statsBlock(d, o)}
       ${colBody ? `<div class="xc-cols">${colBody}</div>` : quotesBlock(d)}
@@ -880,7 +876,7 @@ const NEWS = {
       </div>
       <h1 class="xc-title">${esc(d.title)}</h1>
       ${metaStrip(d)}
-      ${coverBlock(d, o, 2)}
+      ${heroBlock(d, o, 'news', true) || ''}
       ${statsBand}
       ${colBody ? `<div class="xc-cols">${colBody}</div>` : quotesBlock(d)}
       ${colBody ? quotesBlock(d) : ''}
@@ -1231,10 +1227,7 @@ const BLUE = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        ${badgeRow(d)}
-        <h1 class="xc-title">${esc(d.title)}</h1>
-        ${metaStrip(d)}
-        ${coverBlock(d, o, 3)}
+        ${heroOrHead(d, o, 'blue', 3)}
         ${leadBlock(d)}
         ${stepsBlock(d)}
         ${chipsBlock(d)}
@@ -1352,10 +1345,7 @@ const JADE = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        ${badgeRow(d)}
-        <h1 class="xc-title">${esc(d.title)}</h1>
-        ${metaStrip(d)}
-        ${coverBlock(d, o, 3)}
+        ${heroOrHead(d, o, 'jade', 3)}
         ${leadBlock(d)}
         ${stepsBlock(d)}
         ${chipsBlock(d)}
@@ -1426,11 +1416,18 @@ const TEMPLATE_UPGRADES = {
 .xc-t-ink .xc-chip { border:1px solid transparent; background:linear-gradient(rgba(22,26,38,.92),rgba(22,26,38,.92)) padding-box,linear-gradient(90deg,rgba(124,92,255,.65),rgba(34,211,238,.5)) border-box; }
 .xc-t-ink .xc-quote { background:rgba(255,255,255,.05); border-radius:12px; padding:14px 16px 14px 44px; }
 .xc-t-ink .xc-conclusion { background:linear-gradient(90deg,rgba(124,92,255,.16),rgba(124,92,255,.04)); }
+/* ink hero：暗夜蒙版 + 玻璃徽标 */
+.xc-t-ink .xc-hero { height:490px; margin:-56px -56px 34px; }
+.xc-t-ink .xc-hero-scrim { background:linear-gradient(180deg,rgba(8,9,14,.34) 0%,rgba(8,9,14,.08) 36%,rgba(5,6,10,.88) 100%); }
+.xc-t-ink .xc-hero-title { color:#fff; -webkit-text-fill-color:#fff; text-shadow:0 2px 22px rgba(0,0,0,.65); }
+.xc-t-ink .xc-hero-badge { border:1px solid transparent; color:#c0b2ff; background:linear-gradient(rgba(16,19,36,.92),rgba(16,19,36,.92)) padding-box,linear-gradient(90deg,#7c5cff,#22d3ee) border-box; }
+.xc-t-ink .xc-hero-feed { color:rgba(232,236,250,.85); }
+.xc-t-ink .xc-hero-meta { color:rgba(232,236,250,.8); }
 `,
   mag: `
 .xc-t-mag .xc-cols .xc-sec { break-inside: avoid; }
 .xc-t-mag .xc-title { background:linear-gradient(transparent 78%, #e0301e 78%, #e0301e 90%, transparent 90%); }
-.xc-t-mag .xc-stat { background:#141414; border:none; }
+.xc-t-mag .xc-stat { background:#141414; border:none; padding:16px 14px 14px; }
 .xc-t-mag .xc-stat:nth-child(2) { background:#e0301e; }
 .xc-t-mag .xc-stat-v { color:#fff; }
 .xc-t-mag .xc-stat:nth-child(2) .xc-stat-l, .xc-t-mag .xc-stat-l { color:rgba(255,255,255,.75); }
@@ -1438,6 +1435,13 @@ const TEMPLATE_UPGRADES = {
 .xc-t-mag .xc-chip:nth-child(odd) { background:#141414; color:#fff; }
 .xc-t-mag .xc-quote { border-left:4px solid #e0301e; padding-left:16px; background:#faf7f2; }
 .xc-t-mag .xc-conclusion { background:#141414; color:#fff; border-left:4px solid #e0301e; padding:15px 16px 15px 18px; }
+/* mag hero：刊头之下全出血，红标白题 */
+.xc-t-mag .xc-hero { height:470px; margin:0 -52px 32px; }
+.xc-t-mag .xc-hero-scrim { background:linear-gradient(180deg,rgba(12,12,14,.18) 0%,rgba(12,12,14,.04) 40%,rgba(10,10,12,.8) 100%); }
+.xc-t-mag .xc-hero-title { color:#fff; -webkit-text-fill-color:#fff; text-shadow:0 2px 18px rgba(0,0,0,.6); }
+.xc-t-mag .xc-hero-badge { background:#e0301e; color:#fff; }
+.xc-t-mag .xc-hero-feed { color:rgba(255,255,255,.9); }
+.xc-t-mag .xc-hero-meta { color:rgba(255,255,255,.85); }
 `,
   note: `
 .xc-t-note .xc-stat { background:#fffdf4; border:1.5px dashed #c9a86a; transform:rotate(-.6deg); }
@@ -1466,6 +1470,31 @@ const TEMPLATE_UPGRADES = {
 .xc-t-news .xc-chip::before { content:''; display:inline-block; width:5px; height:5px; background:#8c2f1b; margin-right:7px; vertical-align:1px; }
 .xc-t-news .xc-quote { border-left:4px solid #8c2f1b; padding-left:16px; }
 .xc-t-news .xc-conclusion { background:#f3ecda; border:1px solid #2a251c; border-left:4px solid #8c2f1b; border-radius:0; padding:15px 16px 15px 18px; }
+/* news hero：报纸刊头之下全出血 */
+.xc-t-news .xc-hero { height:440px; margin:0 -52px 28px; border:1px solid #2a251c; }
+.xc-t-news .xc-hero-scrim { background:linear-gradient(180deg,rgba(26,22,16,.2) 0%,rgba(26,22,16,.05) 40%,rgba(18,15,10,.82) 100%); }
+.xc-t-news .xc-hero-title { color:#fff; text-shadow:0 2px 18px rgba(0,0,0,.6); }
+.xc-t-news .xc-hero-badge { background:#8c2f1b; color:#f6f1e4; }
+.xc-t-news .xc-hero-feed { color:rgba(255,255,255,.9); }
+.xc-t-news .xc-hero-meta { color:rgba(255,255,255,.85); }
+`,
+  jade: `
+/* jade hero：青瓷暗夜蒙版 + 白衬线 */
+.xc-t-jade .xc-hero { height:480px; margin:-52px -56px 34px; }
+.xc-t-jade .xc-hero-scrim { background:linear-gradient(180deg,rgba(10,26,22,.28) 0%,rgba(10,26,22,.06) 36%,rgba(7,20,16,.86) 100%); }
+.xc-t-jade .xc-hero-title { color:#fff; text-shadow:0 2px 20px rgba(0,0,0,.6); }
+.xc-t-jade .xc-hero-badge { background:#1f5d50; color:#eef5f0; }
+.xc-t-jade .xc-hero-feed { color:rgba(255,255,255,.9); }
+.xc-t-jade .xc-hero-meta { color:rgba(255,255,255,.85); }
+`,
+  blue: `
+/* blue hero：蓝晒蒙版 + 制图徽标 */
+.xc-t-blue .xc-hero { height:470px; margin:-52px -56px 34px; border:1.5px solid rgba(255,255,255,.5); }
+.xc-t-blue .xc-hero-scrim { background:linear-gradient(180deg,rgba(6,20,34,.3) 0%,rgba(6,20,34,.08) 38%,rgba(4,15,26,.86) 100%); }
+.xc-t-blue .xc-hero-title { color:#fff; text-shadow:0 2px 20px rgba(0,0,0,.6); }
+.xc-t-blue .xc-hero-badge { border:1.5px solid rgba(255,255,255,.6); color:#cfe8ff; font-family:Consolas,"Courier New",monospace; background:rgba(255,255,255,.06); }
+.xc-t-blue .xc-hero-feed { color:rgba(220,235,247,.9); }
+.xc-t-blue .xc-hero-meta { color:rgba(220,235,247,.85); }
 `,
 };
 

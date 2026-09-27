@@ -391,3 +391,31 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .dg-deepread-body { font-size: 12.8px; line-height: 1.75; color: var(--text-primary); }
 .dg-deepread-body p { margin: 0; }
 .digest-body.streaming .dg-topic, .digest-body.streaming .dg-deepread { opacity: 0.92; }
+
+/* ── 今日简报 v3 排版精修：报头仪式感 / 分节层级 / 全屏阅读态 ── */
+.digest-visual { gap: 16px; }
+.dg-hero { padding: 18px 0 10px; border-bottom: 3px double var(--separator); }
+.dg-hero-date { font-size: 30px; letter-spacing: 0.06em; }
+.dg-hero-sub { margin-top: 6px; letter-spacing: 0.2em; }
+.dg-hero-stats { margin-top: 14px; gap: 10px; }
+.dg-stat { padding: 5px 14px; border-radius: 10px; font-size: 11px; }
+.dg-stat b { font-size: 17px; }
+.dg-overview {
+  padding: 18px 22px; border-radius: 0 14px 14px 14px;
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(135deg, var(--row-selected), var(--page-background) 55%);
+  font-size: 14px; line-height: 1.9;
+}
+.dg-topic { padding: 18px 20px 14px; border-radius: 14px; }
+.dg-topic-head { margin-bottom: 12px; padding-bottom: 9px; border-bottom: 1px dashed var(--separator); }
+.dg-topic-no { font-size: 21px; }
+.dg-topic-title { font-size: 15px; letter-spacing: 0.02em; }
+.dg-li { font-size: 13.5px; line-height: 1.85; gap: 8px; }
+.dg-deepread { padding: 18px 22px; border-radius: 14px; }
+.dg-deepread-body { font-size: 13.5px; line-height: 1.85; }
+.dg-deep-sec .dg-topic-title { font-size: 15.5px; }
+.dg-deep-sec .dg-topic-body p { font-size: 14px; line-height: 2; text-align: justify; }
+.digest-modal.is-full .dg-overview p { font-size: 15px; }
+.digest-modal.is-full .dg-topic-title { font-size: 16.5px; }
+.digest-modal.is-full .dg-li { font-size: 14.5px; }
+.digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 15px; max-width: 74ch; }
