@@ -7,6 +7,12 @@ import { t } from '../i18n.js';
 import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, variantFilter, renderCard } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';
+const CARD_HIST_KEY = 'robinread.cardExport.history';
+const CARD_FAV_KEY = 'robinread.cardExport.favs';
+const loadHist = () => { try { return JSON.parse(localStorage.getItem(CARD_HIST_KEY) || '[]'); } catch (_) { return []; } };
+const saveHist = (h) => localStorage.setItem(CARD_HIST_KEY, JSON.stringify(h.slice(0, 8)));
+const loadFavs = () => { try { return JSON.parse(localStorage.getItem(CARD_FAV_KEY) || '[]'); } catch (_) { return []; } };
+const saveFavs = (f) => localStorage.setItem(CARD_FAV_KEY, JSON.stringify(f));
 const RATIOS = [
   { id: 'auto', label: '自适应', ratio: null },
   { id: '3:4', label: '3:4', ratio: 4 / 3 },
@@ -115,6 +121,8 @@ export async function openCardExportModal({ data, link = '' }) {
   };
   const onKey = (e) => {
     if (e.key === 'Escape') dismiss();
+    else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); modal.querySelector('.cardx-save')?.click(); }
+    else if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C') && !String(window.getSelection && window.getSelection() || '')) { e.preventDefault(); modal.querySelector('.cardx-copy')?.click(); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       const idx = CARD_TEMPLATES.findIndex((tpl) => tpl.id === state.tpl);
       const next = CARD_TEMPLATES[(idx + (e.key === 'ArrowRight' ? 1 : CARD_TEMPLATES.length - 1)) % CARD_TEMPLATES.length];
@@ -140,13 +148,13 @@ export async function openCardExportModal({ data, link = '' }) {
           <div class="cardx-side-h">${t('画幅比例')}</div>
           <div class="cardx-seg cardx-ratio"></div>
           <div class="cardx-seg cardx-variant"></div>
-          <div class="cardx-row-label">${escapeHTML(t(封面滤镜))}</div>
+          <div class="cardx-row-label">${escapeHTML(t('封面滤镜'))}</div>
           <div class="cardx-seg cardx-filter"></div>
-          <div class="cardx-row-label">${escapeHTML(t(排版密度))}</div>
+          <div class="cardx-row-label">${escapeHTML(t('排版密度'))}</div>
           <div class="cardx-seg cardx-density"></div>
-          <div class="cardx-row-label">${escapeHTML(t(字体搭配))}</div>
+          <div class="cardx-row-label">${escapeHTML(t('字体搭配'))}</div>
           <div class="cardx-seg cardx-fontpair"></div>
-          <div class="cardx-row-label">${escapeHTML(t(水印样式))}</div>
+          <div class="cardx-row-label">${escapeHTML(t('水印样式'))}</div>
           <div class="cardx-seg cardx-wmstyle"></div>
           <div class="cardx-side-h">${t('清晰度')}</div>
           <div class="cardx-seg cardx-zoom"></div>
@@ -182,6 +190,7 @@ export async function openCardExportModal({ data, link = '' }) {
   };
 
   const cardOptions = () => ({
+    orientation: (() => { const r = RATIOS.find((x) => x.id === state.ratio)?.ratio; return r && r < 1 ? 'landscape' : 'portrait'; })(),
     templateId: state.tpl,
     variant: state.variant,
     cover: state.cover,
@@ -202,6 +211,23 @@ export async function openCardExportModal({ data, link = '' }) {
       <div class="cardx-scale">${card.html}</div>`;
     // 画幅适配：卡片高于目标比例时整体等比缩小完整放入（与导出逻辑一致，不裁切）
     const cardEl = shadow.querySelector('.xc-card');
+    // 卡上双击编辑（C6）：双击标题/导语改字，失焦写回数据并重渲染
+    cardEl.addEventListener('dblclick', (e) => {
+      const el = e.target.closest('.xc-title, .xc-lead');
+      if (!el || el.isContentEditable) return;
+      el.contentEditable = 'true';
+      el.focus();
+      const done = () => {
+        el.contentEditable = 'false';
+        const txt = el.textContent.trim();
+        if (el.classList.contains('xc-title')) data.title = txt;
+        else if (el.classList.contains('xc-lead')) data.lead = txt;
+        renderPreview();
+      };
+      el.addEventListener('blur', done, { once: true });
+      el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); } });
+    });
+    capEl.classList.add('cardx-editable-hint');
     const rectH = cardEl.getBoundingClientRect().height;
     const naturalH = rectH / p;
     const ratio = RATIOS.find((r) => r.id === state.ratio)?.ratio || null;
@@ -224,8 +250,11 @@ export async function openCardExportModal({ data, link = '' }) {
 
   function renderSidebar() {
     const tplBox = modal.querySelector('.cardx-tpls');
+    const sideEl = tplBox.parentElement;
     tplBox.innerHTML = '';
-    for (const tpl of CARD_TEMPLATES) {
+    const favs0 = loadFavs();
+    const orderedTpls = [...CARD_TEMPLATES].sort((x, y) => (favs0.includes(y.id) ? 1 : 0) - (favs0.includes(x.id) ? 1 : 0));
+    for (const tpl of orderedTpls) {
       const item = document.createElement('div');
       item.className = `cardx-tpl${tpl.id === state.tpl ? ' active' : ''}`;
       const [fg, bg] = TEMPLATE_SWATCH[tpl.id] || ['#888', '#fff'];
@@ -270,6 +299,42 @@ export async function openCardExportModal({ data, link = '' }) {
         box.appendChild(b);
       }
     }
+
+    // ── 模板收藏（星标置顶）──
+    const favs = loadFavs();
+    const favBtn = document.createElement('button');
+    favBtn.className = 'cardx-fav' + (favs.includes(state.tpl) ? ' on' : '');
+    favBtn.textContent = favs.includes(state.tpl) ? '★ 已收藏' : '☆ 收藏此模板';
+    favBtn.addEventListener('click', () => {
+      const f = loadFavs();
+      const i = f.indexOf(state.tpl);
+      if (i >= 0) f.splice(i, 1); else f.push(state.tpl);
+      saveFavs(f);
+      renderSidebar();
+    });
+    tplBox.appendChild(favBtn);
+
+    // ── 历史配置（最近 5 条点击重现）──
+    const hist = loadHist();
+    if (hist.length) {
+      const hWrap = document.createElement('div');
+      hWrap.className = 'cardx-optgroup';
+      hWrap.innerHTML = '<div class="cardx-side-h">' + escapeHTML(t('历史配置')) + '</div>';
+      for (const it of hist.slice(0, 5)) {
+        const row = document.createElement('button');
+        row.className = 'cardx-hist';
+        row.innerHTML = '<span class="cardx-hist-tpl"></span><span class="cardx-hist-time"></span>';
+        row.querySelector('.cardx-hist-tpl').textContent = (CARD_TEMPLATES.find((x) => x.id === it.tpl) || {}).name || it.tpl;
+        row.querySelector('.cardx-hist-time').textContent = new Date(it.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        row.title = it.title || '';
+        row.addEventListener('click', () => {
+          Object.assign(state, { tpl: it.tpl, variant: it.variant, ratio: it.ratio, coverFilter: it.coverFilter, density: it.density, fontPair: it.fontPair });
+          persist(); renderSidebar(); renderPreview();
+        });
+        hWrap.appendChild(row);
+      }
+      sideEl.appendChild(hWrap);
+    }
     const zoomBox = modal.querySelector('.cardx-zoom');
     zoomBox.innerHTML = '';
     for (const z of [{ id: 2, label: '2x' }, { id: 3, label: '3x' }]) {
@@ -307,6 +372,11 @@ export async function openCardExportModal({ data, link = '' }) {
     return res.data;
   };
 
+  const pushHistory = () => {
+    const h = loadHist();
+    h.unshift({ ts: Date.now(), tpl: state.tpl, variant: state.variant, ratio: state.ratio, coverFilter: state.coverFilter, density: state.density, fontPair: state.fontPair, title: String(data && data.title || '').slice(0, 40) });
+    saveHist(h);
+  };
   const exportPng = async () => {
     const png = unwrap(await window.robin.renderCardPng({
       templateId: state.tpl, data, options: cardOptions(), zoom: state.zoom,
@@ -325,6 +395,7 @@ export async function openCardExportModal({ data, link = '' }) {
       setBusy(true);
       setStatus(t('正在渲染高清卡片…'));
       const png = await exportPng();
+      pushHistory();
       unwrap(await window.robin.writeBinaryFile(filePath, png.base64), '保存失败');
       setStatus(`${t('已保存')} ✓  ${png.width}×${png.height}px${png.truncated ? ` · ${t('注意：内容超长，尾部已截断')}` : ''}`);
     } catch (e) {
@@ -340,6 +411,7 @@ export async function openCardExportModal({ data, link = '' }) {
       setBusy(true);
       setStatus(t('正在渲染高清卡片…'));
       const png = await exportPng();
+      pushHistory();
       unwrap(await window.robin.copyImage(png.base64), '复制失败');
       setStatus(`${t('已复制到剪贴板，可直接粘贴分享')} ✓`);
     } catch (e) {

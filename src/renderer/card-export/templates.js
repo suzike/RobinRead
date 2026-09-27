@@ -1595,10 +1595,18 @@ export function renderCard(data, options = {}) {
   const tpl = TEMPLATE_MAP[options.templateId] || PAPER;
   const o = { cover: true, stats: true, watermark: true, qr: null, ...options };
   return {
-    html: `<div class="xc-card xc-t-${tpl.id}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
+    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
     css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
       + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
-      + fontPairCss(options.fontPair),
+      + fontPairCss(options.fontPair)
+      + (options.orientation === 'landscape' ? `
+.xc-card.landscape .xc-inner { columns: 2; column-gap: 40px; column-fill: auto; }
+.xc-card.landscape .xc-hero, .xc-card.landscape .xc-badgerow, .xc-card.landscape .xc-title,
+.xc-card.landscape .xc-meta, .xc-card.landscape .xc-cover, .xc-card.landscape .xc-foot,
+.xc-card.landscape .xc-overview { column-span: all; }
+.xc-card.landscape .xc-sec { break-inside: avoid; }
+.xc-card.landscape .xc-title { font-size: 26px; margin-top: 10px; }
+` : ''),
     width: CARD_WIDTH,
     bg: tpl.bg,
   };
