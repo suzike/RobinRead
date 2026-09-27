@@ -478,3 +478,8 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .modal.digest-modal.is-full .dg-topic-title { font-size: 16.5px; }
 .modal.digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 15px; line-height: 2; }
 .modal.digest-modal.is-full .dg-deepread-body { font-size: 14.5px; }
+
+/* ── R20 商店侧栏指示条（与主界面语言统一）── */
+.fs-rail-item { transition: background var(--dur-fast) var(--ease-out); }
+.fs-rail-item.active { box-shadow: inset 3px 0 0 var(--accent); }
+.fs-card { transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
