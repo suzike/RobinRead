@@ -1367,7 +1367,7 @@ const JADE = {
   border-radius:6px; padding:18px 21px; font-size:15px; line-height:1.95; }
 .xc-t-jade .xc-sec-conclusion .xc-sec-h { color:#eef5f0; }
 .xc-t-jade .xc-sec-conclusion .xc-sec-ic { color:#9cc8ba; }
-.xc-t-jade .xc-sec-conclusion { background:#1f5d50; margin:34px -21px 0; padding:18px 21px 20px; border-radius:6px; }
+.xc-t-jade .xc-sec-conclusion { background:#1f5d50; margin:34px 0 0; padding:18px 20px 20px; border-radius:6px; }
 .xc-t-jade .xc-sec-conclusion .xc-conclusion { margin-top:10px; background:transparent; color:#dcebe3; padding:0; }
 .xc-t-jade .xc-sec-conclusion .xc-sec-h::after { background:linear-gradient(90deg,rgba(238,245,240,.4),transparent); }
 .xc-t-jade .xc-prose-p { margin-top:14px; font-size:15px; line-height:1.95; color:#3a4c42; }
