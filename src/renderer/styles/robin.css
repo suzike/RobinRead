@@ -4011,7 +4011,7 @@ textarea:focus-visible,
 
 /* ── R13：每日目标进度环 / 滚动条 / 选区 / 空状态精修 ── */
 .kb-goal-ring { display: flex; align-items: center; gap: 16px; padding: 16px 18px; margin-bottom: 14px;
-  border-radius: 14px; background: var(--page-background); border: 1px solid var(--separator); }
+  border-radius: var(--radius-xl); background: var(--page-background); border: 1px solid var(--separator); }
 .kb-goal-figure { position: relative; width: 88px; height: 88px; flex: none; }
 .kb-goal-svg { width: 88px; height: 88px; display: block; transform: rotate(-90deg); }
 .kb-goal-track { fill: none; stroke: var(--separator); stroke-width: 7; }
