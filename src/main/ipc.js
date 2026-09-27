@@ -499,6 +499,8 @@ function registerIPCHandlers(store, window) {
   // MARK: 每源翻译模式 + 单篇自动翻译记忆
   handle('translate:setFeedMode', (feedID, mode) => store.setTranslateFeedMode(feedID, mode));
   handle('translate:skipArticle', (entryID) => store.skipArticleTranslate(entryID));
+  handle('titles:translateBulk', (items) => store.translateTitlesBulk(items));
+  handle('prefs:setTitleZh', (on) => { store.preferences.set('RobinRead.list.titleZh', on === true); return on === true; });
 
   // MARK: 图片字节抓取（深色纸面插图反相的像素分析）
   handle('net:fetchImage', (url) => store.fetchImageBytes(url));

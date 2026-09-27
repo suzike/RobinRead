@@ -229,6 +229,8 @@ contextBridge.exposeInMainWorld('robin', {
   aihotSetKeywords: (kw) => invoke('aihot:setKeywords', kw),
   aihotDeepRead: (payload) => invoke('aihot:deepRead', payload),
   copyText: (text) => invoke('app:copyText', text),
+  translateTitlesBulk: (items) => data('titles:translateBulk', items),
+  setTitleZh: (on) => invoke('prefs:setTitleZh', on),
   pickSavePath: (defaultName) => invoke('app:pickSavePath', { defaultName }),
   writeTextFile: (filePath, content) => invoke('app:writeTextFile', { filePath, content }),
 

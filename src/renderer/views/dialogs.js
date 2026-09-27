@@ -135,6 +135,17 @@ export class SettingsView {
       )),
     ]));
 
+    container.appendChild(group(t('阅读辅助'), t('列表与杂志模式下的标题自动翻译（实验功能，需已配置 AI）。'), [
+      row(t('标题自动译中文'), null, segmented(
+        [['off', t('关闭')], ['on', t('开启')]],
+        prefs.titleZh === true ? 'on' : 'off',
+        (value) => {
+          window.__robinListTitleZh = value === 'on';
+          window.robin.setTitleZh(value === 'on');
+        },
+      )),
+    ]));
+
     container.appendChild(group(t('阅读目标'), t('每日读完目标篇数后，知识看板的进度环即点亮。'), [
       row(t('每日篇数'), null, segmented(
         [[3, '3'], [5, '5'], [8, '8'], [12, '12'], [20, '20']],

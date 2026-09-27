@@ -4180,3 +4180,6 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .list-scroll.nj-mag-book .nj-mag-card { background: rgba(255, 251, 240, 0.92); }
 .list-scroll.nj-mag-paper .nj-mag-card { background: rgba(255, 253, 246, 0.92); }
 .nj-img-retrying { opacity: 0.45; filter: blur(1px); }
+
+/* ── D15 列表标题译文副行 ── */
+.nj-title-zh { font-size: 12px; color: var(--accent); margin-top: 3px; letter-spacing: 0.02em; }

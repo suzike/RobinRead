@@ -286,6 +286,22 @@ export class ListView {
     grid.className = 'nj-mag-grid';
     grid.tabIndex = 0;
     for (const item of items) grid.appendChild(this.magCard(item));
+    // D15 标题译中：英文标题异步批量翻译，注入译文副行（仅杂志模式 + 开关开启）
+    if (window.__robinListTitleZh && items.some((it) => /[A-Za-z]/.test(it.title || '') && !/[\u4e00-\u9fff]/.test(it.title || ''))) {
+      window.robin.translateTitlesBulk(
+        items.filter((it) => /[A-Za-z]/.test(it.title || '') && !/[\u4e00-\u9fff]/.test(it.title || '')).map((it) => ({ id: it.id, title: it.title }))
+      ).then((res) => {
+        const map = (res && res.translations) || {};
+        grid.querySelectorAll('.mag-title').forEach((el) => {
+          const zh = map[el.textContent.trim()];
+          if (!zh) return;
+          const sub = document.createElement('div');
+          sub.className = 'nj-title-zh';
+          sub.textContent = zh;
+          el.parentElement.insertBefore(sub, el.nextSibling);
+        });
+      }).catch(() => {});
+    }
     // 方向键就近移动：只在一侧没有卡片时才翻滚加载（与杂志遥控式导航一致）
     grid.addEventListener('keydown', (event) => {
       const dirs = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];

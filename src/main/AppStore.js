@@ -399,6 +399,7 @@ class AppStore extends EventEmitter {
       feedTypography: this.feedTypographyMap(),
       refreshInterval: this.preferences.get(PreferenceKey.refreshInterval, 'thirtyMinutes'),
       refreshOnLaunch: this.preferences.get(PreferenceKey.refreshOnLaunch, true),
+      titleZh: this.preferences.get('RobinRead.list.titleZh', false),
       dailyGoal: this.preferences.get('RobinRead.stats.dailyGoal', 5),
       appLanguage: this.preferences.get(PreferenceKey.appLanguage, 'zh'),
       aiOutputLanguage: this.preferences.get(PreferenceKey.aiOutputLanguage, null),
@@ -1499,6 +1500,49 @@ class AppStore extends EventEmitter {
    * 同题对比速读（调研报告 2026-09-26 方向 14 v1）：对标题聚类出的多源同题报道做 AI 融合对比。
    * 非流式（聚类行点按后弹窗等待）；不缓存——每次点按基于当下列表现算，材料本就是摘要预览。
    */
+  /** 列表标题批量译中（D15）：启发式语言识别 + LLM 批量翻译 + 偏好缓存。 */
+  _titleIsChinese(text) {
+    const txt = String(text || '');
+    if (!txt) return true;
+    const cjk = (txt.match(/[\u4e00-\u9fff]/g) || []).length;
+    return cjk / txt.length > 0.3;
+  }
+
+  async translateTitlesBulk(items) {
+    const list = (Array.isArray(items) ? items : []).filter((it) => it && it.id && it.title);
+    const cache = this.preferences.get('RobinRead.titleTranslations', {});
+    const result = {};
+    const pending = [];
+    for (const it of list) {
+      if (this._titleIsChinese(it.title)) { result[it.id] = null; continue; } // 中文标题无需翻译
+      const hit = cache[it.title];
+      if (hit) { result[it.id] = hit; continue; }
+      pending.push(it);
+    }
+    if (pending.length === 0) return { translations: result };
+    const { config, apiKey } = this._requireAIReady();
+    const lines2 = pending.map((it, index) => (index + 1) + '. ' + it.title).join('\n');
+    const prompt = '将以下英文标题翻译成简体中文（保留专有名词与技术缩写，每行一条，格式「编号. 译文」）：\n' + lines2;
+    const content = await this.llm.complete({
+      prompt,
+      system: '你是专业的科技新闻标题翻译器。只输出译文行，不解释。',
+      configuration: config,
+      apiKey,
+      forceDisableReasoning: true,
+      overrideTemperature: 0.1,
+    });
+    const outLines = String(content || '').split('\n').filter((l) => l.trim());
+    for (let index = 0; index < pending.length; index += 1) {
+      const translated = (outLines[index] || '').replace(/^\s*\d+[.、]\s*/, '').trim();
+      if (translated) {
+        result[pending[index].id] = translated;
+        cache[pending[index].title] = translated;
+      }
+    }
+    this.preferences.set('RobinRead.titleTranslations', cache);
+    return { translations: result };
+  }
+
   async generateClusterBrief(items) {
     const list = (Array.isArray(items) ? items : []).filter((it) => it && it.title);
     if (list.length < 2) throw new Error(i18n.localized('同题报道至少需要两篇才能对比。'));

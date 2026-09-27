@@ -84,6 +84,7 @@ async function bootstrap() {
   syncLLMGlobals(snapshot);
   syncCustomTheme(snapshot);
   window.__robinFeedTypography = snapshot?.preferences?.feedTypography || {};
+  window.__robinListTitleZh = snapshot?.preferences?.titleZh === true;
   applyReaderLayout(snapshot.preferences?.readerLayout);
   restoreSidebarCollapsed();
 
@@ -1937,6 +1938,7 @@ function bindEvents() {
     }
     if (customThemeTokens) syncCustomTheme(snapshot);
     window.__robinFeedTypography = snapshot?.preferences?.feedTypography || {};
+  window.__robinListTitleZh = snapshot?.preferences?.titleZh === true;
   applyReaderLayout(snapshot.preferences?.readerLayout);
     if (languageChanged) {
       configure({ lang: snapshot.language });
