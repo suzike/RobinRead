@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.12.3 — 正文组件精修](https://github.com/suzike/RobinRead/releases/tag/v2.12.3)**（2026-09-27）：AI 摘要卡强调色侧线渐变纸面、高亮柔角悬停投影、双语卡圆角纸底、悬浮胶囊玻璃拟态
 - **[v2.12.2 — 导出弹窗修复](https://github.com/suzike/RobinRead/releases/tag/v2.12.2)**（2026-09-27）：修复导出弹窗运行时崩溃（E2E 探针揪出的引用错误）
 - **[v2.12.1 — 批量导出](https://github.com/suzike/RobinRead/releases/tag/v2.12.1)**（2026-09-27）：打包全部模板一键 ZIP；修复保存 HTML 死按钮
 - **[v2.12.0 — 卡片 2.0 十轮收官](https://github.com/suzike/RobinRead/releases/tag/v2.12.0)**（2026-09-27）：JPEG 高质量导出、保存 HTML、内容长度三档、封面取色色带、画幅种子渐变衬底（C4/C7/C8 收官，累计 10 轮 22+ 功能）
