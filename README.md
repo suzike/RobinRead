@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.9.6 — hero 全覆盖与简报精修](https://github.com/suzike/RobinRead/releases/tag/v2.9.6)**（2026-09-27）：hero 封面扩展至 8 款模板（mag/news 纯图带防重题）；今日简报排版精修（报头双线/分节层级/全屏阅读态）
 - **[v2.9.5 — 精读修复](https://github.com/suzike/RobinRead/releases/tag/v2.9.5)**（2026-09-27）：修复 v2.9.4 一键精读必然失败（deepReadSystem 定义错位）
 - **[v2.9.4 — 卡片 hero 封面与精读人格](https://github.com/suzike/RobinRead/releases/tag/v2.9.4)**（2026-09-27）：精读卡片杂志级 hero 封面（全出血大图+蒙版压题，霞光/晨雾/知更书页三款重构）；AI 精读人格 6 种可选（含自定义提示词，人格参与缓存自动重写）；今日简报 v3（精读版逐篇解读 + 弹窗全屏 + 双版切换）
 - **[v2.9.3 — 神经语音播放修复](https://github.com/suzike/RobinRead/releases/tag/v2.9.3)**（2026-09-27）：修复 CSP 拦截音频 data URI 导致试听与朗读必然失败（合成一直正常，问题在播放）；修复版式预设行高旋钮不生效
