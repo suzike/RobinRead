@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.9.4",
-  "name": "知更 RobinRead 2.9.4",
+  "tag_name": "v2.9.5",
+  "name": "知更 RobinRead 2.9.5",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.9.4 —— 精读卡片杂志级 hero 封面（图占全出血上半幅+蒙版压题，三款旗舰重构）；AI 精读人格预设（学者/讲述者/评论员/外行版/教练/自定义）；今日简报 v3（精读版逐篇深度解读+弹窗全屏+双版切换）。"
+  "body": "知更 RobinRead v2.9.5 —— 修复一键精读「生成失败：deepReadSystem is not defined」（v2.9.4 人格预设接线错位）。"
 }
