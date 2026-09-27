@@ -73,8 +73,8 @@ function sanitizeFileName(s) {
 }
 
 function loadPrefs() {
-  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', lengthMode: 'standard', format: 'png', ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
-  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', lengthMode: 'standard', format: 'png' }; }
+  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', lengthMode: 'standard', format: 'png', verticalTitle: false, ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
+  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', lengthMode: 'standard', format: 'png', verticalTitle: false }; }
 }
 
 let qrCache = { link: null, svg: null };
@@ -159,6 +159,7 @@ export async function openCardExportModal({ data, link = '' }) {
           <div class="cardx-seg cardx-wmstyle"></div>
           <div class="cardx-row-label">${escapeHTML(t('内容长度'))}</div>
           <div class="cardx-seg cardx-lenmode"></div>
+          <label class="cardx-check"><input type="checkbox" data-opt="vtitle-check" ${state.verticalTitle ? 'checked' : ''}/>${escapeHTML(t('竖排标题（无封面时生效）'))}</label>
           <div class="cardx-side-h">${t('清晰度')}</div>
           <div class="cardx-seg cardx-zoom"></div>
         </div>
@@ -206,6 +207,7 @@ export async function openCardExportModal({ data, link = '' }) {
     fontPair: state.fontPair,
     watermarkStyle: state.watermarkStyle,
     lengthMode: state.lengthMode,
+    verticalTitle: state.verticalTitle,
     accentColor: state.accentColor || null,
     qr: state.qr ? qrSvg : null,
   });
@@ -332,6 +334,8 @@ export async function openCardExportModal({ data, link = '' }) {
         box.appendChild(b);
       }
     }
+    const vt = modal.querySelector('[data-opt="vtitle-check"]');
+    if (vt) vt.addEventListener('change', () => { state.verticalTitle = vt.checked; persist(); renderPreview(); });
 
     // ── 模板收藏（星标置顶）──
     const favs = loadFavs();

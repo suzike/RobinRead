@@ -1613,9 +1613,10 @@ export function applyLengthMode(data, mode = 'standard') {
 export function renderCard(data, options = {}) {
   const tpl = TEMPLATE_MAP[options.templateId] || PAPER;
   const o = { cover: true, stats: true, watermark: true, qr: null, ...options };
+  const d0Cover = !!data.cover;
   if (options.lengthMode && options.lengthMode !== 'long') data = applyLengthMode(data, options.lengthMode);
   return {
-    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
+    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}${options.verticalTitle && !d0Cover ? ' xc-vtitle' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
     css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
       + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
       + fontPairCss(options.fontPair)
@@ -1740,6 +1741,20 @@ const D3_TYPE = `
 .xc-card .xc-counter, .xc-card .xc-conclusion { text-align: justify; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D3_TYPE;
+
+
+/* ══ D11 竖排标题选项（东方排版）══ */
+const D11_VTITLE = `
+.xc-card.xc-vtitle { padding-right: 64px; }
+.xc-card.xc-vtitle .xc-title {
+  writing-mode: vertical-rl; text-orientation: upright;
+  position: absolute; right: 12px; top: 52px;
+  max-height: 430px; margin: 0; letter-spacing: 10px; line-height: 1;
+  font-size: 1.55em;
+}
+.xc-card.xc-vtitle .xc-badgerow, .xc-card.xc-vtitle .xc-meta { margin-right: 56px; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_VTITLE;
 
 /* ══ D4 数据可视化卡 ══ */
 
@@ -1870,3 +1885,23 @@ const D10_BRAND = `
 .xc-t-min .xc-brand svg, .xc-t-note .xc-brand svg { color: currentColor; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D10_BRAND;
+
+/* ══ D11 v2 题签条方案（替代 absolute 悬挂）══ */
+const D11_V2 = `
+.xc-card.xc-vtitle { padding-right: 0; }
+.xc-card.xc-vtitle .xc-inner { margin-right: 60px; }
+.xc-card.xc-vtitle .xc-cover, .xc-card.xc-vtitle .xc-cover-gen { margin-right: 60px !important; }
+.xc-card.xc-vtitle .xc-title {
+  writing-mode: vertical-rl; text-orientation: upright; white-space: nowrap;
+  position: absolute; right: 8px; top: 40px;
+  width: 40px; height: 420px; max-height: none;
+  margin: 0; padding: 6px 0; box-sizing: border-box;
+  font-size: 19px; letter-spacing: 5px; line-height: 28px;
+  overflow: hidden;
+}
+.xc-card.xc-vtitle .xc-title::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+  background: linear-gradient(180deg, transparent, var(--page-background, #fff));
+}
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_V2;
