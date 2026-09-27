@@ -419,3 +419,13 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .digest-modal.is-full .dg-topic-title { font-size: 16.5px; }
 .digest-modal.is-full .dg-li { font-size: 14.5px; }
 .digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 15px; max-width: 74ch; }
+
+/* ── R11 数据可视化：年度热力 / 来源榜 / 时段分布 ── */
+.kb-heat-cell.today { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.kb-heat-summary { margin-top: 10px; font-size: 12px; color: var(--text-tertiary); }
+.kb-heat-summary b { color: var(--accent); font-size: 14px; }
+.kb-feed-fill { background: var(--warm-accent) !important; }
+.kb-hour-bars { display: flex; align-items: flex-end; gap: 4px; padding: 6px 2px 0; }
+.kb-hour-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.kb-hour-col i { display: block; width: 100%; max-width: 18px; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.8; min-height: 4px; }
+.kb-hour-col span { font-size: 9.5px; color: var(--text-tertiary); height: 12px; line-height: 12px; }

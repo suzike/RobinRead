@@ -89,7 +89,7 @@ export class KnowledgeCenter {
       smartfolders: async () => window.robin.kbSmartFolders(),
       'review-daily': async () => window.robin.kbDailyReview(),
       search: async () => ({ query: '' }),
-      heatmap: async () => window.robin.kbHeatmap(120),
+      heatmap: async () => window.robin.kbHeatmap(365),
       stats: async () => window.robin.kbStats(30),
       tags: async () => window.robin.kbTags(),
       graph: async () => window.robin.kbGraph(240),
@@ -291,6 +291,51 @@ export class KnowledgeCenter {
       }
       el.appendChild(tagWrap);
     }
+    // ── 来源 Top 榜 + 时段分布（近 30 天，异步补充）──
+    window.robin.kbStatsExtras?.().then((extras) => {
+      if (!extras) return;
+      if (extras.topFeeds?.length) {
+        const feedWrap = document.createElement('div');
+        feedWrap.className = 'kb-spark-wrap';
+        feedWrap.innerHTML = `<div class="kb-graph-head"><span class="kb-daily-title">${escapeHTML(t('来源 Top 8 · 近 30 天'))}</span></div>`;
+        const max = extras.topFeeds[0].n || 1;
+        for (const f of extras.topFeeds) {
+          const rowEl = document.createElement('div');
+          rowEl.className = 'kb-tag-bar-row';
+          rowEl.innerHTML = `
+            <span class="kb-tag-bar-label"></span>
+            <span class="kb-tag-bar-track"><span class="kb-tag-bar-fill kb-feed-fill"></span></span>
+            <span class="kb-tag-bar-num">${f.n}</span>`;
+          rowEl.querySelector('.kb-tag-bar-label').textContent = f.name;
+          rowEl.querySelector('.kb-tag-bar-fill').style.width = Math.max(6, Math.round((f.n / max) * 100)) + '%';
+          feedWrap.appendChild(rowEl);
+        }
+        el.appendChild(feedWrap);
+      }
+      const hours = extras.hours || [];
+      if (hours.some((n) => n > 0)) {
+        const hourWrap = document.createElement('div');
+        hourWrap.className = 'kb-spark-wrap';
+        hourWrap.innerHTML = `<div class="kb-graph-head"><span class="kb-daily-title">${escapeHTML(t('时段分布 · 近 30 天'))}</span></div>`;
+        const barRow = document.createElement('div');
+        barRow.className = 'kb-hour-bars';
+        const maxH = Math.max(...hours, 1);
+        for (let h = 0; h < 24; h++) {
+          const col = document.createElement('div');
+          col.className = 'kb-hour-col';
+          col.title = `${String(h).padStart(2, '0')}:00 · ${hours[h]}`;
+          const bar = document.createElement('i');
+          bar.style.height = Math.max(4, Math.round((hours[h] / maxH) * 64)) + 'px';
+          col.appendChild(bar);
+          const lab = document.createElement('span');
+          lab.textContent = h % 6 === 0 ? String(h) : '';
+          col.appendChild(lab);
+          barRow.appendChild(col);
+        }
+        hourWrap.appendChild(barRow);
+        el.appendChild(hourWrap);
+      }
+    }).catch(() => {});
     this.contentHost.appendChild(el);
   }
 
@@ -385,7 +430,7 @@ export class KnowledgeCenter {
     const wrap = document.createElement('div');
     const head = document.createElement('div');
     head.className = 'kb-daily-head';
-    head.innerHTML = `<span class="kb-daily-title">${escapeHTML(t('阅读热力图'))}</span><span class="kb-daily-sub">${escapeHTML(t('近 120 天活跃度'))}</span>`;
+    head.innerHTML = `<span class="kb-daily-title">${escapeHTML(t('阅读热力图'))}</span><span class="kb-daily-sub">${escapeHTML(t('近一年活跃度'))}</span>`;
     wrap.appendChild(head);
     const map = data.map || {};
     const grid = document.createElement('div');
@@ -396,14 +441,14 @@ export class KnowledgeCenter {
     // 按周排列：列=周，行=星期
     const weeks = [];
     let cur = [];
-    const start = new Date(today); start.setDate(start.getDate() - 119);
+    const start = new Date(today); start.setDate(start.getDate() - 364);
     // 对齐到周日
     start.setDate(start.getDate() - start.getDay());
-    for (let i = 0; i < 120; i += 7) {
+    for (let i = 0; i < 365; i += 7) {
       weeks.push([]);
     }
     const cells = [];
-    for (let d = 0; d < 120; d++) {
+    for (let d = 0; d < 365; d++) {
       const dt = new Date(start); dt.setDate(start.getDate() + d);
       const key = dt.toISOString().slice(0, 10);
       const v = map[key];
@@ -416,12 +461,20 @@ export class KnowledgeCenter {
       cell.title = `${c.key} · 活跃度 ${c.intensity}`;
       const level = c.intensity === 0 ? 0 : Math.min(4, Math.ceil((c.intensity / max) * 4));
       cell.dataset.level = String(level);
+      if (c.key === today.toISOString().slice(0, 10)) cell.classList.add('today');
       grid.appendChild(cell);
     }
     wrap.appendChild(grid);
+    // 年度统计行：有阅读天数 / 总强度 / 连续（由 map 推导）
+    const activeDays = cells.filter((c) => c.intensity > 0).length;
+    const totalIntensity = cells.reduce((sum, c) => sum + c.intensity, 0);
+    const summary = document.createElement('div');
+    summary.className = 'kb-heat-summary';
+    summary.innerHTML = `<span>${escapeHTML(t('近一年'))} <b>${activeDays}</b> ${escapeHTML(t('天有阅读'))} · <b>${totalIntensity}</b> ${escapeHTML(t('点活跃度'))}</span>`;
+    wrap.appendChild(summary);
     const legend = document.createElement('div');
     legend.className = 'kb-heat-legend';
-    legend.innerHTML = `<span>少</span>${[0,1,2,3,4].map((i) => `<i data-level="${i}"></i>`).join('')}<span>多</span>`;
+    legend.innerHTML = `<span>${escapeHTML(t('少'))}</span>${[0,1,2,3,4].map((i) => `<i data-level="${i}"></i>`).join('')}<span>${escapeHTML(t('多'))}</span>`;
     wrap.appendChild(legend);
     this.contentHost.appendChild(wrap);
   }

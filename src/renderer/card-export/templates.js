@@ -1452,6 +1452,8 @@ const TEMPLATE_UPGRADES = {
 .xc-t-note .xc-chip:nth-child(even) { transform:rotate(1deg); }
 .xc-t-note .xc-quote { background:#fffdf4; border:1.5px dashed #c9a86a; border-radius:8px; padding:14px 16px 14px 44px; transform:rotate(-.3deg); }
 .xc-t-note .xc-conclusion { background:#fff4d6; border:1.5px dashed #c9a86a; }
+/* 封面质感：拍立得白框+微旋 */
+.xc-t-note .xc-cover { border:8px solid #fff; box-shadow:0 8px 18px rgba(90,70,40,.25); transform:rotate(-1.4deg); }
 `,
   min: `
 .xc-t-min .xc-stat { background:transparent; border:none; border-top:2.5px solid #16181d; border-radius:0; padding:14px 6px 12px; text-align:left; }
@@ -1461,6 +1463,9 @@ const TEMPLATE_UPGRADES = {
 .xc-t-min .xc-quote { border-left:3px solid #16181d; background:transparent; padding:4px 0 4px 18px; }
 .xc-t-min .xc-conclusion { background:#f4f5f7; border-left:3px solid #16181d; padding:15px 16px 15px 18px; }
 .xc-t-min .xc-counter { background:#f4f5f7; border-left:3px solid #9a5b00; }
+/* 封面质感：细线框+降饱和 */
+.xc-t-min .xc-cover { border:1px solid #d5d8de; }
+.xc-t-min .xc-cover img { filter: saturate(.82); }
 `,
   news: `
 .xc-t-news .xc-cols .xc-sec { break-inside: avoid; }

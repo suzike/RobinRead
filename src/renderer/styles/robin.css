@@ -2248,7 +2248,7 @@ body.zen .list-top-inset { display: none; }
 .kb-search-results { display: flex; flex-direction: column; }
 
 .kb-heatmap {
-  display: grid; grid-template-columns: repeat(20, 1fr);
+  display: grid; grid-template-columns: repeat(53, 1fr);
   grid-auto-rows: 14px; gap: 3px;
 }
 .kb-heat-cell {

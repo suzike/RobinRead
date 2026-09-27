@@ -500,6 +500,24 @@ class KnowledgeEngine {
     return { days, map: Object.fromEntries(map) };
   }
 
+  /** 阅读统计补充维度：近 30 天来源 Top 榜 + 时段分布（供看板可视化）。 */
+  statsExtras() {
+    const monthAgo = Math.floor(Date.now() / 1000) - 30 * 86400;
+    const topFeeds = this.store.database.prepare(`
+      SELECT f.title AS name, COUNT(*) AS n
+      FROM reading_behavior b JOIN feeds f ON f.id = b.feed_id
+      WHERE b.action = 'read' AND b.created_at >= ? AND b.feed_id IS NOT NULL
+      GROUP BY b.feed_id ORDER BY n DESC LIMIT 8
+    `).all(monthAgo);
+    const hours = this.store.database.prepare(`
+      SELECT CAST(strftime('%H', created_at, 'unixepoch', 'localtime') AS INTEGER) AS h, COUNT(*) AS n
+      FROM reading_behavior WHERE action = 'read' AND created_at >= ?
+      GROUP BY h
+    `).all(monthAgo);
+    const hourCounts = Array.from({ length: 24 }, (_, h) => hours.find((r) => r.h === h)?.n || 0);
+    return { topFeeds, hours: hourCounts };
+  }
+
   // MARK: - 知识看板
 
   /** 一屏总览：各类知识资产计数 + 近期活跃。 */
