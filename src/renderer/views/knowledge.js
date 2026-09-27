@@ -204,6 +204,7 @@ export class KnowledgeCenter {
     // ── 每日目标进度环（R13）：今日已读 / 目标篇数，达成后环体点亮 ──
     {
       const goal = Number(d.goal) || 5;
+      const streak = Number(d.streak) || 0;
       const tk = new Date();
       const todayKey = new Date(tk.getTime() - tk.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
       const todayRead = Number(d.heat?.[todayKey]?.read) || 0;
@@ -229,6 +230,7 @@ export class KnowledgeCenter {
         <div class="kb-goal-text">
           <div class="kb-goal-title">${escapeHTML(t('今日阅读目标'))}</div>
           <div class="kb-goal-sub">${done ? `${icon('check', 13)} ${escapeHTML(t('已达成，读得漂亮'))}` : escapeHTML(t('再读') + ' ' + (goal - todayRead) + ' ' + t('篇即达成'))}</div>
+          ${streak >= 2 ? `<div class="kb-goal-streak">${icon('flame', 12)} ${escapeHTML(tf('%lld 天连击', streak))}</div>` : ''}
         </div>`;
       el.insertBefore(ringWrap, el.firstChild);
     }

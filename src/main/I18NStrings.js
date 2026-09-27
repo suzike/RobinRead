@@ -279,6 +279,7 @@ const STRINGS = {
   "今日一句话": { zh: "今日一句话", en: "One-line takeaway" },
   "近一年": { zh: "近一年", en: "Past year" },
   "近一年活跃度": { zh: "近一年活跃度", en: "Past year activity" },
+  "%lld 天连击": { zh: "%lld 天连击", en: "%lld-day streak" },
   "今日阅读目标": { zh: "今日阅读目标", en: "Daily reading goal" },
   "已达成，读得漂亮": { zh: "已达成，读得漂亮", en: "Goal reached — nice reading" },
   "篇即达成": { zh: "篇即达成", en: "more to go" },
