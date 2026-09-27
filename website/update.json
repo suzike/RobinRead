@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.12.0",
-  "name": "知更 RobinRead 2.12.0",
+  "tag_name": "v2.12.1",
+  "name": "知更 RobinRead 2.12.1",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.12.0 —— 精读卡片 2.0 十轮迭代收官：10 模板/7 画幅/4 配色变体/4 封面滤镜/3 密度/3 字体搭配/卡上编辑/快捷键/历史重现/模板收藏/JPEG·HTML 导出/取色色带/智能长度/生成式封面。"
+  "body": "知更 RobinRead v2.12.1 —— 批量导出：当前卡片一次渲染全部 10 款模板打包 ZIP；修复保存 HTML 死按钮。"
 }
