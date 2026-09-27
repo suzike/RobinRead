@@ -1617,7 +1617,7 @@ export function renderCard(data, options = {}) {
   const d0Cover = !!data.cover;
   if (options.lengthMode && options.lengthMode !== 'long') data = applyLengthMode(data, options.lengthMode);
   return {
-    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}${options.verticalTitle && !d0Cover && tpl.id !== 'min' ? ' xc-vtitle' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
+    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}${options.verticalTitle && !d0Cover && tpl.id !== 'min' && tpl.id !== 'note' ? ' xc-vtitle' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
     css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
       + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
       + fontPairCss(options.fontPair)
@@ -1910,6 +1910,5 @@ for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_V2;
 /* D11 v4：mag 竖题下移至页眉带之下并去红底（!important 压制散布规则） */
 const D11_MAG = `
 .xc-card.xc-vtitle.xc-t-mag .xc-title { top: 118px !important; background: none !important; -webkit-text-fill-color: currentColor; }
-.xc-card.xc-vtitle.xc-t-note .xc-title { top: 118px; height: 390px; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_MAG;
