@@ -1807,3 +1807,14 @@ const D7_MIX = `
 .xc-t-note .xc-cover { border-radius: 2px; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D7_MIX;
+
+/* ══ D8 留白与密度科学 ══ */
+const D8_SPACE = `
+/* 组内紧凑、组间疏朗：节标与内容 16px、条目组 18px、页脚前 42px、导语后第一节 38px 大呼吸 */
+.xc-card .xc-sec-h { margin-bottom: 16px; }
+.xc-card .xc-points, .xc-card .xc-actions { margin-top: 18px; }
+.xc-card .xc-foot { margin-top: 42px; }
+.xc-card .xc-lead + .xc-sec { margin-top: 38px; }
+.xc-card .xc-stats { margin-top: 18px; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D8_SPACE;
