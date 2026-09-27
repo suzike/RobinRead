@@ -455,7 +455,7 @@ const INK = {
   html(d, o) {
     return `
       <div class="xc-inner">
-        ${heroOrHead(d, o, 'ink', 2)}
+        ${heroOrHead(d, o, 'ink', 3)}
         ${leadBlock(d)}
         ${statsBlock(d, o)}
         ${stepsBlock(d)}
@@ -486,7 +486,7 @@ const MAG = {
   padding:5px 13px; font-size:12px; letter-spacing:4px; font-weight:700; }
 .xc-t-mag .xc-feed { font-size:13px; font-weight:700; letter-spacing:2px; }
 .xc-t-mag .xc-date { font-size:12.5px; color:#666; letter-spacing:1.5px; }
-.xc-t-mag .xc-title { margin-top:30px; font-size:44px; line-height:1.32; font-weight:700;
+.xc-t-mag .xc-title { margin-top:34px; font-size:44px; line-height:1.32; font-weight:700;
   letter-spacing:.5px; color:#111; text-wrap:balance; }
 .xc-t-mag .xc-meta { margin-top:16px; display:flex; align-items:center; gap:10px;
   font-size:12px; color:#888; letter-spacing:1.5px; }
@@ -502,12 +502,12 @@ const MAG = {
   color:rgba(20,20,20,.08); white-space:nowrap; }
 .xc-t-mag .xc-lead { margin-top:28px; font-size:17.5px; line-height:1.9; color:#3d3d3d; font-weight:400;
   padding-left:18px; border-left:4px solid #c73e3a; }
-.xc-t-mag .xc-stats { margin-top:30px; border-top:1px solid #141414; border-bottom:1px solid #e2e2e2;
+.xc-t-mag .xc-stats { margin-top:34px; border-top:1px solid #141414; border-bottom:1px solid #e2e2e2;
   padding:24px 0; display:flex; gap:12px; }
 .xc-t-mag .xc-stat { flex:1; }
 .xc-t-mag .xc-stat-v { font-size:34px; font-weight:700; color:#c73e3a; letter-spacing:0; }
 .xc-t-mag .xc-stat-l { margin-top:6px; font-size:12px; color:#777; letter-spacing:1.5px; }
-.xc-t-mag .xc-cols { margin-top:32px; columns:2; column-gap:40px; column-rule:1px solid #e6e6e6; }
+.xc-t-mag .xc-cols { margin-top:34px; columns:2; column-gap:40px; column-rule:1px solid #e6e6e6; }
 .xc-t-mag .xc-cols .xc-sec { break-inside:auto; margin-top:0; margin-bottom:30px; }
 .xc-t-mag .xc-sec-h { font-size:14px; font-weight:700; letter-spacing:3px; color:#111; gap:8px; }
 .xc-t-mag .xc-sec-h::after { content:''; flex:1; height:2px; background:#141414; margin-left:4px; }
@@ -522,10 +522,10 @@ const MAG = {
 .xc-t-mag .xc-chips { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
 .xc-t-mag .xc-chip { padding:5px 13px; border:1px solid #141414; font-size:12px;
   letter-spacing:1.5px; color:#141414; }
-.xc-t-mag .xc-counter { margin-top:30px; background:#f6f6f6; border-left:4px solid #c73e3a;
+.xc-t-mag .xc-counter { margin-top:34px; background:#f6f6f6; border-left:4px solid #c73e3a;
   padding:16px 19px; font-size:13.5px; line-height:1.9; color:#4d4d4d; }
 .xc-t-mag .xc-sec-counter .xc-sec-h { color:#c73e3a; }
-.xc-t-mag .xc-quote { position:relative; margin-top:30px; padding:10px 0 6px 56px; }
+.xc-t-mag .xc-quote { position:relative; margin-top:34px; padding:10px 0 6px 56px; }
 .xc-t-mag .xc-quote + .xc-quote { margin-top:24px; }
 .xc-t-mag .xc-qmark { position:absolute; left:0; top:-10px; font-size:74px; color:#c73e3a; opacity:.9; }
 .xc-t-mag .xc-quote p { font-size:19px; line-height:1.75; font-weight:700; color:#111; letter-spacing:.3px; }
@@ -535,7 +535,7 @@ const MAG = {
   font-size:13.5px; line-height:1.8; color:#333; }
 .xc-t-mag .xc-action-box { flex:none; margin-top:4px; width:16px; height:16px;
   border:1.5px solid #141414; color:#141414; display:flex; align-items:center; justify-content:center; }
-.xc-t-mag .xc-conclusion { margin-top:30px; border-top:3px solid #141414; padding-top:18px;
+.xc-t-mag .xc-conclusion { margin-top:34px; border-top:3px solid #141414; padding-top:18px;
   font-size:15px; line-height:1.95; color:#222; }
 .xc-t-mag .xc-prose-p { margin-top:14px; font-size:14px; line-height:1.95; color:#333; }
 .xc-t-mag .xc-foot { margin-top:42px; padding-top:18px; border-top:1px solid #141414;
@@ -560,7 +560,7 @@ const MAG = {
       </div>
       <h1 class="xc-title">${esc(d.title)}</h1>
       ${metaStrip(d)}
-      ${heroBlock(d, o, 'mag', true) || coverBlock(d, o, 2)}
+      ${heroBlock(d, o, 'mag', true) || coverBlock(d, o, 3)}
       ${leadBlock(d)}
       ${statsBlock(d, o)}
       ${colBody ? `<div class="xc-cols">${colBody}</div>` : quotesBlock(d)}
@@ -606,7 +606,8 @@ const NOTE = {
 .xc-t-note .xc-dot { color:rgba(74,58,40,.4); }
 .xc-t-note .xc-meta { margin-top:12px; display:flex; align-items:center; gap:9px; font-size:13px; color:#8a6d47; }
 .xc-t-note .xc-meta-sep { color:rgba(74,58,40,.35); }
-.xc-t-note .xc-coverwrap { margin:26px 6px 0 -8px; width:270px; transform:rotate(1.8deg); }
+.xc-t-note .xc-coverwrap { margin:26px auto 0; width:270px; transform:rotate(1.8deg); }
+.xc-t-note .xc-coverwrap::after { content:'奕'; position:absolute; right:-96px; top:36%; width:84px; height:84px; display:flex; align-items:center; justify-content:center; border:3px solid rgba(178,58,44,.5); border-radius:50%; color:rgba(178,58,44,.55); font-size:34px; font-weight:700; font-family:inherit; transform:rotate(-8deg); }
 .xc-t-note .xc-cover { background:#fff; padding:10px 10px 34px;
   box-shadow:0 8px 22px rgba(74,58,40,.22); position:relative; }
 .xc-t-note .xc-cover::after { content:''; position:absolute; inset:10px 10px 34px; pointer-events:none;
@@ -690,7 +691,7 @@ const NOTE = {
         <figure class="xc-cover">
           ${d.cover
             ? `<img src="${d.cover}" alt=""/>`
-            : `<div class="xc-cover-gen"><span class="xc-ghost">${esc(titleChars(d.title, 2))}</span></div>`}
+            : `<div class="xc-cover-gen"><span class="xc-ghost">${esc(titleChars(d.title, 3))}</span></div>`}
           <figcaption class="xc-caption">来自「${esc(d.feedTitle || '知更')}」</figcaption>
         </figure>
       </div>
@@ -792,7 +793,7 @@ const MIN = {
       ${badgeRow(d)}
       <div class="xc-headrow">
         <h1 class="xc-title">${esc(d.title)}</h1>
-        ${coverBlock(d, o, 2)}
+        ${coverBlock(d, o, 3)}
       </div>
       ${metaStrip(d)}
       ${leadBlock(d)}
@@ -913,7 +914,7 @@ const NEWS = {
       </div>
       <h1 class="xc-title">${esc(d.title)}</h1>
       ${metaStrip(d)}
-      ${heroBlock(d, o, 'news', true) || coverBlock(d, o, 2)}
+      ${heroBlock(d, o, 'news', true) || coverBlock(d, o, 3)}
       ${statsBand}
       ${colBody ? `<div class="xc-cols">${colBody}</div>` : quotesBlock(d)}
       ${colBody ? quotesBlock(d) : ''}
@@ -1686,3 +1687,15 @@ export function renderStagePage(data, options = {}, fit = {}) {
     height: Math.round(boxH * zoom),
   };
 }
+
+/* ══ D1 排版网格与垂直节奏 ══
+   统一垂直节奏标尺：节间距 34 / 题图距 26 / 元信息距 16，行高基线 1.9 对齐。
+   覆盖各模板散落的 ad-hoc 间距，形成一致的呼吸节拍。 */
+const D1_RHYTHM = `/* D1 垂直节奏：节距统一、导语与正文行高基线、页脚收束 */
+.xc-card .xc-sec { margin-top: 34px; }
+.xc-card .xc-lead { margin-top: 28px; }
+.xc-card .xc-foot { margin-top: 38px; }
+.xc-card .xc-lead, .xc-card .xc-prose-p, .xc-card .xc-point-d, .xc-card .xc-step-d { line-height: 1.9; }
+.xc-card .xc-title { text-wrap: balance; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D1_RHYTHM;
