@@ -1494,6 +1494,7 @@ const TEMPLATE_UPGRADES = {
 .xc-t-mag .xc-conclusion { background:#141414; color:#fff; border-left:4px solid #e0301e; padding:15px 16px 15px 18px; }
 /* mag hero：刊头之下全出血，红标白题 */
 .xc-t-mag .xc-hero { height:470px; margin:16px -52px 32px; }
+.xc-t-mag.xc-vtitle .xc-title { top: 108px; background: none !important; }
 .xc-t-mag .xc-hero-scrim { background:linear-gradient(180deg,rgba(12,12,14,.18) 0%,rgba(12,12,14,.04) 40%,rgba(10,10,12,.8) 100%); }
 .xc-t-mag .xc-hero-title { color:#fff; -webkit-text-fill-color:#fff; text-shadow:0 2px 18px rgba(0,0,0,.6); }
 .xc-t-mag .xc-hero-badge { background:#e0301e; color:#fff; }
@@ -1616,7 +1617,7 @@ export function renderCard(data, options = {}) {
   const d0Cover = !!data.cover;
   if (options.lengthMode && options.lengthMode !== 'long') data = applyLengthMode(data, options.lengthMode);
   return {
-    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}${options.verticalTitle && !d0Cover ? ' xc-vtitle' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
+    html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}${options.verticalTitle && !d0Cover && tpl.id !== 'min' ? ' xc-vtitle' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
     css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
       + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
       + fontPairCss(options.fontPair)
@@ -1899,9 +1900,9 @@ const D11_V2 = `
   font-size: 19px; letter-spacing: 5px; line-height: 28px;
   overflow: hidden;
 }
-.xc-card.xc-vtitle .xc-title::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
-  background: linear-gradient(180deg, transparent, var(--page-background, #fff));
+.xc-card.xc-vtitle .xc-title {
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent 99%);
+  mask-image: linear-gradient(180deg, #000 78%, transparent 99%);
 }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D11_V2;
