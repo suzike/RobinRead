@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.12.1",
-  "name": "知更 RobinRead 2.12.1",
+  "tag_name": "v2.12.2",
+  "name": "知更 RobinRead 2.12.2",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.12.1 —— 批量导出：当前卡片一次渲染全部 10 款模板打包 ZIP；修复保存 HTML 死按钮。"
+  "body": "知更 RobinRead v2.12.2 —— 修复导出精读卡片弹窗运行时崩溃（v2.11.1 起的引用错误被 E2E 探针揪出）。"
 }
