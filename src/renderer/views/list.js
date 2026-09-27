@@ -124,13 +124,19 @@ export class ListView {
     const renderEntry = (entry) => entry.type === 'cluster' ? this.clusterRow(entry) : this.rowFor(entry.item);
     if (clusters.length > BATCH) {
       let idx = 0;
+      // 渲染期间抑制 onLoadMore（R6 遗留）：分帧 append 不断推高 scrollHeight，
+      // 滚动监听会把"还没渲染完"误判为"已到页尾"而提前翻页
+      this._renderingPages = true;
       const appendNext = () => {
         const end = Math.min(clusters.length, idx + BATCH);
         const frag = document.createDocumentFragment();
         for (; idx < end; idx += 1) frag.appendChild(renderEntry(clusters[idx]));
         this.rowsHost.appendChild(frag);
         if (idx < clusters.length) requestAnimationFrame(appendNext);
-        else { this.markSelected(selectedID); this._observeReveal(); this._mountResumeCard(); }
+        else {
+          this._renderingPages = false;
+          this.markSelected(selectedID); this._observeReveal(); this._mountResumeCard();
+        }
       };
       appendNext();
       return;
@@ -677,6 +683,7 @@ export class ListView {
 
   _onScroll() {
     // 滚动接近底部 → 加载下一页（对应 onAppear loadNextPage）
+    if (this._renderingPages) return; // 渐进渲染未完成：scrollHeight 在增长，不构成"到底"
     const el = this.scrollEl;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 240) {
       this.handlers.onLoadMore?.();

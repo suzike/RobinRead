@@ -3776,10 +3776,7 @@ body.dark .nj-settings-button:hover:not(:disabled) { background: rgba(255,255,25
 }
 .nj-page-turn-fwd { animation: njPageTurnFwd 0.32s cubic-bezier(0.22, 0.8, 0.3, 1); }
 .nj-page-turn-back { animation: njPageTurnBack 0.32s cubic-bezier(0.22, 0.8, 0.3, 1); }
-@media (prefers-reduced-motion: reduce) {
-  .nj-page-turn-fwd, .nj-page-turn-back { animation: none; }
-  .nj-mag-card { transition: none; }
-}
+/* reduced-motion 由全局收敛块统一接管（此处不再局部重复） */
 
 /* 深色纸面 */
 body.dark .nj-mag-card {

@@ -324,15 +324,19 @@ class KnowledgeEngine {
   }
 
   // MARK: - 统计
+  _localDate(ms = Date.now()) {
+    // 本地日期键（与前端热力图/看板口径一致）；UTC 键会把凌晨活动归因到前一天
+    return new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
   _bumpStat(field) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this._localDate();
     this.store.database.prepare(`INSERT INTO reading_stats (date, ${field}) VALUES (?, 1) ON CONFLICT(date) DO UPDATE SET ${field} = ${field} + 1`).run(today);
   }
   bumpRead() { this._bumpStat('articles_read'); }
   bumpStarred() { this._bumpStat('articles_starred'); }
   bumpAISummary() { this._bumpStat('ai_summaries_generated'); }
   getStats(days = 30) {
-    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const since = this._localDate(Date.now() - days * 86400000);
     const daily = this.store.database.prepare('SELECT * FROM reading_stats WHERE date >= ? ORDER BY date').all(since);
     const totals = this.store.database.prepare('SELECT SUM(articles_read) as read, SUM(highlights_made) as highlights, SUM(notes_created) as notes, SUM(ai_summaries_generated) as ai FROM reading_stats WHERE date >= ?').get(since);
     let streak = 0;
@@ -423,7 +427,7 @@ class KnowledgeEngine {
 
   /** 聚合某日（默认今天）的高亮与笔记，生成回顾。 */
   dailyReview(dateStr = null) {
-    const day = dateStr || new Date().toISOString().slice(0, 10);
+    const day = dateStr || this._localDate();
     const start = Date.parse(day + 'T00:00:00Z') / 1000;
     const end = start + 86400;
     const highlights = this.store.database.prepare(`
@@ -485,7 +489,7 @@ class KnowledgeEngine {
 
   /** 最近 N 天每日活跃度（供日历热力图渲染）。 */
   readingHeatmap(days = 90) {
-    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const since = this._localDate(Date.now() - days * 86400000);
     const rows = this.store.database.prepare('SELECT * FROM reading_stats WHERE date >= ? ORDER BY date').all(since);
     const map = new Map();
     for (const r of rows) {
