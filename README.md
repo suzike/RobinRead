@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.9.9 — 阅读目标与视觉精修](https://github.com/suzike/RobinRead/releases/tag/v2.9.9)**（2026-09-27）：每日阅读目标+SVG 渐变进度环（知识看板，达成点亮）；设置可调目标篇数；细滚动条/全局选区/空状态视觉精修
 - **[v2.9.8 — 数据口径统一](https://github.com/suzike/RobinRead/releases/tag/v2.9.8)**（2026-09-27）：统计/热力图/每日回顾日期键统一本地时区；渐进渲染期 loadMore 抑制；冗余样式清理
 - **[v2.9.7 — 数据可视化升级](https://github.com/suzike/RobinRead/releases/tag/v2.9.7)**（2026-09-27）：阅读热力图年度化（365 天/今日描边/年度统计）；看板新增来源 Top 榜与时段分布；精读卡片封面质感升级（极简白/晨读手帖）
 - **[v2.9.6 — hero 全覆盖与简报精修](https://github.com/suzike/RobinRead/releases/tag/v2.9.6)**（2026-09-27）：hero 封面扩展至 8 款模板（mag/news 纯图带防重题）；今日简报排版精修（报头双线/分节层级/全屏阅读态）
