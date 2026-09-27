@@ -4,13 +4,17 @@
    预览与导出走同一 renderCard 代码，保证所见即所得。
    ========================================================================== */
 import { t } from '../i18n.js';
-import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, renderCard } from './templates.js';
+import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, variantFilter, renderCard } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';
 const RATIOS = [
   { id: 'auto', label: '自适应', ratio: null },
   { id: '3:4', label: '3:4', ratio: 4 / 3 },
   { id: '9:16', label: '9:16', ratio: 16 / 9 },
+  { id: '1:1', label: '1:1', ratio: 1 },
+  { id: '4:3', label: '4:3', ratio: 3 / 4 },
+  { id: '16:9', label: '16:9', ratio: 9 / 16 },
+  { id: '2.35:1', label: '2.35:1', ratio: 1 / 2.35 },
 ];
 const TEMPLATE_SWATCH = {
   paper: ['#617357', '#f7f3e8'], ink: ['#c9a86a', '#1d2025'], mag: ['#c73e3a', '#ffffff'],
@@ -62,8 +66,8 @@ function sanitizeFileName(s) {
 }
 
 function loadPrefs() {
-  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
-  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true }; }
+  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
+  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original' }; }
 }
 
 let qrCache = { link: null, svg: null };
@@ -135,6 +139,7 @@ export async function openCardExportModal({ data, link = '' }) {
         <div class="cardx-optgroup">
           <div class="cardx-side-h">${t('画幅比例')}</div>
           <div class="cardx-seg cardx-ratio"></div>
+          <div class="cardx-seg cardx-variant"></div>
           <div class="cardx-side-h">${t('清晰度')}</div>
           <div class="cardx-seg cardx-zoom"></div>
         </div>
@@ -170,6 +175,7 @@ export async function openCardExportModal({ data, link = '' }) {
 
   const cardOptions = () => ({
     templateId: state.tpl,
+    variant: state.variant,
     cover: state.cover,
     stats: state.stats,
     watermark: state.watermark,
@@ -195,7 +201,8 @@ export async function openCardExportModal({ data, link = '' }) {
       scaleEl.style.zoom = String(p * f);
       const fit = document.createElement('div');
       fit.style.cssText = `height:${Math.round(targetH * p)}px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:${card.bg}`;
-      scaleEl.parentNode.insertBefore(fit, scaleEl);
+      scaleEl.style.filter = variantFilter(state.variant);
+        scaleEl.parentNode.insertBefore(fit, scaleEl);
       fit.appendChild(scaleEl);
       capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${targetH * state.zoom}px${f < 1 ? ` · ${t('长内容已等比缩放完整放入')}` : ''}${longHint}`;
     } else {
@@ -223,6 +230,16 @@ export async function openCardExportModal({ data, link = '' }) {
       b.className = r.id === state.ratio ? 'active' : '';
       b.addEventListener('click', () => { state.ratio = r.id; persist(); renderSidebar(); renderPreview(); });
       ratioBox.appendChild(b);
+    }
+
+    const variantBox = modal.querySelector('.cardx-variant');
+    variantBox.innerHTML = '';
+    for (const v of CARD_VARIANTS) {
+      const b = document.createElement('button');
+      b.textContent = v.label;
+      b.className = v.id === state.variant ? 'active' : '';
+      b.addEventListener('click', () => { state.variant = v.id; persist(); renderSidebar(); renderPreview(); });
+      variantBox.appendChild(b);
     }
     const zoomBox = modal.querySelector('.cardx-zoom');
     zoomBox.innerHTML = '';

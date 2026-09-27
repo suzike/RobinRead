@@ -6,6 +6,17 @@
 
 export const CARD_WIDTH = 750;
 
+/** 配色变体（滤镜实现：中性色不受影响，一键换色系）。 */
+export const CARD_VARIANTS = [
+  { id: 'original', label: '原色', filter: 'none' },
+  { id: 'forest', label: '森绿', filter: 'hue-rotate(48deg) saturate(1.05)' },
+  { id: 'violet', label: '暮紫', filter: 'hue-rotate(190deg) saturate(1.02)' },
+  { id: 'ocean', label: '海蓝', filter: 'hue-rotate(120deg)' },
+];
+export function variantFilter(id) {
+  return (CARD_VARIANTS.find((v) => v.id === id) || CARD_VARIANTS[0]).filter;
+}
+
 export const CARD_TEMPLATES = [
   { id: 'paper', name: '知更书页', hint: '纸感衬线 · 品牌默认 · 经典单栏' },
   { id: 'ink', name: '墨岩', hint: '暗色海报 · 居中构图 · 数据卡' },
@@ -1567,12 +1578,14 @@ export function renderCard(data, options = {}) {
 
 /** 生成独立整页 HTML（探针 / 简单预览用）。zoom 由外层 .xc-stage 控制。 */
 export function renderFullPage(data, options = {}, zoom = 1) {
+  const vf = variantFilter(options.variant);
+  const vcss = vf !== 'none' ? `<style>.xc-stage{filter:${vf}}</style>` : '';
   const card = renderCard(data, options);
   return {
     html: `<!doctype html><html><head><meta charset="utf-8"><style>
       html,body{margin:0;padding:0;background:${card.bg}}
       .xc-stage{zoom:${zoom}}
-    </style><style>${card.css}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`,
+    </style><style>${card.css}${vcss}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`,
     bg: card.bg,
     width: Math.round(card.width * zoom),
   };
@@ -1585,6 +1598,8 @@ export function renderFullPage(data, options = {}, zoom = 1) {
  * @returns {{html:string, bg:string, width:number, height:number}}
  */
 export function renderStagePage(data, options = {}, fit = {}) {
+  const vf = variantFilter(options.variant);
+  const vstyle = vf !== 'none' ? `filter:${vf}` : '';
   const zoom = fit.zoom || 2;
   const card = renderCard(data, options);
   if (!fit.ratio || !fit.naturalHeight) {
@@ -1597,7 +1612,7 @@ export function renderStagePage(data, options = {}, fit = {}) {
   return {
     html: `<!doctype html><html><head><meta charset="utf-8"><style>
       html,body{margin:0;padding:0;background:${card.bg}}
-      .xc-export{zoom:${zoom}}
+      .xc-export{zoom:${zoom};${vstyle}}
       .xc-stage{width:${boxW}px;height:${boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${card.bg}}
       .xc-stage > .xc-card{zoom:${f}}
     </style><style>${card.css}</style></head><body><div class="xc-export"><div class="xc-stage">${card.html}</div></div></body></html>`,
