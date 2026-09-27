@@ -1753,3 +1753,24 @@ const D4_STATS = `
 .xc-t-aurora .xc-stat-u { -webkit-text-fill-color: #8d9ac2; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
+
+/* ══ D5 金句与引文艺术 ══ */
+const D5_QUOTES = `
+/* 通用：引号巨型化 + 行高归零 + 引文平衡 */
+.xc-card .xc-qmark { font-size: 62px !important; line-height: 0.8; font-family: Georgia, "Times New Roman", serif; }
+.xc-card .xc-quote p { text-wrap: balance; }
+.xc-card .xc-quote { padding-right: 16px; }
+/* mag：巨型黑引号 + 红色竖线 */
+.xc-t-mag .xc-qmark { font-size: 72px !important; color: #e0301e; -webkit-text-fill-color: #e0301e; }
+/* jade：青瓷大引号 */
+.xc-t-jade .xc-qmark { font-size: 64px !important; color: #1f5d50; -webkit-text-fill-color: #1f5d50; }
+/* blue：等宽引号 + 蓝色 */
+.xc-t-blue .xc-qmark { display: block; font-size: 44px !important; color: #8fd0ff; -webkit-text-fill-color: #8fd0ff; font-family: Consolas, monospace; }
+/* min：超大极细引号 */
+.xc-t-min .xc-qmark { font-size: 68px !important; font-weight: 300; color: #16181d; -webkit-text-fill-color: #16181d; }
+/* news：黑体大引号 */
+.xc-t-news .xc-qmark { font-size: 60px !important; color: #8c2f1b; -webkit-text-fill-color: #8c2f1b; }
+/* note：手写橘引号 */
+.xc-t-note .xc-qmark { font-size: 58px !important; color: #a0522d; -webkit-text-fill-color: #a0522d; }
+`;
+for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D5_QUOTES;
