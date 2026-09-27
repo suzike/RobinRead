@@ -3774,8 +3774,8 @@ body.dark .nj-settings-button:hover:not(:disabled) { background: rgba(255,255,25
   0%   { opacity: 0.25; transform: perspective(1600px) rotateY(14deg) translateX(-3%); transform-origin: right center; }
   100% { opacity: 1;    transform: perspective(1600px) rotateY(0deg) translateX(0); transform-origin: right center; }
 }
-.nj-page-turn-fwd { animation: njPageTurnFwd 0.32s cubic-bezier(0.22, 0.8, 0.3, 1); }
-.nj-page-turn-back { animation: njPageTurnBack 0.32s cubic-bezier(0.22, 0.8, 0.3, 1); }
+.nj-page-turn-fwd { animation: njPageTurnFwd 0.36s cubic-bezier(0.2, 0.85, 0.25, 1); will-change: transform, opacity; }
+.nj-page-turn-back { animation: njPageTurnBack 0.36s cubic-bezier(0.2, 0.85, 0.25, 1); will-change: transform, opacity; }
 /* reduced-motion 由全局收敛块统一接管（此处不再局部重复） */
 
 /* 深色纸面 */
