@@ -1831,10 +1831,16 @@ const D9_PRINT = `
   background: currentColor; opacity: 0.4;
 }
 /* 右上竖排角标：知更·精读（印刷签条） */
-.xc-t-paper .xc-inner::before, .xc-t-news .xc-inner::before, .xc-t-mag .xc-inner::before, .xc-t-jade .xc-inner::before {
-  content: '知更 · 精读'; position: absolute; right: -6px; top: 0;
+.xc-t-paper .xc-inner::before, .xc-t-jade .xc-inner::before {
+  content: '知更 · 精读'; position: absolute; right: 8px; top: 14px;
   writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.4em;
   color: currentColor; opacity: 0.34;
+}
+.xc-t-news .xc-masthead, .xc-t-mag .xc-masthead { position: relative; }
+.xc-t-news .xc-masthead::before, .xc-t-mag .xc-masthead::before {
+  content: '知更 · 精读'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.4em;
+  color: currentColor; opacity: 0.4;
 }
 /* 纸感模板细纹 */
 .xc-t-paper { background-image: repeating-linear-gradient(0deg, rgba(120,100,60,.022) 0 1px, transparent 1px 3px), linear-gradient(180deg,#faf6ec 0%,#f7f3e8 34%,#f2ecdc 100%); }
