@@ -326,6 +326,24 @@ export class ListView {
     const mast = document.createElement('header');
     mast.className = 'nj-edition';
 
+    // 纸张质感三选（借鉴上游 v1.4.5）：paper 纸感 / white 素白 / book 书卷
+    const papers = [['paper', '纸感'], ['white', '素白'], ['book', '书卷']];
+    const paperNow = localStorage.getItem('robinread.magPaper') || 'paper';
+    this.rowsHost.closest('.list-scroll')?.classList.add(`nj-mag-${paperNow}`);
+    const paperBtn = document.createElement('button');
+    paperBtn.className = 'nj-edition-paper';
+    paperBtn.title = t('切换纸张质感');
+    paperBtn.textContent = (papers.find((x) => x[0] === paperNow) || papers[0])[1];
+    paperBtn.addEventListener('click', () => {
+      const idx = papers.findIndex((x) => x[0] === paperNow);
+      const next = papers[(idx + 1) % papers.length][0];
+      localStorage.setItem('robinread.magPaper', next);
+      const host = this.rowsHost.closest('.list-scroll');
+      papers.forEach(([id]) => host && host.classList.remove(`nj-mag-${id}`));
+      host?.classList.add(`nj-mag-${next}`);
+      paperBtn.textContent = (papers.find((x) => x[0] === next) || papers[0])[1];
+    });
+
     const newest = items.reduce((acc, it) => (!acc || (it.publishedAt || 0) > (acc.publishedAt || 0) ? it : acc), null);
     const mastLine = document.createElement('div');
     mastLine.className = 'nj-edition-mast';
@@ -340,7 +358,8 @@ export class ListView {
         .toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
     }
     mastLine.append(brand, dateEl);
-    mast.appendChild(mastLine);
+    mastLine.appendChild(paperBtn);
+  mast.appendChild(mastLine);
 
     const open = (item) => this.handlers.onSelect(item.id, item);
     const pool = items.slice(0, 12);
