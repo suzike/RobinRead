@@ -1742,7 +1742,6 @@ const D3_TYPE = `
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D3_TYPE;
 
 /* ══ D4 数据可视化卡 ══ */
-const D4_STATS = ;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
 
 /* ══ D4 数据可视化卡 ══ */
