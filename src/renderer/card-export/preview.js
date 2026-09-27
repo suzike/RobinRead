@@ -4,7 +4,7 @@
    预览与导出走同一 renderCard 代码，保证所见即所得。
    ========================================================================== */
 import { t } from '../i18n.js';
-import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, variantFilter, renderCard } from './templates.js';
+import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, variantFilter, renderCard } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';
 const RATIOS = [
@@ -66,8 +66,8 @@ function sanitizeFileName(s) {
 }
 
 function loadPrefs() {
-  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
-  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original' }; }
+  try { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand', ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; }
+  catch (_) { return { tpl: 'paper', ratio: 'auto', zoom: 2, cover: true, stats: true, qr: true, watermark: true, variant: 'original', coverFilter: 'original', density: 'standard', fontPair: 'default', watermarkStyle: 'brand' }; }
 }
 
 let qrCache = { link: null, svg: null };
@@ -140,6 +140,14 @@ export async function openCardExportModal({ data, link = '' }) {
           <div class="cardx-side-h">${t('画幅比例')}</div>
           <div class="cardx-seg cardx-ratio"></div>
           <div class="cardx-seg cardx-variant"></div>
+          <div class="cardx-row-label">${escapeHTML(t(封面滤镜))}</div>
+          <div class="cardx-seg cardx-filter"></div>
+          <div class="cardx-row-label">${escapeHTML(t(排版密度))}</div>
+          <div class="cardx-seg cardx-density"></div>
+          <div class="cardx-row-label">${escapeHTML(t(字体搭配))}</div>
+          <div class="cardx-seg cardx-fontpair"></div>
+          <div class="cardx-row-label">${escapeHTML(t(水印样式))}</div>
+          <div class="cardx-seg cardx-wmstyle"></div>
           <div class="cardx-side-h">${t('清晰度')}</div>
           <div class="cardx-seg cardx-zoom"></div>
         </div>
@@ -179,6 +187,10 @@ export async function openCardExportModal({ data, link = '' }) {
     cover: state.cover,
     stats: state.stats,
     watermark: state.watermark,
+    coverFilter: state.coverFilter,
+    density: state.density,
+    fontPair: state.fontPair,
+    watermarkStyle: state.watermarkStyle,
     qr: state.qr ? qrSvg : null,
   });
 
@@ -240,6 +252,23 @@ export async function openCardExportModal({ data, link = '' }) {
       b.className = v.id === state.variant ? 'active' : '';
       b.addEventListener('click', () => { state.variant = v.id; persist(); renderSidebar(); renderPreview(); });
       variantBox.appendChild(b);
+    }
+    const segDef = [
+      ['cardx-filter', COVER_FILTERS, 'coverFilter'],
+      ['cardx-density', DENSITY, 'density'],
+      ['cardx-fontpair', FONT_PAIRS, 'fontPair'],
+      ['cardx-wmstyle', [{ id: 'brand', label: '标准' }, { id: 'minimal', label: '极简' }], 'watermarkStyle'],
+    ];
+    for (const [cls, list, key] of segDef) {
+      const box = modal.querySelector('.' + cls);
+      box.innerHTML = '';
+      for (const it of list) {
+        const b = document.createElement('button');
+        b.textContent = it.label;
+        b.className = it.id === state[key] ? 'active' : '';
+        b.addEventListener('click', () => { state[key] = it.id; persist(); renderSidebar(); renderPreview(); });
+        box.appendChild(b);
+      }
     }
     const zoomBox = modal.querySelector('.cardx-zoom');
     zoomBox.innerHTML = '';

@@ -13,6 +13,31 @@ export const CARD_VARIANTS = [
   { id: 'violet', label: '暮紫', filter: 'hue-rotate(190deg) saturate(1.02)' },
   { id: 'ocean', label: '海蓝', filter: 'hue-rotate(120deg)' },
 ];
+export const COVER_FILTERS = [
+  { id: 'original', label: '原图', filter: 'none' },
+  { id: 'mono', label: '黑白', filter: 'grayscale(1) contrast(1.05)' },
+  { id: 'warm', label: '暖调', filter: 'sepia(0.35) saturate(1.15)' },
+  { id: 'cool', label: '冷调', filter: 'saturate(0.9) hue-rotate(18deg) brightness(1.02)' },
+];
+export function coverFilter(id) {
+  return (COVER_FILTERS.find((v) => v.id === id) || COVER_FILTERS[0]).filter;
+}
+export const DENSITY = [
+  { id: 'compact', label: '紧凑', zoom: 0.94 },
+  { id: 'standard', label: '标准', zoom: 1 },
+  { id: 'loose', label: '舒朗', zoom: 1.06 },
+];
+export const FONT_PAIRS = [
+  { id: 'default', label: '默认衬线', css: '' },
+  { id: 'modern', label: '现代黑体', css: '.xc-card .xc-title,.xc-card .xc-hero-title,.xc-card .xc-sec-h{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:0}' },
+  { id: 'mix', label: '宋黑混排', css: '.xc-card .xc-title,.xc-card .xc-hero-title{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}.xc-card{font-family:Georgia,"Source Han Serif SC","Noto Serif SC",serif}' },
+];
+export function fontPairCss(id) {
+  return (FONT_PAIRS.find((v) => v.id === id) || FONT_PAIRS[0]).css;
+}
+export function densityZoom(id) {
+  return (DENSITY.find((v) => v.id === id) || DENSITY[1]).zoom;
+}
 export function variantFilter(id) {
   return (CARD_VARIANTS.find((v) => v.id === id) || CARD_VARIANTS[0]).filter;
 }
@@ -166,10 +191,11 @@ const conclusionBlock = (d) => (d.conclusion
 
 const footBlock = (d, o) => {
   const qr = o.qr ? `<div class="xc-qr-box"><div class="xc-qr">${o.qr}</div><span class="xc-qr-cap">扫码读原文</span></div>` : '';
+  const wmMinimal = o.watermarkStyle === 'minimal';
   const brandRight = o.watermark === false
     ? `<div class="xc-foot-r"><div class="xc-brand-sub">${esc(d.date || '')}</div></div>`
     : `<div class="xc-foot-r">
-      <div class="xc-brand">${icon('feather', 15, 2)}<span class="xc-brand-name">知更 RobinRead</span></div>
+      <div class="xc-brand">${wmMinimal ? '' : icon('feather', 15, 2)}<span class="xc-brand-name">${wmMinimal ? '知更' : '知更 RobinRead'}</span></div>
       <div class="xc-brand-sub">${esc(KIND_BADGES[d.kind] || '阅读笔记')} · ${esc(d.date || '')}</div>
     </div>`;
   return `<footer class="xc-foot">
@@ -1569,8 +1595,10 @@ export function renderCard(data, options = {}) {
   const tpl = TEMPLATE_MAP[options.templateId] || PAPER;
   const o = { cover: true, stats: true, watermark: true, qr: null, ...options };
   return {
-    html: `<div class="xc-card xc-t-${tpl.id}">${tpl.html(data, o)}</div>`,
-    css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || ''),
+    html: `<div class="xc-card xc-t-${tpl.id}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
+    css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
+      + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
+      + fontPairCss(options.fontPair),
     width: CARD_WIDTH,
     bg: tpl.bg,
   };
