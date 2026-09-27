@@ -2312,11 +2312,7 @@ class AppStore extends EventEmitter {
     const { config, apiKey } = this._requireAIReady();
     const cache = this.cachesRepo.cache(entryID);
     const text = this._entrySourceText(entry, cache);
-    const personaPref = kind === AIArtifactKind.deepRead
-      ? this.preferences.get('RobinRead.ai.persona', { id: 'scholar', custom: '' })
-      : null;
-    const deepReadSystem = personaPref ? resolveDeepReadSystem(personaPref) : '';
-    const contentHash = stableDigest(deepReadSystem ? text + '\u0000persona:' + deepReadSystem : text);
+    const contentHash = stableDigest(text);
 
     const key = `summary:${entryID}`;
     if (this.activeAICancellers.has(key)) throw new LLMServiceError('requestInProgress');
@@ -2387,7 +2383,9 @@ class AppStore extends EventEmitter {
     const { config, apiKey } = this._requireAIReady();
     const cache = this.cachesRepo.cache(entryID);
     const text = this._entrySourceText(entry, cache);
-    const contentHash = stableDigest(text);
+    const personaPref = kind === AIArtifactKind.deepRead ? this.preferences.get('RobinRead.ai.persona', { id: 'scholar', custom: '' }) : null;
+    const deepReadSystem = personaPref ? resolveDeepReadSystem(personaPref) : '';
+    const contentHash = stableDigest(deepReadSystem ? text + '::persona:' + deepReadSystem : text);
     if (!text || !text.trim()) throw new Error(i18n.localized('文章暂无正文内容。'));
 
     const key = `${kind}:${entryID}`;
