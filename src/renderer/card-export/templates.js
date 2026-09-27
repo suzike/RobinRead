@@ -165,7 +165,7 @@ const statsBlock = (d, o) => {
   if (o.stats === false) return '';
   const items = (d.stats || []).map((s) => {
     const m = String(s.v).match(/^([^\d.]*)([\d.,]+)(.*)$/) || [null, '', s.v, ''];
-    const hasRangeDigit = m[2] && /[d]/.test(m[3]);
+    const hasRangeDigit = m[2] && /[0-9]/.test(m[3]);
     const val = m[2] && !hasRangeDigit ? `<span class="xc-stat-n">${esc(m[2])}</span><small class="xc-stat-u">${esc(m[1] + m[3])}</small>` : esc(s.v);
     return `
     <div class="xc-stat"><div class="xc-stat-v">${val}</div><div class="xc-stat-l">${esc(s.l)}</div></div>`;
@@ -1747,6 +1747,11 @@ for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D3_TYPE;
 const D4_STATS = `
 .xc-stat-v { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .xc-stat-n { font-size: 1.18em; font-weight: 800; font-variant-numeric: tabular-nums; }
-.xc-stat-u { font-size: 0.52em; font-weight: 700; margin-left: 2px; opacity: 0.78; letter-spacing: 0.06em; }
+.xc-stat-u { font-size: 0.52em; font-weight: 700; margin-left: 2px; letter-spacing: 0.06em; }
 `;
 for (const k of Object.keys(TEMPLATE_UPGRADES)) TEMPLATE_UPGRADES[k] += D4_STATS;
+
+/* D4 修正：渐变裁切主题的单位显式实色（text-fill-color 继承会导致单位消失） */
+.xc-t-paper .xc-stat-u { -webkit-text-fill-color: #8b8574; }
+.xc-t-ink .xc-stat-u { -webkit-text-fill-color: #c9a86a; }
+.xc-t-aurora .xc-stat-u { -webkit-text-fill-color: #8d9ac2; }
