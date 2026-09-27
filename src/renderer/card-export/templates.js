@@ -1493,7 +1493,7 @@ const TEMPLATE_UPGRADES = {
 .xc-t-mag .xc-quote { border-left:4px solid #e0301e; padding-left:16px; background:#faf7f2; }
 .xc-t-mag .xc-conclusion { background:#141414; color:#fff; border-left:4px solid #e0301e; padding:15px 16px 15px 18px; }
 /* mag hero：刊头之下全出血，红标白题 */
-.xc-t-mag .xc-hero { height:470px; margin:0 -52px 32px; }
+.xc-t-mag .xc-hero { height:470px; margin:16px -52px 32px; }
 .xc-t-mag .xc-hero-scrim { background:linear-gradient(180deg,rgba(12,12,14,.18) 0%,rgba(12,12,14,.04) 40%,rgba(10,10,12,.8) 100%); }
 .xc-t-mag .xc-hero-title { color:#fff; -webkit-text-fill-color:#fff; text-shadow:0 2px 18px rgba(0,0,0,.6); }
 .xc-t-mag .xc-hero-badge { background:#e0301e; color:#fff; }
