@@ -438,30 +438,36 @@ export class KnowledgeCenter {
     const today = new Date();
     let max = 1;
     for (const v of Object.values(map)) max = Math.max(max, v.intensity || 0);
-    // 按周排列：列=周，行=星期
-    const weeks = [];
-    let cur = [];
-    const start = new Date(today); start.setDate(start.getDate() - 364);
-    // 对齐到周日
-    start.setDate(start.getDate() - start.getDay());
-    for (let i = 0; i < 365; i += 7) {
-      weeks.push([]);
-    }
+    // GitHub 式年度热力：窗口锚定 today 一端，end 对齐本周日，start=end-364（必为周日），
+    // 共 371 格（53 列 × 7 行，列=周 行=星期，CSS grid-auto-flow:column）；today 之后的未来格置灰
+    const end = new Date(today);
+    end.setDate(end.getDate() + (6 - end.getDay()));
+    const start = new Date(end);
+    start.setDate(end.getDate() - 364);
+    const days = Math.round((end - start) / 86400000) + 1;
+    const todayKey = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
     const cells = [];
-    for (let d = 0; d < 365; d++) {
-      const dt = new Date(start); dt.setDate(start.getDate() + d);
-      const key = dt.toISOString().slice(0, 10);
-      const v = map[key];
+    for (let d = 0; d < days; d++) {
+      const dt = new Date(start);
+      dt.setDate(start.getDate() + d);
+      const key = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      const future = dt > today;
+      const v = future ? null : map[key];
       const intensity = v ? v.intensity : 0;
-      cells.push({ key, intensity, date: dt });
+      cells.push({ key, intensity, date: dt, future });
     }
     for (const c of cells) {
       const cell = document.createElement('div');
       cell.className = 'kb-heat-cell';
+      if (c.future) {
+        cell.classList.add('future');
+        grid.appendChild(cell);
+        continue;
+      }
       cell.title = `${c.key} · 活跃度 ${c.intensity}`;
       const level = c.intensity === 0 ? 0 : Math.min(4, Math.ceil((c.intensity / max) * 4));
       cell.dataset.level = String(level);
-      if (c.key === today.toISOString().slice(0, 10)) cell.classList.add('today');
+      if (c.key === todayKey) cell.classList.add('today');
       grid.appendChild(cell);
     }
     wrap.appendChild(grid);

@@ -2249,8 +2249,9 @@ body.zen .list-top-inset { display: none; }
 
 .kb-heatmap {
   display: grid; grid-template-columns: repeat(53, 1fr);
-  grid-auto-rows: 14px; gap: 3px;
+  grid-template-rows: repeat(7, 14px); grid-auto-flow: column; gap: 3px;
 }
+.kb-heat-cell.future { visibility: hidden; }
 .kb-heat-cell {
   border-radius: 3px; background: var(--separator);
   transition: transform 0.08s ease;
