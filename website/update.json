@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.9.9",
-  "name": "知更 RobinRead 2.9.9",
+  "tag_name": "v2.10.0",
+  "name": "知更 RobinRead 2.10.0",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-27T00:00:00Z",
-  "body": "知更 RobinRead v2.9.9 —— 每日阅读目标：知识看板新增 SVG 渐变进度环（达成点亮），设置中可调目标篇数；阅读器/列表细滚动条恢复位置感；全局选区纸感绿；空状态视觉精修。"
+  "body": "知更 RobinRead v2.10.0 —— 主界面视觉精修：侧栏选中左指示条与计数胶囊、列表行呼吸感与未读强调、悬停过渡统一。"
 }
