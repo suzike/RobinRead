@@ -163,8 +163,12 @@ const pointsBlock = (d) => {
 
 const statsBlock = (d, o) => {
   if (o.stats === false) return '';
-  const items = (d.stats || []).map((s) => `
-    <div class="xc-stat"><div class="xc-stat-v">${esc(s.v)}</div><div class="xc-stat-l">${esc(s.l)}</div></div>`).join('');
+  const items = (d.stats || []).map((s) => {
+    const m = String(s.v).match(/^([^\d.]*)([\d.,]+)(.*)$/) || [null, '', s.v, ''];
+    const val = m[2] ? `<span class="xc-stat-n">${esc(m[2])}</span><small class="xc-stat-u">${esc(m[1] + m[3])}</small>` : esc(s.v);
+    return `
+    <div class="xc-stat"><div class="xc-stat-v">${val}</div><div class="xc-stat-l">${esc(s.l)}</div></div>`;
+  }).join('');
   return items ? `<section class="xc-sec xc-sec-stats">${secHead('chart', '关键数据')}<div class="xc-stats">${items}</div></section>` : '';
 };
 
