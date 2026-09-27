@@ -446,3 +446,35 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .digest-modal .modal-header { border-bottom: 3px double var(--separator); padding-bottom: 12px; }
 .digest-modal .modal-header h3 { font-family: var(--font-serif); font-size: 18px; letter-spacing: 0.1em; }
 .modal.digest-modal.is-full .modal-header h3 { font-size: 20px; }
+
+/* ── R18 简报全屏版面：报纸式双栏 + 阅读宽度约束 ── */
+.modal.digest-modal.is-full .digest-body { padding: 28px 40px 36px; }
+.modal.digest-modal.is-full .digest-body::-webkit-scrollbar { width: 8px; }
+.modal.digest-modal.is-full .digest-body::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--note-border); }
+.modal.digest-modal.is-full .digest-body::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+.modal.digest-modal.is-full .digest-visual {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 1160px;
+  margin: 0 auto;
+  align-items: start;
+}
+/* 报头 / 总览 / 深读 / 单句话 / 页脚横贯通栏 */
+.modal.digest-modal.is-full .dg-hero,
+.modal.digest-modal.is-full .dg-overview,
+.modal.digest-modal.is-full .dg-deepread,
+.modal.digest-modal.is-full .dg-deep-sec { grid-column: 1 / -1; }
+/* 报头：全屏下升为真正的报头（大字日期 + 居中双线） */
+.modal.digest-modal.is-full .dg-hero { padding: 8px 0 16px; }
+.modal.digest-modal.is-full .dg-hero-date { font-size: 42px; letter-spacing: 0.08em; }
+.modal.digest-modal.is-full .dg-hero-sub { font-size: 13px; letter-spacing: 0.3em; }
+.modal.digest-modal.is-full .dg-hero-stats { margin-top: 16px; gap: 12px; }
+.modal.digest-modal.is-full .dg-stat { padding: 6px 16px; font-size: 11.5px; }
+.modal.digest-modal.is-full .dg-stat b { font-size: 19px; }
+/* 主题卡：双栏等高起始，栏内阅读宽度约 520px */
+.modal.digest-modal.is-full .dg-topic { padding: 18px 20px 16px; }
+.modal.digest-modal.is-full .dg-li { font-size: 14.5px; line-height: 1.9; }
+.modal.digest-modal.is-full .dg-topic-title { font-size: 16.5px; }
+.modal.digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 15px; line-height: 2; }
+.modal.digest-modal.is-full .dg-deepread-body { font-size: 14.5px; }
