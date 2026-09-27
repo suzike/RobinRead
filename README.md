@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.10.3 — 生成式封面与简报修复](https://github.com/suzike/RobinRead/releases/tag/v2.10.3)**（2026-09-27）：十款生成式封面（无图也有设计感）；简报全屏/排版精修级联修复；看板标签计数修复
 - **[v2.10.2 — 知识中心统一与连击](https://github.com/suzike/RobinRead/releases/tag/v2.10.2)**（2026-09-27）：知识中心卡片视觉统一（来源眉题/悬停浮起）；目标环连击徽章（火苗+N 天连击）
 - **[v2.10.1 — 文章刊头精修](https://github.com/suzike/RobinRead/releases/tag/v2.10.1)**（2026-09-27）：来源眉题行（字距小标尺+短线）、标题平衡断行、阅读时长胶囊、双线分隔
 - **[v2.10.0 — 主界面精修](https://github.com/suzike/RobinRead/releases/tag/v2.10.0)**（2026-09-27）：侧栏选中指示条/计数胶囊/favicon 描边；列表行呼吸感/未读加粗；悬停过渡统一
