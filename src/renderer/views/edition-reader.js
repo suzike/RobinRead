@@ -742,7 +742,7 @@ export class EditionReader {
     });
     this._fontMo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
     this._sound = new Audio(this.soundSrc);
-    this._sound.volume = 0.72;
+    this._sound.volume = 0.85;
     this._bind();
     this._relayout(true);
     // 阅读位置记忆：同一视野（feedKey）重开时落到上次离开的页

@@ -842,8 +842,9 @@ function registerIPCHandlers(store, window) {
       await win.loadFile(tmpPath);
       await settle(260);
     };
+    // 探针：卡尺寸/滚动高/填充 spacer 高/溢出探针底缘（相对画幅顶）
     const probe = async () => JSON.parse(await win.webContents.executeJavaScript(
-      '(()=>{const c=document.querySelector(".xc-card");if(!c)return JSON.stringify({w:0,h:0,sh:0,ch:0,sp:0});const sp=c.querySelector(".xc-fill-spacer");const r=c.getBoundingClientRect();return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height),sh:Math.ceil(c.scrollHeight),ch:Math.ceil(c.clientHeight),sp:sp?Math.ceil(sp.getBoundingClientRect().height):0})})()'
+      '(()=>{const c=document.querySelector(".xc-card");const s=document.querySelector(".xc-stage");if(!c||!s)return JSON.stringify({w:0,h:0,sh:0,ch:0,sp:0,bt:0});const sp=c.querySelector(".xc-fill-spacer");const pb=c.querySelector(".xc-overflow-probe");const r=c.getBoundingClientRect();const bt=pb?Math.ceil(pb.getBoundingClientRect().bottom-s.getBoundingClientRect().top):0;return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height),sh:Math.ceil(c.scrollHeight),ch:Math.ceil(c.clientHeight),sp:sp?Math.ceil(sp.getBoundingClientRect().height):0,bt})})()'
     ));
     try {
       if (!ratio) {
@@ -860,7 +861,7 @@ function registerIPCHandlers(store, window) {
         if (png.length < 1000) throw new Error('卡片渲染结果为空');
         return { base64: png.toString('base64'), width: rect.w, height, truncated: rect.h > 16000, format: isJpeg ? 'jpeg' : 'png' };
       }
-      // ── 固定画幅 fit-to-fill：画幅是硬约束，内容自适应铺满 ──
+      // ── 固定画幅 fit-to-fill：画幅是硬约束，内容自适应铺满；内容完整优先于铺满 ──
       const landscape = ratio < 1;
       const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
       const boxH = Math.round(stageW * ratio);
@@ -886,27 +887,25 @@ function registerIPCHandlers(store, window) {
         }
         fill = { scale: s };
       } else if (natH > boxH * 1.02) {
-        // 内容超出 → 紧凑注入。multicol 溢出对 scrollHeight/Width 与被裁元素 rect 均不可见，
-        // 唯一可靠量法：渲染「无高度锁」紧凑版（双栏自动平衡）量真实内容高 → finalZoom = boxH/H2
-        page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true, auto: true } });
-        await load(page);
-        const mAuto = await probe();
-        const H2 = Math.max(mAuto.h, 1);
-        if (H2 > boxH + 2) finalZoom = boxH / H2;
-        fill = { compact: true };
+        // 内容超出 → 锁高双栏密排分级密度（d1 间距/行距/头图收紧 → d2 再收字号/段距/头图）
+        // + 溢出探针量真实终端；仍超 → 整卡等比 contain（内容完整优先，字适度变小）
+        const measureCompact = async (density) => {
+          page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true, density } });
+          await load(page);
+          const m = await probe();
+          return Math.max(m.bt || 0, m.sh || 0, 1);
+        };
+        const H1 = await measureCompact(1);
+        if (H1 > boxH + 2) {
+          const H2 = await measureCompact(2);
+          if (H2 > boxH + 2) finalZoom = boxH / H2;
+          fill = { compact: true, density: 2 };
+        } else { fill = { compact: true, density: 1 }; }
       }
-      // 横版 multicol 在高度锁定下会直接丢弃溢出列内容（zoom 救不回）——最终渲染保持 auto 布局（全内容），
-      // 由 finalZoom 把整卡缩放进画幅；竖版锁高无此问题维持原样
-      const finalFill = (landscape && fill && fill.compact) ? { ...fill, auto: true } : fill;
+      // 最终渲染：auto 布局（全内容参与布局，永不锁高裁切）+ 单次缩放进画幅
+      const finalFill = (fill && fill.compact) ? { ...fill, auto: true } : fill;
       page = renderStagePage(data, options, { zoom, ratio, fill: finalFill, finalZoom });
       await load(page);
-      // 铁律兜底：任何情况下不得裁切内容——最终页仍溢出（字体加载差/微误差）则整体等比缩放重渲
-      const finCheck = await probe();
-      if (finCheck.sh > finCheck.ch + 2) {
-        finalZoom = Math.min(finalZoom || 1, finCheck.ch / finCheck.sh);
-        page = renderStagePage(data, options, { zoom, ratio, fill, finalZoom });
-        await load(page);
-      }
       const W = page.width, H = page.height;
       win.setContentSize(W, H);
       win.setBackgroundColor(page.bg);

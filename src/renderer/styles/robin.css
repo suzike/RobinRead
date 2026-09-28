@@ -4241,15 +4241,15 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .er-book:not(.er-reveal) .er-sheet { opacity: 0; }
 .er-sheet.clip-left { clip-path: inset(0 50% 0 0); }
 .er-sheet.clip-right { clip-path: inset(0 0 0 50%); }
-/* 中缝：12px 对称渐变 + 0.5px 书脊线（foldSheetBackground） */
+/* 中缝：24px 对称渐变（两叶凹感）+ 0.5px 书脊线 */
 .er-sheet.is-spread::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 12px; transform: translateX(-50%);
-  background: linear-gradient(90deg, transparent, rgba(43, 39, 33, 0.045), transparent);
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 24px; transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(43, 39, 33, 0.10) 46%, rgba(43, 39, 33, 0.14) 50%, rgba(43, 39, 33, 0.10) 54%, transparent);
   pointer-events: none;
 }
 .er-sheet.is-spread::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 0.5px; transform: translateX(-50%);
-  background: rgba(43, 39, 33, 0.045); pointer-events: none; z-index: 1;
+  background: rgba(43, 39, 33, 0.10); pointer-events: none; z-index: 1;
 }
 
 /* 页内：页边 36 / 页眉 76（标题行 20 + 间距 16 + 上下 20×2） */
@@ -4473,9 +4473,9 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .er-article { margin: 0 auto; font-family: var(--font-serif); color: var(--erp-ink); user-select: text; font-size: var(--article-font-size, 15.5px); }
 .er-article > *:first-child { margin-top: 0 !important; }
 .er-article p, .er-article ul, .er-article ol, .er-article blockquote,
-.er-article pre, .er-article table, .er-article figure { margin: 0 0 1.05em; line-height: 1.92; }
+.er-article pre, .er-article table, .er-article figure { margin: 0 0 1.15em; line-height: 1.92; }
 .er-article h1, .er-article h2, .er-article h3, .er-article h4 {
-  font-weight: 700; line-height: 1.4; margin: 1.5em 0 0.55em; break-after: avoid;
+  font-weight: 700; line-height: 1.4; margin: 1.8em 0 0.6em; break-after: avoid;
 }
 .er-article h1 { font-size: 1.42em; } .er-article h2 { font-size: 1.2em; } .er-article h3 { font-size: 1.06em; }
 .er-article img, .er-article video { max-width: 100%; border-radius: var(--radius-sm); display: block; margin: 0.4em auto 1.1em; }

@@ -1729,24 +1729,24 @@ export function renderCardFitted(data, options = {}, fit = {}) {
     `;
     inner = insertFillSpacer(inner);
   } else if (fit.fill && fit.fill.compact) {
-    // 紧凑档：间距/行距/头图收紧；横版正文回归后双栏密排（13.5px/1.62）保证可读与容量。
-    // fit.fill.auto=true → 不锁高度（multicol 双栏自动平衡），供测量真实内容高
+    // 紧凑档：分级密度。density 1=间距/行距/头图收紧；density 2=再收字号/段距/头图（内容完整优先，永不裁切）
+    const d2 = fit.fill.density >= 2;
     const lockH = fit.fill.auto ? '' : `height:${boxH}px !important;`;
     fitCss = `
       .xc-card{display:flex !important;flex-direction:column;${lockH}}
       .xc-card > .xc-inner{display:flex !important;flex-direction:column;flex:1 1 auto;min-height:0;}
       .xc-fill-spacer{display:none;}
-      .xc-card .xc-sec{margin-top:22px !important;}
-      .xc-card .xc-lead{margin-top:16px !important;}
-      .xc-card .xc-foot{margin-top:22px !important;}
-      .xc-card .xc-lead,.xc-card .xc-prose-p,.xc-card .xc-point-d,.xc-card .xc-step-d{line-height:1.68 !important;}
-      .xc-card .xc-hero,.xc-card .xc-cover-gen{height:225px !important;aspect-ratio:auto !important;}
-      .xc-card .xc-cover{margin-top:12px !important;}
-      .xc-card.landscape .xc-prose-p,.xc-card.landscape .xc-lead{font-size:13.5px !important;line-height:1.62 !important;}
+      .xc-card .xc-sec{margin-top:${d2 ? 18 : 22}px !important;}
+      .xc-card .xc-lead{margin-top:${d2 ? 13 : 16}px !important;}
+      .xc-card .xc-foot{margin-top:${d2 ? 18 : 22}px !important;}
+      .xc-card .xc-lead,.xc-card .xc-prose-p,.xc-card .xc-point-d,.xc-card .xc-step-d{line-height:${d2 ? 1.6 : 1.68} !important;}
+      .xc-card .xc-hero,.xc-card .xc-cover-gen{height:${d2 ? 165 : 205}px !important;aspect-ratio:auto !important;}
+      .xc-card .xc-cover{margin-top:${d2 ? 10 : 12}px !important;}
+      .xc-card.landscape .xc-prose-p,.xc-card.landscape .xc-lead{font-size:${d2 ? 12.5 : 13.5}px !important;line-height:1.6 !important;}
       .xc-card.landscape .xc-sec{break-inside:auto !important;}
     `;
     inner = insertFillSpacer(inner);
-    // 溢出探针：横版 multicol 的内容溢出对 scrollHeight 不可见，探针插在内容流末尾（footer 后）判定真实终端
+    // 溢出探针：内容流末端（footer 后），multicol/锁高的真实终端判定用
     if (/<\/footer>/i.test(inner)) inner = inner.replace(/<\/footer>/i, '</footer><div class="xc-overflow-probe" style="position:relative;height:0;"></div>');
     else inner += '<div class="xc-overflow-probe" style="position:relative;height:0;"></div>';
   }
