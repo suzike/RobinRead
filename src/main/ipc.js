@@ -880,15 +880,27 @@ function registerIPCHandlers(store, window) {
         }
         fill = { scale: s };
       } else if (natH > boxH * 1.02) {
-        // 内容超出 → 紧凑注入；仍超出则 contain 兜底（居中，stage 同底色）
-        page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true } });
+        // 内容超出 → 紧凑注入。multicol 溢出对 scrollHeight/Width 与被裁元素 rect 均不可见，
+        // 唯一可靠量法：渲染「无高度锁」紧凑版（双栏自动平衡）量真实内容高 → finalZoom = boxH/H2
+        page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true, auto: true } });
         await load(page);
-        const m = await probe();
-        if (m.sh > boxH + 2) finalZoom = boxH / m.sh;
+        const mAuto = await probe();
+        const H2 = Math.max(mAuto.h, 1);
+        if (H2 > boxH + 2) finalZoom = boxH / H2;
         fill = { compact: true };
       }
-      page = renderStagePage(data, options, { zoom, ratio, fill, finalZoom });
+      // 横版 multicol 在高度锁定下会直接丢弃溢出列内容（zoom 救不回）——最终渲染保持 auto 布局（全内容），
+      // 由 finalZoom 把整卡缩放进画幅；竖版锁高无此问题维持原样
+      const finalFill = (landscape && fill && fill.compact) ? { ...fill, auto: true } : fill;
+      page = renderStagePage(data, options, { zoom, ratio, fill: finalFill, finalZoom });
       await load(page);
+      // 铁律兜底：任何情况下不得裁切内容——最终页仍溢出（字体加载差/微误差）则整体等比缩放重渲
+      const finCheck = await probe();
+      if (finCheck.sh > finCheck.ch + 2) {
+        finalZoom = Math.min(finalZoom || 1, finCheck.ch / finCheck.sh);
+        page = renderStagePage(data, options, { zoom, ratio, fill, finalZoom });
+        await load(page);
+      }
       const W = page.width, H = page.height;
       win.setContentSize(W, H);
       win.setBackgroundColor(page.bg);

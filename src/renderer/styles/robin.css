@@ -4197,10 +4197,21 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
   font-family: var(--font-sans); user-select: none;
 }
 .er-overlay.er-dark { --erp-paper: #211F1A; --erp-ink: #E6E0D2; --erp-muted: #98917F; --erp-stage: #232120; --erp-stage-hi: #2B2927; }
-.er-overlay[data-paper="white"] { --erp-paper: #FFFFFF; }
+.er-overlay[data-paper="white"] { --erp-paper: #FFFFFF; --erp-grain: none; }
 .er-overlay[data-paper="book"] { --erp-paper: #EFE2C8; }
-.er-overlay.er-dark[data-paper="white"] { --erp-paper: #1C1C1C; }
+.er-overlay.er-dark[data-paper="white"] { --erp-paper: #1C1C1C; --erp-grain: none; }
 .er-overlay.er-dark[data-paper="book"] { --erp-paper: #2D281F; }
+/* 书卷：暖棕对角渐变叠加，与纸感拉开可感知差异 */
+.er-overlay[data-paper="book"] .er-sheet,
+.er-overlay[data-paper="book"] .er-face,
+.er-overlay[data-paper="book"] .er-cover-face {
+  background-image: linear-gradient(135deg, rgba(255, 252, 240, 0.55), rgba(146, 105, 48, 0.08) 62%, rgba(120, 84, 38, 0.12)), var(--erp-grain);
+}
+.er-overlay.er-dark[data-paper="book"] .er-sheet,
+.er-overlay.er-dark[data-paper="book"] .er-face,
+.er-overlay.er-dark[data-paper="book"] .er-cover-face {
+  background-image: linear-gradient(135deg, rgba(255, 240, 200, 0.03), rgba(0, 0, 0, 0.14) 62%), var(--erp-grain);
+}
 
 /* 纸张纤维噪点（feTurbulence 生成一次平铺，接近上游 MagazineBookGrain） */
 .er-overlay {
@@ -4358,6 +4369,12 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
   font-size: 15px; cursor: pointer; border-radius: var(--radius-sm);
 }
 .er-close:hover { opacity: 0.85; background: rgba(43, 39, 33, 0.07); }
+.er-paper {
+  position: absolute; top: 14px; right: 56px; z-index: 80; height: 32px; padding: 0 12px;
+  appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55;
+  font-family: var(--font-serif); font-size: 12.5px; letter-spacing: 0.12em; cursor: pointer; border-radius: var(--radius-sm);
+}
+.er-paper:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
 .er-notice {
   position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); z-index: 85;
   background: rgba(30, 28, 24, 0.78); color: #F3EEE2; font-size: 13px; padding: 10px 18px;

@@ -96,11 +96,7 @@ export class EditionReader {
     this.mode = 'edition';      // 'edition' 版面模式 | 'article' 正文翻页模式
     this.article = null;        // { entry, html, spreads }
     this._editionState = null;  // 进入正文前的版面快照 { pages, index, selected }
-    this._fetchArticle = fetchArticle || (async (id) => {
-      const res = await window.robin.getReader(id);
-      const d = res && res.ok ? res.data : null;
-      return d ? (typeof d.content === 'string' ? d.content : (d.content && d.content.html) || '') : '';
-    });
+    this._fetchArticle = fetchArticle || (async (id) => this._fetchArticleGoverned(id));
     this._sound = null;
     this._resizeTimer = 0;
     this._autoTimer = 0;
@@ -110,6 +106,33 @@ export class EditionReader {
     if (!html) return '';
     const m = String(html).match(/<img[^>]+src=["']([^"']+)["']/i);
     return m && /^https?:|data:/.test(m[1]) ? m[1] : '';
+  }
+
+  /** 全文治理链（对齐正文视图 _openBody）：needsExtraction 抓取 → 过短(<400字)抓原文补全 → 摘要兜底。 */
+  async _fetchArticleGoverned(id) {
+    const plainLen = (h) => String(h ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+    const res = await window.robin.getReader(id);
+    const d = res && res.ok ? res.data : null;
+    if (!d) return '';
+    let html = typeof d.content === 'string' ? d.content : (d.content && d.content.html) || '';
+    const entry = d.entry || {};
+    if (d.content?.needsExtraction && entry.url) {
+      try {
+        const extracted = await window.robin.extractArticle(id);
+        if (extracted?.ok && extracted.data?.html && plainLen(extracted.data.html) >= 120) html = extracted.data.html;
+      } catch { /* 抓取失败用原 content */ }
+    }
+    if (entry.url && html && plainLen(html) < 400) {
+      try {
+        const extracted = await window.robin.extractArticle(id);
+        if (extracted?.ok && extracted.data?.html && plainLen(extracted.data.html) > Math.max(plainLen(html), 150)) html = extracted.data.html;
+      } catch { /* 同上 */ }
+    }
+    if (!html || plainLen(html) < 80) {
+      const summary = entry.summary || '';
+      if (plainLen(summary) > plainLen(html)) html = `<p>${escapeHTML(summary)}</p>`;
+    }
+    return html;
   }
 
   // ────────────────────────────────────────────────
@@ -662,10 +685,22 @@ export class EditionReader {
         <div class="er-rail" hidden><div class="er-ticks"></div><div class="er-preview" hidden></div><div class="er-count" hidden></div></div>
       </div>
       <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
+      <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
       <div class="er-notice" hidden></div>`;
     document.body.appendChild(overlay);
     this.overlay = overlay;
     overlay.__editionReader = this;
+    // 纸张质感三态（与列表刊头共用 robinread.magPaper 偏好）
+    const paperBtn = overlay.querySelector('.er-paper');
+    const paperLabel = () => ({ paper: t('纸感'), white: t('素白'), book: t('书卷') })[overlay.dataset.paper] || t('纸感');
+    paperBtn.textContent = paperLabel();
+    paperBtn.addEventListener('click', () => {
+      const order = ['paper', 'white', 'book'];
+      const next = order[(order.indexOf(overlay.dataset.paper) + 1) % order.length];
+      overlay.dataset.paper = next;
+      localStorage.setItem('robinread.magPaper', next);
+      paperBtn.textContent = paperLabel();
+    });
     this.measureHost = document.createElement('div');
     this.measureHost.className = 'er-measure';
     overlay.appendChild(this.measureHost);
@@ -755,8 +790,21 @@ export class EditionReader {
   _relayout(initial) {
     if (!this.overlay) return;
     const keep = this.index;
-    if (this.mode === 'article' && this.article) this._paginateArticle(this.article.entry, this.article.html);
-    else this._paginate();
+    const isArticle = this.mode === 'article' && this.article;
+    // 翻页进行中窗口尺寸变化：翻页快照与版面几何已失配，取消翻页回稳态（上游 cancelTurn 同款）
+    this._cancelTurn();
+    if (isArticle) {
+      this._paginateArticle(this.article.entry, this.article.html).then(() => {
+        if (!this.overlay || this.mode !== 'article') return;
+        this.index = clamp(keep, 0, this.pages.length - 1);
+        this._syncSheets(true);
+        this._syncRail();
+      });
+    } else {
+      this._paginate();
+      if (initial) this.index = clamp(this.startIndex, 0, this.pages.length - 1);
+      else this.index = clamp(keep, 0, this.pages.length - 1);
+    }
     const m = this._metrics();
     const book = this.overlay.querySelector('.er-book');
     const wrap = this.overlay.querySelector('.er-bookwrap');
@@ -766,8 +814,6 @@ export class EditionReader {
     book.style.width = `${m.paperW}px`;
     book.style.height = `${m.bookH}px`;
     this._renderCover();
-    if (initial) this.index = clamp(this.startIndex, 0, this.pages.length - 1);
-    else this.index = clamp(keep, 0, this.pages.length - 1);
     this._syncSheets(true);
     this._syncRail();
     book.classList.toggle('er-reveal', this.open);
@@ -790,7 +836,7 @@ export class EditionReader {
     try { html = String(await this._fetchArticle(entry.id) || ''); } catch { html = ''; }
     if (!this.overlay || this.mode !== 'article') return;
     this.article.html = html;
-    this._paginateArticle(entry, html);
+    await this._paginateArticle(entry, html);
     this.index = 0;
     this._syncSheets(true);
     this._syncRail();
@@ -812,8 +858,31 @@ export class EditionReader {
     this._play();
   }
 
+  /** 预取图片宽高比（同时 warm 缓存）：单图 1.5s 超时兜底按 0.66 比例。 */
+  async _preloadImageRatios(nodes) {
+    const srcs = new Set();
+    for (const n of nodes) {
+      if (n.tagName?.toLowerCase() === 'img') {
+        const s = n.getAttribute('src');
+        if (s && (/^https?:/.test(s) || /^data:image\//.test(s))) srcs.add(s);
+      }
+    }
+    const map = new Map();
+    await Promise.all([...srcs].slice(0, 16).map((src) => new Promise((resolve) => {
+      const im = new Image();
+      let done = false;
+      const finish = () => { if (!done) { done = true; if (im.naturalWidth > 0 && im.naturalHeight > 0) map.set(src, im.naturalHeight / im.naturalWidth); resolve(); } };
+      im.onload = finish;
+      im.onerror = () => { done = true; resolve(); };
+      setTimeout(finish, 1500);
+      im.referrerPolicy = 'no-referrer';
+      im.src = src;
+    })));
+    return map;
+  }
+
   /** 正文 → 块序列 → 贪心装箱成半叶 → 两叶一对开。单块超高文本按句切分兜底。 */
-  _paginateArticle(entry, html) {
+  async _paginateArticle(entry, html) {
     const m = this._metrics();
     const leafH = Math.max(160, m.bookH - HEADING_H);
     const colW = Math.min(600, m.leafW);
@@ -848,23 +917,52 @@ export class EditionReader {
     headEl.innerHTML = `<div class="er-article-kicker">${escapeHTML(entry.source)} · ${escapeHTML(this._fmtDate(entry.date))}</div>
       <h1 class="er-article-title">${escapeHTML(entry.title)}</h1><div class="er-article-rule"></div>`;
     blocks.push({ el: headEl, h: measure(headEl), breakable: false });
-    const IMG_RATIO_CAP = 0.6;
-    for (const node of [...body.childNodes]) {
-      if (node.nodeType === 3) {
-        const txt = String(node.textContent || '').trim();
-        if (!txt) continue;
-        const p = document.createElement('p');
-        p.textContent = txt;
-        blocks.push({ el: p, h: measure(p.cloneNode(true)), breakable: true });
-        continue;
+    // 递归展平：div/section 等布局容器不作为整体块（否则单容器包裹的正文会被 clamp 截断），
+    // 一路展开到内容块（p/h*/ul/ol/table/blockquote/pre/figure/hr/img）；容器自身的直接文本也收集
+    const CONTAINER_TAGS = new Set(['div', 'section', 'article', 'main', 'aside', 'span', 'font', 'center', 'small', 'header', 'footer']);
+    const raw = [];
+    const collect = (node) => {
+      for (const child of [...node.childNodes]) {
+        if (child.nodeType === 3) {
+          const txt = String(child.textContent || '').trim();
+          if (!txt) continue;
+          const p = document.createElement('p');
+          p.textContent = txt;
+          raw.push(p);
+          continue;
+        }
+        if (child.nodeType !== 1) continue;
+        const tag = child.tagName.toLowerCase();
+        if (tag === 'br' || tag === 'hr') continue;
+        if (CONTAINER_TAGS.has(tag)) { collect(child); continue; }
+        // 内容块内嵌 img：拆为独立图块（杂志排版惯例，图不随段落截断）+ 剩余文本块
+        if (tag !== 'img' && child.querySelector?.('img')) {
+          const imgs = [...child.querySelectorAll('img')];
+          const textClone = child.cloneNode(true);
+          textClone.querySelectorAll('img').forEach((im) => im.remove());
+          for (const im of imgs) raw.push(im);
+          if ((textClone.textContent || '').trim() || textClone.querySelector('p,li,blockquote,pre,table')) raw.push(textClone);
+          continue;
+        }
+        raw.push(child);
       }
-      if (node.nodeType !== 1) continue;
+    };
+    collect(body);
+    // 图片真实比例预取（同时 warm 缓存）：占位=原图比例，杜绝 cover 裁切；极端长图 cap 后允许横向裁
+    const ratios = await this._preloadImageRatios(raw);
+    const IMG_CAP = 0.72;
+    for (const node of raw) {
       const tag = node.tagName.toLowerCase();
       if (tag === 'img') {
         const ph = document.createElement('div');
         ph.className = 'er-article-img';
-        ph.appendChild(node.cloneNode());
-        blocks.push({ el: ph, h: Math.round(Math.min(leafH * IMG_RATIO_CAP, colW * 0.62)), breakable: false });
+        const clone = node.cloneNode();
+        clone.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+        ph.appendChild(clone);
+        const src = node.getAttribute('src') || '';
+        const ratio = ratios.get(src) ?? 0.66;
+        const h = clamp(Math.round(colW * ratio), 110, Math.round(leafH * IMG_CAP));
+        blocks.push({ el: ph, h, breakable: false });
         continue;
       }
       // 块级元素整体装箱；超高块拆子元素或按句切
@@ -963,7 +1061,8 @@ export class EditionReader {
       canvas.appendChild(leaf);
     };
     mkLeaf(page.article.left, 0, false);
-    mkLeaf(page.article.right, leafW + GUTTER, page.isEnd);
+    // 右叶有正文就渲染正文；仅当无右叶内容（末 spread 余叶）时显示「完」页
+    mkLeaf(page.article.right, leafW + GUTTER, !page.article.right || !page.article.right.length);
     el.appendChild(canvas);
     return el;
   }

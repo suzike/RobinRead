@@ -354,7 +354,9 @@ export class ListView {
     paperBtn.title = t('切换纸张质感');
     paperBtn.textContent = (papers.find((x) => x[0] === paperNow) || papers[0])[1];
     paperBtn.addEventListener('click', () => {
-      const idx = papers.findIndex((x) => x[0] === paperNow);
+      // 实时读偏好（闭包捕获旧值会导致循环打转、切不到第三态）
+      const now = localStorage.getItem('robinread.magPaper') || 'paper';
+      const idx = papers.findIndex((x) => x[0] === now);
       const next = papers[(idx + 1) % papers.length][0];
       localStorage.setItem('robinread.magPaper', next);
       const host = this.rowsHost.closest('.list-scroll');

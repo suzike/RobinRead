@@ -1615,17 +1615,16 @@ export function renderCard(data, options = {}) {
   const tpl = TEMPLATE_MAP[options.templateId] || PAPER;
   const o = { cover: true, stats: true, watermark: true, qr: null, ...options };
   const d0Cover = !!data.cover;
-  // 横版画幅：内容海报化精简（长文在横版下等比缩放会产生大空白与不可读小字）
+  // 横版画幅：次要板块轻量精简；prose（正文主体）永不删——完整内容由双栏密排 + 溢出 contain 缩放保证
   if (options.orientation === 'landscape') {
     const lvl = Number(options.slimLevel) || 2;
     const slim = { ...data };
     const capN = (arr, n) => (Array.isArray(arr) ? arr.slice(0, n) : arr);
-    slim.steps = capN(slim.steps, lvl >= 3 ? 1 : 2);
-    slim.points = capN(slim.points, lvl >= 3 ? 1 : 2);
-    slim.concepts = capN(slim.concepts, lvl >= 3 ? 2 : 4);
+    slim.steps = capN(slim.steps, 2);
+    slim.points = capN(slim.points, 2);
+    slim.concepts = capN(slim.concepts, lvl >= 3 ? 3 : 4);
     slim.quotes = capN(slim.quotes, 1);
     slim.actions = capN(slim.actions, 1);
-    if (lvl >= 2) slim.prose = [];
     if (lvl >= 3) slim.counter = null;
     data = slim;
   }
@@ -1730,8 +1729,11 @@ export function renderCardFitted(data, options = {}, fit = {}) {
     `;
     inner = insertFillSpacer(inner);
   } else if (fit.fill && fit.fill.compact) {
+    // 紧凑档：间距/行距/头图收紧；横版正文回归后双栏密排（13.5px/1.62）保证可读与容量。
+    // fit.fill.auto=true → 不锁高度（multicol 双栏自动平衡），供测量真实内容高
+    const lockH = fit.fill.auto ? '' : `height:${boxH}px !important;`;
     fitCss = `
-      .xc-card{display:flex !important;flex-direction:column;height:${boxH}px !important;}
+      .xc-card{display:flex !important;flex-direction:column;${lockH}}
       .xc-card > .xc-inner{display:flex !important;flex-direction:column;flex:1 1 auto;min-height:0;}
       .xc-fill-spacer{display:none;}
       .xc-card .xc-sec{margin-top:22px !important;}
@@ -1740,8 +1742,13 @@ export function renderCardFitted(data, options = {}, fit = {}) {
       .xc-card .xc-lead,.xc-card .xc-prose-p,.xc-card .xc-point-d,.xc-card .xc-step-d{line-height:1.68 !important;}
       .xc-card .xc-hero,.xc-card .xc-cover-gen{height:225px !important;aspect-ratio:auto !important;}
       .xc-card .xc-cover{margin-top:12px !important;}
+      .xc-card.landscape .xc-prose-p,.xc-card.landscape .xc-lead{font-size:13.5px !important;line-height:1.62 !important;}
+      .xc-card.landscape .xc-sec{break-inside:auto !important;}
     `;
     inner = insertFillSpacer(inner);
+    // 溢出探针：横版 multicol 的内容溢出对 scrollHeight 不可见，探针插在内容流末尾（footer 后）判定真实终端
+    if (/<\/footer>/i.test(inner)) inner = inner.replace(/<\/footer>/i, '</footer><div class="xc-overflow-probe" style="position:relative;height:0;"></div>');
+    else inner += '<div class="xc-overflow-probe" style="position:relative;height:0;"></div>';
   }
   return { html: inner, css: `${card.css}${landCss}${fitCss}`, bg: card.bg, boxW: stageW, boxH };
 }
@@ -1786,7 +1793,7 @@ export function renderStagePage(data, options = {}, fit = {}) {
       html,body{margin:0;padding:0;background:${f.bg}}
       .xc-export{zoom:${zoom};${vstyle}}
       .xc-stage{width:${f.boxW}px;height:${f.boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${f.bg}}
-      .xc-stage > .xc-card{width:${f.boxW}px;flex:none;zoom:${finalZoom}}
+      .xc-stage > .xc-card{width:${f.boxW}px;flex:none;zoom:${finalZoom} !important}
     </style><style>${f.css}</style></head><body><div class="xc-export"><div class="xc-stage">${f.html}</div></div></body></html>`,
     bg: f.bg,
     width: Math.round(f.boxW * zoom),
