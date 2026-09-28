@@ -483,3 +483,29 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .fs-rail-item { transition: background var(--dur-fast) var(--ease-out); }
 .fs-rail-item.active { box-shadow: inset 3px 0 0 var(--accent); }
 .fs-card { transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+
+/* ══ D22 全屏精读版沉浸排版：单栏限宽居中，弃双栏（长文双栏割裂阅读） ══ */
+.modal.digest-modal.is-full .digest-body { padding: 0 0 48px; }
+.modal.digest-modal.is-full .digest-visual {
+  max-width: 860px;
+  margin: 0 auto;
+  gap: 26px;
+  padding: 0 40px;
+}
+/* 报头：眉题上置 + 大日期 + 统计行，双线收束 */
+.modal.digest-modal.is-full .dg-hero { padding: 34px 0 20px; border-bottom: 3px double var(--separator); }
+.modal.digest-modal.is-full .dg-hero-date { font-size: 46px; letter-spacing: 0.1em; }
+.modal.digest-modal.is-full .dg-hero-sub { font-size: 13px; letter-spacing: 0.34em; margin-top: 10px; }
+.modal.digest-modal.is-full .dg-hero-stats { margin-top: 18px; gap: 14px; }
+.modal.digest-modal.is-full .dg-stat { padding: 6px 18px; border-radius: 999px; font-size: 12px; }
+.modal.digest-modal.is-full .dg-stat b { font-size: 20px; }
+/* 深读节：通栏沉浸长文卡 */
+.modal.digest-modal.is-full .dg-deep-sec { grid-column: auto; margin-top: 34px; padding: 26px 34px 24px; border-radius: 14px; }
+.modal.digest-modal.is-full .dg-deep-sec .dg-topic-title { font-size: 21px; letter-spacing: 0.02em; }
+.modal.digest-modal.is-full .dg-deep-sec .dg-topic-head { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--separator); }
+.modal.digest-modal.is-full .dg-deep-sec .dg-topic-body { gap: 14px; }
+.modal.digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 16px; line-height: 2.05; max-width: none; }
+/* 简报版主题卡同步单栏限宽 */
+.modal.digest-modal.is-full .dg-topic { margin-bottom: 0; }
+.modal.digest-modal.is-full .dg-overview { padding: 22px 28px; border-radius: 14px; }
+.modal.digest-modal.is-full .dg-overview p { font-size: 15.5px; line-height: 2; }
