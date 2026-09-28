@@ -4432,24 +4432,34 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 .er-cover-date { font-family: var(--font-sans); font-weight: 500; font-size: 13.5px; letter-spacing: 0.22em; color: color-mix(in srgb, var(--erp-ink) 78%, transparent); }
 
 /* 正文图片灯箱（文章模式点击图片放大） */
-.er-lightbox { position: absolute; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; background: rgba(20, 17, 12, 0.86); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); cursor: zoom-out; }
+.er-lightbox { position: absolute; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; background: rgba(20, 17, 12, 0.92); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); cursor: zoom-out; }
 .er-lightbox.on { opacity: 1; pointer-events: auto; }
-.er-lightbox img { max-width: calc(100vw - 96px); max-height: calc(100vh - 96px); border-radius: var(--radius-sm); box-shadow: 0 24px 72px rgba(0, 0, 0, 0.5); transform: scale(0.96); transition: transform var(--dur-base) var(--ease-out); }
+.er-lightbox img { max-width: calc(100vw - 96px); max-height: calc(100vh - 96px); border-radius: var(--radius-sm); box-shadow: 0 24px 72px rgba(0, 0, 0, 0.5); transform-origin: 0 0; will-change: transform; transition: transform var(--dur-fast) var(--ease-out); user-select: none; -webkit-user-drag: none; }
+.er-lightbox.dragging img { transition: none; cursor: grabbing; }
+.er-lightbox.dragging { cursor: grabbing; }
+/* 灯箱关闭钮（R5） */
+.er-lb-close {
+  position: absolute; top: 18px; right: 20px; z-index: 3; width: 38px; height: 38px;
+  appearance: none; border: 0.5px solid rgba(243, 238, 226, 0.3); background: rgba(20, 17, 12, 0.55);
+  color: #F3EEE2; font-size: 15px; line-height: 1; cursor: pointer; border-radius: var(--radius-full); opacity: 0.85;
+}
+.er-lb-close:hover { opacity: 1; background: rgba(20, 17, 12, 0.75); }
 .er-lightbox.on img { transform: scale(1); }
 .er-lightbox-err { position: absolute; color: rgba(243, 238, 226, 0.85); font-size: 13px; letter-spacing: 0.08em; }
 /* 灯箱画廊：左右切换 + 计数 */
 .er-lb-nav {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 44px; height: 64px;
-  appearance: none; border: none; background: rgba(243, 238, 226, 0.10); color: #F3EEE2;
-  font-size: 26px; line-height: 1; cursor: pointer; border-radius: var(--radius-sm); opacity: 0.75;
+  appearance: none; border: 0.5px solid rgba(243, 238, 226, 0.28); background: rgba(20, 17, 12, 0.6); color: #F3EEE2;
+  font-size: 26px; line-height: 1; cursor: pointer; border-radius: var(--radius-sm); opacity: 0.9;
 }
-.er-lb-nav:hover { opacity: 1; background: rgba(243, 238, 226, 0.18); }
+.er-lb-nav:hover { opacity: 1; background: rgba(20, 17, 12, 0.82); }
 .er-lb-nav.prev { left: 20px; }
 .er-lb-nav.next { right: 20px; }
 .er-lb-count {
   position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
-  font: 600 11.5px/1 ui-monospace, monospace; color: rgba(243, 238, 226, 0.8);
-  background: rgba(20, 17, 12, 0.55); padding: 6px 12px; border-radius: var(--radius-full);
+  font: 600 11.5px/1 ui-monospace, monospace; color: rgba(243, 238, 226, 0.88);
+  background: rgba(20, 17, 12, 0.82); padding: 6px 12px; border-radius: var(--radius-full);
+  border: 0.5px solid rgba(243, 238, 226, 0.22);
 }
 .er-cover-title { font-family: var(--font-serif); font-weight: 500; font-size: 20px; color: var(--erp-ink); opacity: 0.72; padding: 0 24px; line-height: 1.5; }
 .er-rule { width: 32px; height: 1px; background: rgba(139, 133, 116, 0.35); }
