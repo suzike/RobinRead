@@ -41,7 +41,10 @@ const TURN_PRESETS = [
 
 // 版心随窗口比例自适应（92%），跨显示器尺寸连续缩放；上限 2100 防超宽屏夸张
 const pageWidth = (w) => Math.min(2100, Math.max(1, Math.round(w * 0.92)));
-const hInset = (w) => Math.min(w < 620 ? 20 : 36, (pageWidth(w) - 1) / 2);
+/* 阅读排版三档（R1）：页边距与密度的唯一真源（JS 版心测量与 CSS 共用） */
+const MARGIN_X = { narrow: 24, standard: 36, wide: 52 };
+const DENSITY = { compact: { gapY: 18, lh: 0.86 }, standard: { gapY: 24, lh: 1 }, airy: { gapY: 36, lh: 1.26 } };
+const hInset = (w, margin = 'standard') => Math.min(w < 620 ? 20 : (MARGIN_X[margin] || 36), (pageWidth(w) - 1) / 2);
 const turnInset = (h) => Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
 
 /** cubic-bezier(0.28,0.12,0.22,1.0) 求解（MagazineTurnGeometry.eased 二分法原样移植）。 */
@@ -158,7 +161,7 @@ export class EditionReader {
     const ins = turnInset(h);
     const paperW = pageWidth(w);
     const bookH = Math.max(1, h - RAIL_H - ins * 2);
-    const hi = hInset(w);
+    const hi = hInset(w, this.typo?.margin);
     const contentW = Math.max(1, paperW - hi * 2);
     const flow = paperW < 620 || (h - RAIL_H) < 460;
     const spread = !flow && paperW >= 860;
@@ -171,8 +174,11 @@ export class EditionReader {
   // ────────────────────────────────────────────────
   _styleKey(st, width) {
     return [st.role, st.titleSize, st.titleLines, st.summaryLines, st.summarySize,
-      Math.round(st.imageH), st.beside ? 1 : 0, Math.round(st.sideW || 0), Math.round(width)].join('/');
+      Math.round(st.imageH), st.beside ? 1 : 0, Math.round(st.sideW || 0), Math.round(width),
+      this.typo?.density || 'standard', this.typo?.firstCap ? 1 : 0].join('/');
   }
+  /** 密度行距系数（标题按一半幅度跟随，摘要全文跟随）。 */
+  _den() { return DENSITY[this.typo?.density]?.lh ?? 1; }
   _measure(entry, st, width) {
     const key = `${entry.id}|${entry.title.length}|${entry.summary.length}|${this._styleKey(st, width)}`;
     if (this.measureCache.has(key)) return this.measureCache.get(key);
@@ -193,7 +199,7 @@ export class EditionReader {
     const mk = (lines) => {
       const el = document.createElement('h3');
       el.className = 'er-title';
-      el.style.cssText = `width:${Math.max(1, width)}px;font-size:${st.titleSize * CONTENT_SCALE}px;line-height:${(st.titleSize + 2 * CONTENT_SCALE) / st.titleSize};`;
+      el.style.cssText = `width:${Math.max(1, width)}px;font-size:${st.titleSize * CONTENT_SCALE}px;line-height:${((st.titleSize + 2 * CONTENT_SCALE) / st.titleSize) * (1 + (this._den() - 1) * 0.4)};`;
       if (lines < 10000) el.style.webkitLineClamp = lines;
       el.textContent = entry.title;
       el.style.display = '-webkit-box'; el.style.webkitBoxOrient = 'vertical'; el.style.overflow = 'hidden';
@@ -264,6 +270,7 @@ export class EditionReader {
     const height = Math.max(1, m.bookH - RAIL_H * 0 - HEADING_H); // 书页内容高（页眉含在内：bookH 已含页眉空间）
     const pageH = m.bookH - HEADING_H;
     const entries = this.items;
+    const gapY = DENSITY[this.typo?.density]?.gapY ?? 24;
     this.pages = [];
     if (!entries.length) return;
     const useH = Math.max(120, pageH);
@@ -301,7 +308,7 @@ export class EditionReader {
             }
           }
           for (const row of options) {
-            const y = path.ps.length ? path.height + 24 : 0;
+            const y = path.ps.length ? path.height + gapY : 0;
             const next = {
               ps: [...path.ps, ...row.ps.map((p) => ({ ...p, y: p.y + y }))],
               height: y + row.height, void: path.void + row.void,
@@ -324,7 +331,7 @@ export class EditionReader {
           st = { ...st, summaryLines: st.summaryLines - 1 };
           st = this._matchingSide(st, entry, width);
           const h = measure(entry, st, width);
-          const y = result.ps.length ? result.height + 24 : 0;
+          const y = result.ps.length ? result.height + gapY : 0;
           if (y + h <= limit) {
             return { ps: [...result.ps, place(entry, 0, y, width, h, st)], height: y + h, void: result.void };
           }
@@ -332,7 +339,7 @@ export class EditionReader {
         if (st.beside && st.imageH > 80) {
           st = { ...st, imageH: 80 };
           const h = measure(entry, st, width);
-          const y = result.ps.length ? result.height + 24 : 0;
+          const y = result.ps.length ? result.height + gapY : 0;
           if (y + h <= limit) return { ps: [...result.ps, place(entry, 0, y, width, h, st)], height: y + h, void: result.void };
         }
       }
@@ -359,7 +366,7 @@ export class EditionReader {
         const h = measure(entry, side, leafW);
         if (y + h > useH) break;
         ps.push(place(entry, leafW + GUTTER, y, leafW, h, side));
-        y += h + 24;
+        y += h + gapY;
       }
       if (ps.length < 4 || y - 24 < useH * 0.56) return null;
       return { ps, height: leadH, template: 'feature' };
@@ -424,7 +431,7 @@ export class EditionReader {
             if (Math.abs(a.h - b.h) > 56 || y + h > limit) { ok = false; break; }
             group.push({ ...a, y }, { ...b, x: laneW + 24, y });
             holes += Math.abs(a.h - b.h) * laneW;
-            y += h + 24;
+            y += h + gapY;
           }
           if (ok && group.length === 4) options.push({ ps: group, height: y - 24, void: holes });
         }
@@ -439,7 +446,7 @@ export class EditionReader {
             const h = measure(list[idx], st, leafW);
             if (y + h > limit) break;
             group.push(place(list[idx], 0, y, leafW, h, st));
-            y += h + 24;
+            y += h + gapY;
             if (group.length >= 2) options.push({ ps: [...group], height: y - 24, void: leafW * 70 });
           }
         }
@@ -633,7 +640,7 @@ export class EditionReader {
           const st = this._normal(entry, leafW, false);
           st.titleLines = 10000; st.summaryLines = 10000;
           const h = measure(entry, st, leafW);
-          const y = path.ps.length ? path.height + 24 : 0;
+          const y = path.ps.length ? path.height + gapY : 0;
           path.ps.push(place(entry, 0, y, leafW, h, st));
           path.height = y + h;
         }
@@ -702,6 +709,7 @@ export class EditionReader {
       <div class="er-tools">
         <button class="er-sound" title="${escapeHTML(t('翻页音效'))}"></button>
         <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
+        <button class="er-type" title="${escapeHTML(t('阅读排版'))}">Aa</button>
         <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
         <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
       </div>
@@ -732,6 +740,10 @@ export class EditionReader {
     });
     // 沉浸全屏（F 键同效）
     overlay.querySelector('.er-full').addEventListener('click', () => this._toggleFullscreen());
+    // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化
+    this.typo = { density: 'standard', margin: 'standard', firstCap: false, ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
+    overlay.querySelector('.er-type').addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleTypePanel(ev.currentTarget); });
+    this._applyTypography(true);
     this.measureHost = document.createElement('div');
     this.measureHost.className = 'er-measure';
     overlay.appendChild(this.measureHost);
@@ -885,6 +897,8 @@ export class EditionReader {
       else this.index = clamp(keep, 0, this.pages.length - 1);
     }
     const m = this._metrics();
+    // 页边距唯一真源：版心内缩（hi）同步给 CSS padding，JS 测量与 DOM 永远一致
+    this.overlay.style.setProperty('--er-inset-x', `${Math.round(m.hi)}px`);
     const book = this.overlay.querySelector('.er-book');
     const wrap = this.overlay.querySelector('.er-bookwrap');
     wrap.style.width = `${m.paperW}px`;
@@ -1301,11 +1315,21 @@ export class EditionReader {
     el.style.width = `${inW}px`;
     const header = document.createElement('div');
     header.className = 'er-head';
-    header.innerHTML = `<span class="er-head-title">${escapeHTML(page.title)}</span><span class="er-head-no">${String(index + 1).padStart(2, '0')}</span>`;
+    header.innerHTML = `<span class="er-head-title">${escapeHTML(page.title)}</span>`;
     el.appendChild(header);
     const canvas = document.createElement('div');
     canvas.className = 'er-canvas';
     canvas.style.height = `${lay.height}px`;
+    // 书页页码：下外角 folio（对开左偶右奇），替代页眉角标
+    if (lay.form === 'spread') {
+      const lf = document.createElement('div');
+      lf.className = 'er-folio l';
+      lf.textContent = String(index * 2 + 1).padStart(2, '0');
+      const rf = document.createElement('div');
+      rf.className = 'er-folio r';
+      rf.textContent = String(index * 2 + 2).padStart(2, '0');
+      el.append(lf, rf);
+    }
     const byId = new Map(page.entries.map((e) => [e.id, e]));
     const onlyLeft = lay.placements.length && lay.placements.every((p) => p.x + p.w <= leafW + 1);
     for (const pl of lay.placements) {
@@ -1350,7 +1374,8 @@ export class EditionReader {
     story.className = `er-story ${st.stacks ? 'stacks' : 'row'} r-${st.role}${entry.isRead ? ' read' : ''}`;
     story.dataset.entryId = entry.id;
     story.tabIndex = -1;
-    const imgSpacing = 16 * sc;
+    const den = this._den();
+    const imgSpacing = Math.round(16 * sc * den);
     if (st.imageH > 0 && entry.image) {
       const imgBox = document.createElement('div');
       imgBox.className = 'er-img';
@@ -1359,7 +1384,7 @@ export class EditionReader {
         ? `width:100%;height:${st.imageH}px;margin-bottom:${imgSpacing}px;`
         : `width:${iw}px;height:${st.imageH}px;flex:0 0 auto;margin-right:${imgSpacing}px;`;
       const img = document.createElement('img');
-      img.loading = 'lazy';
+      img.loading = entry.image.startsWith('data:') ? 'eager' : 'lazy'; // 内联 data 图无网络成本，懒加载在隐藏窗反而永不触发
       img.referrerPolicy = 'no-referrer';
       img.alt = '';
       img.addEventListener('load', () => img.classList.add('ok'), { once: true });
@@ -1368,8 +1393,8 @@ export class EditionReader {
       imgBox.appendChild(img);
       story.appendChild(imgBox);
     }
-    const textSpacing = (st.role === 'lead' ? 10 : 6) * sc;
-    const metaSpacing = (st.role === 'lead' ? 14 : 10) * sc;
+    const textSpacing = Math.round((st.role === 'lead' ? 10 : 6) * sc * den);
+    const metaSpacing = Math.round((st.role === 'lead' ? 14 : 10) * sc * den);
     const tx = document.createElement('div');
     tx.className = 'er-tx';
     if (!st.stacks && st.imageH > 0) tx.style.minHeight = `${st.imageH}px`;
@@ -1378,23 +1403,35 @@ export class EditionReader {
     top.style.cssText = `display:flex;flex-direction:column;gap:${textSpacing}px;padding-bottom:${metaSpacing}px;`;
     const title = document.createElement('h3');
     title.className = 'er-title';
-    title.style.cssText = `font-size:${st.titleSize * sc}px;line-height:${(st.titleSize + 2 * sc) / (st.titleSize * sc)};`;
+    title.style.cssText = `font-size:${st.titleSize * sc}px;line-height:${((st.titleSize + 2 * sc) / (st.titleSize * sc)) * (1 + (den - 1) * 0.4)};`;
     if (st.titleLines < 10000) { title.style.display = '-webkit-box'; title.style.webkitBoxOrient = 'vertical'; title.style.webkitLineClamp = st.titleLines; title.style.overflow = 'hidden'; }
     title.textContent = entry.title;
     top.appendChild(title);
     if (entry.summary && st.summaryLines > 0) {
       const sum = document.createElement('p');
       sum.className = 'er-sum';
-      sum.style.cssText = `font-size:${st.summarySize * sc}px;line-height:${(st.summarySize + 4 * sc) / (st.summarySize * sc)};`;
-      if (st.summaryLines < 10000) { sum.style.display = '-webkit-box'; sum.style.webkitBoxOrient = 'vertical'; sum.style.webkitLineClamp = st.summaryLines; sum.style.overflow = 'hidden'; }
-      sum.textContent = entry.summary;
+      const fs = st.summarySize * sc;
+      const sumLh = ((st.summarySize + 4 * sc) / fs) * den;
+      if (this.typo?.firstCap && st.role === 'lead') {
+        // 头条首字下沉：块级布局 + float 首字（-webkit-box 不支持 ::first-letter，故显式包裹）
+        sum.style.cssText = `font-size:${fs}px;line-height:${sumLh};display:block;max-height:${Math.ceil(st.summaryLines * fs * sumLh)}px;overflow:hidden;`;
+        const chars = Array.from(entry.summary);
+        const cap = document.createElement('span');
+        cap.className = 'er-cap';
+        cap.textContent = chars[0];
+        sum.append(cap, chars.slice(1).join(''));
+      } else {
+        sum.style.cssText = `font-size:${fs}px;line-height:${sumLh};`;
+        if (st.summaryLines < 10000) { sum.style.display = '-webkit-box'; sum.style.webkitBoxOrient = 'vertical'; sum.style.webkitLineClamp = st.summaryLines; sum.style.overflow = 'hidden'; }
+        sum.textContent = entry.summary;
+      }
       top.appendChild(sum);
     }
     tx.appendChild(top);
     const meta = document.createElement('div');
     meta.className = 'er-meta';
     meta.style.fontSize = `${13 * sc}px`;
-    const dot = !entry.isRead ? '<i class="er-dot"></i>' : '';
+    const dot = '<i class="er-dot"></i>';
     const star = entry.isStarred ? `<span class="er-star">${icon('starFilled')}</span>` : '';
     const minutes = entry.readMinutes > 0 ? `<span class="er-min" title="${escapeHTML(t('预计阅读时长'))}">${Math.min(999, entry.readMinutes)} ${escapeHTML(t('分钟'))}</span>` : '';
     meta.innerHTML = `${dot}<span class="er-src">${escapeHTML(entry.source)}</span>${star}${minutes}<span class="er-sp"></span><span class="er-date">${escapeHTML(this._fmtDate(entry.date))}</span>`;
@@ -1431,6 +1468,8 @@ export class EditionReader {
         <div class="er-stack s3"></div><div class="er-stack s2"></div><div class="er-stack s1"></div>
         <div class="er-brand">知更</div>
         <div class="er-cover-title">${escapeHTML(this.title)}</div>
+        <div class="er-rule"></div>
+        <div class="er-cover-vol">${escapeHTML(this._coverVol())}</div>
         <div class="er-cover-date">${escapeHTML(this._coverDate())}</div>
       </div>`;
     if (first) {
@@ -1444,6 +1483,67 @@ export class EditionReader {
     if (!this.overlay) return;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else this.overlay.requestFullscreen?.().catch(() => {});
+  }
+
+  /** 阅读排版（R1）：应用密度/页边/首字下沉到 overlay。 */
+  _applyTypography(skipRelayout = false) {
+    const ov = this.overlay;
+    if (!ov) return;
+    ov.dataset.density = this.typo.density;
+    ov.dataset.margin = this.typo.margin;
+    ov.classList.toggle('er-firstcap', !!this.typo.firstCap);
+    // 版心内缩由 _relayout 统一下发（含窄窗钳制），此处只更新 dataset 供文章模式 CSS 消费
+    if (!skipRelayout) this._onResize();
+  }
+
+  /** 排版面板：右侧滑出，三组即时选项。 */
+  _toggleTypePanel(anchorBtn) {
+    if (!this.overlay) return;
+    let panel = this.overlay.querySelector('.er-type-panel');
+    if (panel) { panel.remove(); return; }
+    panel = document.createElement('div');
+    panel.className = 'er-type-panel';
+    const row = (label, key, options) => {
+      const cur = this.typo[key];
+      return `<div class="er-type-row"><span class="er-type-label">${escapeHTML(label)}</span><span class="er-type-opts">${options.map((o) =>
+        `<button data-key="${key}" data-val="${o.v}" class="${cur === o.v ? 'on' : ''}">${escapeHTML(o.n)}</button>`).join('')}</span></div>`;
+    };
+    panel.innerHTML = `
+      <div class="er-type-head">${escapeHTML(t('阅读排版'))}</div>
+      ${row(t('行距密度'), 'density', [{ v: 'compact', n: t('紧凑') }, { v: 'standard', n: t('标准') }, { v: 'airy', n: t('舒朗') }])}
+      ${row(t('页边距'), 'margin', [{ v: 'narrow', n: t('窄') }, { v: 'standard', n: t('标准') }, { v: 'wide', n: t('宽') }])}
+      <div class="er-type-row"><span class="er-type-label">${escapeHTML(t('首字下沉'))}</span><span class="er-type-opts">
+        <button data-key="firstCap" data-val="off" class="${!this.typo.firstCap ? 'on' : ''}">${escapeHTML(t('关'))}</button>
+        <button data-key="firstCap" data-val="on" class="${this.typo.firstCap ? 'on' : ''}">${escapeHTML(t('开'))}</button>
+      </span></div>`;
+    panel.addEventListener('click', (ev) => {
+      const b = ev.target.closest('.er-type-opts button');
+      if (!b) return;
+      const { key, val } = b.dataset;
+      if (key === 'firstCap') this.typo.firstCap = val === 'on';
+      else this.typo[key] = val;
+      localStorage.setItem('robinread.editionTypography', JSON.stringify(this.typo));
+      this._applyTypography();
+      // 重绘面板选中态
+      panel.querySelectorAll('.er-type-opts button').forEach((x) => {
+        x.classList.toggle('on', String(this.typo[x.dataset.key]) === x.dataset.val || (x.dataset.key === 'firstCap' && String(this.typo.firstCap) === x.dataset.val));
+      });
+    });
+    this.overlay.appendChild(panel);
+    // 面板右缘收进书页内，避免悬挑到台面背景
+    const br = this.overlay.querySelector('.er-book')?.getBoundingClientRect();
+    if (br && br.width > 0) panel.style.right = `${Math.max(12, Math.round(window.innerWidth - br.right + 14))}px`;
+    requestAnimationFrame(() => panel.classList.add('on'));
+  }
+
+  /** 封面期号：最新文章所在年的周序号（「总第 N 期」/ Vol.N）。 */
+  _coverVol() {
+    const newest = this.items.reduce((acc, it) => ((it.date || 0) > (acc || 0) ? it.date : acc), 0);
+    if (!newest) return '';
+    const d = new Date(newest * 1000);
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    const week = Math.max(1, Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7));
+    return (window.__robinLanguage || 'zh') === 'zh' ? `总第 ${week} 期` : `Vol.${week}`;
   }
 
   /** 封面期号日期：本期最新文章日期（中文「2026 年 9 月 28 日」/英文长格式）。 */
@@ -1812,9 +1912,11 @@ export class EditionReader {
     }
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
     if (e.key === 'Escape') {
-      // 灯箱最优先 → 文章目录 → 返回版面 → 退出
+      // 灯箱最优先 → 排版面板 → 文章目录 → 返回版面 → 退出
       const lb = this.overlay.querySelector('.er-lightbox.on');
       if (lb) { e.preventDefault(); lb.classList.remove('on'); this._lightboxOn = false; return; }
+      const typePanel = this.overlay.querySelector('.er-type-panel');
+      if (typePanel) { e.preventDefault(); typePanel.remove(); return; }
       const toc = this.overlay.querySelector('.er-toc');
       if (toc) { e.preventDefault(); toc.remove(); return; }
       if (this.mode === 'article') { e.preventDefault(); return this._closeArticle(); }

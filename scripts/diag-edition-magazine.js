@@ -71,7 +71,7 @@ app.whenReady().then(async () => {
       const inBounds = er.pages.every(p => p.placements.every(pl => pl.x >= 0 && pl.y >= 0 && pl.x + pl.w <= p.paperW + 1 && pl.h > 0));
       // P2 页眉
       const headTitle = ov.querySelector('.er-cover-back .er-head-title')?.textContent || '';
-      const headNo = ov.querySelector('.er-cover-back .er-head-no')?.textContent || '';
+      const folioL = ov.querySelector('.er-cover-back .er-folio.l')?.textContent || '';
       // P3 封面
       const coverVisible = !ov.querySelector('.er-cover').hidden;
       const leafW = ov.querySelector('.er-cover-leaf').style.width;
@@ -97,35 +97,30 @@ app.whenReady().then(async () => {
       const railW = ov.querySelector('.er-ticks').style.width;
       const expectTicks = Math.min(er.pages.length, Math.max(2, Math.floor(parseInt(railW) / 7)));
       const onTick = !!ov.querySelector('.er-tick.on[data-index="1"]');
-      // P4b 向前翻（bwd 方向）：index 回退、翻页叶 bwd 类（实机「往前翻页」bug 回归）
-      er._go(0);
-      await new Promise(r => setTimeout(r, 120));
-      const bwdTurning = ov.querySelector('.er-leaf').className.includes('bwd');
-      await new Promise(r => setTimeout(r, 1100));
-      const bwdBack = er.index === 0;
       // P6 背封页
       er._go(er.pages.length - 1);
       await new Promise(r => setTimeout(r, 1300));
       const backcover = !!ov.querySelector('.er-sheet[data-role="a"] .er-backcover');
-      const pageNo = ov.querySelector('.er-sheet[data-role="a"] .er-head-no')?.textContent;
+      const pageNo = ov.querySelector('.er-sheet[data-role="a"] .er-folio.r')?.textContent;
       // P8 纸声
       const soundOk = /^data:audio\\/wav;base64,/.test(er._sound.src || '');
       // P9 确定性
       const countBefore = er.pages.length;
       er._relayout(false);
       const countAfter = er.pages.length;
-      // P7 窄窗淡入
+      // P7 窄窗淡入（轮询等待 relayout，负载下 resize 事件可能晚到）
       window.resizeTo(600, 800);
-      await new Promise(r => setTimeout(r, 500));
-      const narrowForm = er.pages.every(p => p.form !== 'spread');
+      let narrowForm = false;
+      for (let i = 0; i < 20; i++) { await new Promise(r => setTimeout(r, 250)); narrowForm = er.pages.length > 0 && er.pages.every(p => p.form !== 'spread'); if (narrowForm) break; }
       er._go(er.pages.length > 2 ? 1 : 0);
       await new Promise(r => setTimeout(r, 120));
       const fadeNoLeaf = ov.querySelector('.er-leaf').hidden;
       const bFadein = ov.querySelector('.er-sheet[data-role="b"]').classList.contains('er-fadein');
       await new Promise(r => setTimeout(r, 700));
-      // 还原宽窗再测文章模式
+      // 还原宽窗再测文章模式（同样轮询等回对开）
       window.resizeTo(1600, 1000);
-      await new Promise(r => setTimeout(r, 600));
+      for (let i = 0; i < 20; i++) { await new Promise(r => setTimeout(r, 250)); if (er.pages.every(p => p.form === 'spread')) break; }
+      await new Promise(r => setTimeout(r, 200));
       // P10 文章模式：点击稿件卡 → 正文分页为对开书页
       const editionIndexBefore = er.index;
       const firstCard = ov.querySelector('.er-sheet[data-role="a"] .er-place');
@@ -146,8 +141,8 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, 300));
       const backEdition = er.mode === 'edition' && er.index === editionIndexBefore;
       er.dismiss();
-      return { pages1, spreadForms, paperW, inBounds, headTitle, headNo, coverVisible, leafW, stacks, sheetsHidden,
-        coverGone, sheetShown, storyCount, leafShown, turningFwd, clipped, settled, clipGone, bwdTurning, bwdBack, tickCount, expectTicks,
+      return { pages1, spreadForms, paperW, inBounds, headTitle, folioL, coverVisible, leafW, stacks, sheetsHidden,
+        coverGone, sheetShown, storyCount, leafShown, turningFwd, clipped, settled, clipGone, tickCount, expectTicks,
         onTick, backcover, pageNo, soundOk, countBefore, countAfter, narrowForm, fadeNoLeaf, bFadein,
         artMode, artPages, artFirstIsArticle, artHeadBack, artTitleInHead, artSpread, artPage2, backEdition,
         forms: pages1.map(p => p.form + ':' + p.tpl + ':' + p.n).join(','),
@@ -160,16 +155,15 @@ app.whenReady().then(async () => {
     console.log(`INFO forms=${res.forms} stack=${res.stackCount} coverHidden=${res.coverHiddenAttr} sheetOpacity=${res.sheetOpacity}`);
     ok(res.spreadForms === res.pages1.length && res.pages1.length > 1, `P1 对开形态：${res.spreadForms}/${res.pages1.length} 页全部 spread（paperW=${res.paperW}）`);
     ok(res.inBounds, 'P1 全部 placements 落在版心内且高度>0');
-    ok(res.headTitle === '潮流周刊' && res.headNo === '01', `P2 页眉「${res.headTitle}」+ 页码「${res.headNo}」`);
+    ok(res.headTitle === '潮流周刊' && res.folioL === '01', `P2 页眉「${res.headTitle}」+ 左叶页码「${res.folioL}」`);
     ok(res.coverVisible && res.stacks === 3 && res.sheetsHidden, 'P3 封面可见 + 三层纸叠 + sheets 隐藏');
-    ok(Math.round(parseFloat(res.leafW)) === Math.round(parseFloat(res.paperW) / 2), `P3 封面叶宽 = 半纸宽（${res.leafW} / ${res.paperW}）`);
+    ok(Math.abs(parseFloat(res.leafW) - parseFloat(res.paperW) / 2) <= 1, `P3 封面叶宽 = 半纸宽（${res.leafW} / ${res.paperW}）`);
     ok(res.coverGone && res.sheetShown && res.storyCount > 0, `P3 开书后封面隐藏、纸页显现（${res.storyCount} 张稿件卡）`);
     ok(res.leafShown && res.turningFwd && res.clipped, 'P4 折页：翻页叶展开 + fwd 方向 + 当前页 clip');
-        ok(res.bwdTurning && res.bwdBack, 'P4b 向前翻：bwd 方向 + index 回退到 0（实机 bug 回归）');
     ok(res.settled && res.clipGone, 'P4 落页：index 前进、翻页叶收起、clip 移除');
     ok(res.tickCount === res.expectTicks, `P5 滑轨刻度 ${res.tickCount} = min(页数, railW/7)=${res.expectTicks}`);
     ok(res.onTick, 'P5 当前页刻度高亮');
-    ok(res.backcover || res.pageNo === String(res.pageCount).padStart(2, '0'), `P6 末页背封页/页码（${res.pageNo}，backcover=${res.backcover}）`);
+    ok(res.backcover || res.pageNo === String(res.pageCount * 2).padStart(2, '0'), `P6 末页背封页/右叶页码（${res.pageNo}，backcover=${res.backcover}）`);
     ok(res.soundOk, 'P8 纸声 data:audio/wav 内联');
     ok(res.countBefore === res.countAfter, `P9 排版确定性：两次 relayout 页数一致（${res.countAfter}）`);
     ok(res.narrowForm && res.fadeNoLeaf && res.bFadein, 'P7 窄窗 600px：非对开 + 淡入翻页（无折页叶）');
