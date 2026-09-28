@@ -743,8 +743,8 @@ export class EditionReader {
     });
     // 沉浸全屏（F 键同效）
     overlay.querySelector('.er-full').addEventListener('click', () => this._toggleFullscreen());
-    // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化
-    this.typo = { density: 'standard', margin: 'standard', firstCap: false, ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
+    // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化；R9 增栏宽档
+    this.typo = { density: 'standard', margin: 'standard', firstCap: false, col: 'standard', ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
     overlay.querySelector('.er-type').addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleTypePanel(ev.currentTarget); });
     this._applyTypography(true);
     this.measureHost = document.createElement('div');
@@ -1005,10 +1005,16 @@ export class EditionReader {
   }
 
   /** 正文 → 块序列 → 贪心装箱成半叶 → 两叶一对开。单块超高文本按句切分兜底。 */
+  /** 文章栏宽（R9）：三档 460/540/620，钳制到半叶宽。 */
+  _colW() {
+    const map = { narrow: 475, standard: 540, wide: 620 };
+    return Math.min(map[this.typo?.col] || 540, this._metrics().leafW);
+  }
+
   async _paginateArticle(entry, html) {
     const m = this._metrics();
     const leafH = Math.max(160, m.bookH - HEADING_H - 14); // 底部安全余量：防右叶末行贴纸缘被切
-    const colW = Math.min(600, m.leafW);
+    const colW = this._colW();
     // 解析块
     const host = document.createElement('div');
     host.className = 'er-measure';
@@ -1339,7 +1345,7 @@ export class EditionReader {
   _pageArticleInner(page, index) {
     const m = this._metrics();
     const leafW = m.leafW;
-    const colW = Math.min(600, leafW);
+    const colW = this._colW();
     const el = document.createElement('div');
     el.className = 'er-in';
     el.style.width = `${m.paperW}px`;
@@ -1627,6 +1633,7 @@ export class EditionReader {
       <div class="er-type-head">${escapeHTML(t('阅读排版'))}</div>
       ${row(t('行距密度'), 'density', [{ v: 'compact', n: t('紧凑') }, { v: 'standard', n: t('标准') }, { v: 'airy', n: t('舒朗') }])}
       ${row(t('页边距'), 'margin', [{ v: 'narrow', n: t('窄') }, { v: 'standard', n: t('标准') }, { v: 'wide', n: t('宽') }])}
+      ${row(t('栏宽'), 'col', [{ v: 'narrow', n: t('窄') }, { v: 'standard', n: t('标准') }, { v: 'wide', n: t('宽') }])}
       <div class="er-type-row"><span class="er-type-label">${escapeHTML(t('首字下沉'))}</span><span class="er-type-opts">
         <button data-key="firstCap" data-val="off" class="${!this.typo.firstCap ? 'on' : ''}">${escapeHTML(t('关'))}</button>
         <button data-key="firstCap" data-val="on" class="${this.typo.firstCap ? 'on' : ''}">${escapeHTML(t('开'))}</button>
