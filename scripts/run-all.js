@@ -22,6 +22,7 @@ const OFFLINE = [
   { file: 'scripts/diag-edition-typography.js', runner: 'electron', desc: 'R1 阅读排版：密度/页边/首字下沉面板（离线）' },
   { file: 'scripts/diag-edition-paper.js', runner: 'electron', desc: 'R2 纸张质感：四态循环/夜间独立偏好/牛皮变量（离线）' },
   { file: 'scripts/diag-edition-selection.js', runner: 'electron', desc: 'R3 划词工具条：胶囊/复制/弹层/选区守卫（离线）' },
+  { file: 'scripts/diag-edition-progress.js', runner: 'electron', desc: 'R4 阅读进度：滑轨剩余时间/文章进度线预估（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },

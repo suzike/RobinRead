@@ -932,6 +932,7 @@ export class EditionReader {
     this._editionState = { pages: this.pages, index: this.index, selected: this.selected };
     this.mode = 'article';
     this.article = { entry, html: '', spreads: [] };
+    this._articleMinutes = null;
     this.selected = null;
     // 过渡：先给当前页一个装载提示
     const aSheet = this.overlay.querySelector('.er-sheet[data-role="a"]');
@@ -1006,7 +1007,7 @@ export class EditionReader {
   /** 正文 → 块序列 → 贪心装箱成半叶 → 两叶一对开。单块超高文本按句切分兜底。 */
   async _paginateArticle(entry, html) {
     const m = this._metrics();
-    const leafH = Math.max(160, m.bookH - HEADING_H);
+    const leafH = Math.max(160, m.bookH - HEADING_H - 14); // 底部安全余量：防右叶末行贴纸缘被切
     const colW = Math.min(600, m.leafW);
     // 解析块
     const host = document.createElement('div');
@@ -1132,6 +1133,8 @@ export class EditionReader {
     }
     host.remove();
     // 贪心装箱（半叶）；标题块 keep-with-next：叶底放不下「标题+后块」时整组下移，杜绝孤行节标题
+    // 块间距按真实段距计（.er-article p margin-bottom ≈ 1.15em ≈ 18px；旧值 8px 系统性低估导致末叶溢出纸缘）
+    const BLK_GAP = 18;
     const isHeadingBlk = (blk) => /^h[1-6]$/i.test(blk?.el?.tagName || '');
     const leaves = [];
     let cur = [], used = 0;
@@ -1140,7 +1143,7 @@ export class EditionReader {
       const need = used + blk.h + (isHeadingBlk(blk) && blocks[bi + 1] ? 8 + blocks[bi + 1].h : 0);
       if (used > 0 && need > leafH) { leaves.push(cur); cur = []; used = 0; }
       cur.push(blk);
-      used += blk.h + 8;
+      used += blk.h + (cur.length === 1 ? 4 : BLK_GAP);
     }
     if (cur.length) leaves.push(cur);
     // 两叶一对开；末尾单叶补「完」页
@@ -1282,6 +1285,9 @@ export class EditionReader {
     const progress = document.createElement('div');
     progress.className = 'er-article-progress';
     progress.innerHTML = `<i style="width:${Math.round(((index + 1) / Math.max(1, this.pages.length)) * 100)}%"></i>`;
+    // 剩余时间预估（R4）：进度线右端小字
+    const remain = this._articleRemainMinutes(index);
+    progress.insertAdjacentHTML('beforeend', `<span class="er-remain-tip">${remain > 0 ? `${escapeHTML(t('本文约剩'))} ${remain} ${escapeHTML(t('分钟'))}` : escapeHTML(t('本文已读完'))}</span>`);
     el.appendChild(progress);
     const canvas = document.createElement('div');
     canvas.className = 'er-canvas';
@@ -2256,6 +2262,39 @@ export class EditionReader {
     ticks.innerHTML = indices.map((pageIndex, slot) => `
       <button class="er-tick${pageIndex === cur ? ' on' : ''}" data-index="${pageIndex}" data-slot="${slot}"
         aria-label="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}"></button>`).join('');
+    // 阅读进度与剩余时间预估（R4）
+    const count = rail.querySelector('.er-count');
+    if (this.open && this.pages.length > 1) {
+      const progress = (cur + 1) / this.pages.length;
+      const remain = this._remainMinutes(progress);
+      count.innerHTML = `<span class="er-remain">${remain > 0 ? `${escapeHTML(t('本期约剩'))} ${remain} ${escapeHTML(t('分钟'))}` : escapeHTML(t('本期已读完'))}</span><span class="er-page-no">${cur + 1} / ${this.pages.length}</span>`;
+      count.hidden = false;
+    } else {
+      count.hidden = true;
+    }
+  }
+  /** 本期总阅读分钟（readMinutes 优先，无则按标题+摘要字数估算），缓存一次。 */
+  _remainMinutes(progress) {
+    if (this._totalMinutes == null) {
+      let mins = 0, chars = 0;
+      for (const it of this.items) {
+        mins += Number(it.readMinutes) || 0;
+        chars += String(it.title || '').length + String(it.summary || '').length;
+      }
+      this._totalMinutes = Math.max(1, mins + Math.round(chars / 500));
+    }
+    return Math.max(0, Math.round(this._totalMinutes * (1 - progress)));
+  }
+  /** 文章剩余分钟（R4）：entry.readMinutes 优先，否则按正文字数 400 字/分钟估算。 */
+  _articleRemainMinutes(index) {
+    const total = this.pages.length;
+    if (!total || !this.article) return null;
+    if (this._articleMinutes == null) {
+      const rm = Number(this.article.entry?.readMinutes) || 0;
+      const chars = String(this.article.html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+      this._articleMinutes = rm > 0 ? rm : Math.max(1, Math.round(chars / 400));
+    }
+    return Math.max(0, Math.round(this._articleMinutes * (1 - (index + 1) / total)));
   }
   _railWave(e) {
     if (this.reduceMotion) return;
@@ -2340,7 +2379,7 @@ export class EditionReader {
       window.removeEventListener('pointermove', move);
       this.scrub = null;
       rail.classList.remove('scrubbing');
-      rail.querySelector('.er-count').hidden = true;
+      this._syncRail(); // 恢复常显的剩余时间/页码（R4），并按落点重算刻度
       this._railHover(false);
       // 吸附最近页（settleDuration 0.18）
       const final = clamp(Math.round(pos(ev)), 0, this.pages.length - 1);

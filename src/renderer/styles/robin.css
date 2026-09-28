@@ -4280,8 +4280,10 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 .er-head-no { margin-left: auto; flex: 0 0 auto; font-size: 11px; color: var(--erp-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }
 .er-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -8px; height: 0.5px; background: rgba(139, 133, 116, 0.38); }
 /* 文章模式阅读进度线：页眉分隔线上的强调色细线 */
-.er-article-progress { position: relative; height: 0.5px; margin: 8px calc(-1 * var(--er-inset-x, 36px)) 0; background: rgba(139, 133, 116, 0.14); }
-.er-article-progress i { position: absolute; left: 0; top: -0.25px; height: 1.5px; background: var(--accent, #617357); opacity: 0.85; transition: width 0.3s var(--ease-out); }
+.er-article-progress { position: relative; height: 3px; margin: 8px calc(-1 * var(--er-inset-x, 36px)) 0; background: rgba(139, 133, 116, 0.16); border-radius: 2px; }
+.er-article-progress i { position: absolute; left: 0; top: 0; height: 3px; background: var(--accent, #617357); border-radius: 2px; transition: width 0.3s var(--ease-out); }
+/* 剩余时间预估（R4）：文章右端标「本文」、滑轨标「本期」，避免双倒计时混淆 */
+.er-remain-tip { position: absolute; right: var(--er-inset-x, 36px); top: 9px; font-family: var(--font-serif); font-size: 10.5px; color: var(--erp-muted); letter-spacing: 0.08em; white-space: nowrap; }
 /* 文章目录面板：右侧滑出 */
 .er-head-toc {
   appearance: none; border: none; background: transparent; cursor: pointer; padding: 0 8px;
@@ -4558,7 +4560,10 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 .er-overlay.er-dark .er-tick::before { background: rgba(230, 224, 210, 0.4); }
 .er-tick.on::before { height: 12px; background: rgba(43, 39, 33, 0.88); }
 .er-overlay.er-dark .er-tick.on::before { background: rgba(230, 224, 210, 0.88); }
-.er-count { position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); font: 600 11px/1 ui-monospace, monospace; color: var(--erp-muted); }
+.er-count { position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); display: flex; align-items: baseline; gap: 10px; font: 600 11px/1 ui-monospace, monospace; color: var(--erp-muted); letter-spacing: 0.08em; white-space: nowrap; }
+.er-count[hidden] { display: none; }
+.er-count .er-remain { font-family: var(--font-serif); font-size: 11.5px; color: var(--accent, #617357); }
+@media (max-width: 900px) { .er-count { display: none; } }
 .er-count[hidden] { display: none; }
 .er-preview {
   position: absolute; bottom: 46px; left: 50%; transform: translateX(-50%);
