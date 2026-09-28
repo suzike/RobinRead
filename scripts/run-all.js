@@ -33,6 +33,7 @@ const OFFLINE = [
   { file: 'scripts/diag-edition-export.js', runner: 'electron', desc: 'R13 当前页导出：captureRect/剪贴板/浮层收起（离线）' },
   { file: 'scripts/diag-edition-keys.js', runner: 'electron', desc: 'R14 快捷键速查：? 呼出/8 行/Esc 往复（离线）' },
   { file: 'scripts/diag-edition-session.js', runner: 'electron', desc: 'R15 会话统计：翻页/读文累计/退出小结（离线）' },
+  { file: 'scripts/diag-edition-fx.js', runner: 'electron', desc: 'R16 动作音效：tick/done/开纸声/开关静默（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },

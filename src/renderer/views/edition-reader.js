@@ -841,6 +841,7 @@ export class EditionReader {
     if (!this.pages.length) return;
     this.open = true;
     this._play();
+    this._fx('open');
     const cover = this.overlay.querySelector('.er-cover');
     const dur = this.reduceMotion ? 0.16 : 0.65;
     cover.hidden = false;
@@ -1897,6 +1898,7 @@ export class EditionReader {
         if (tools) tools.style.visibility = prevVisibility;
       }
       await window.robin.copyImage(base64);
+      this._fx('done');
       this._notice(t('当前页图片已复制到剪贴板'));
     } catch {
       this._notice(t('导出失败：请重试'));
@@ -1996,6 +1998,50 @@ export class EditionReader {
   }
 
   // ────────────────────────────────────────────────
+  // 动作音效（R16）：收藏 tick / 导出 done（WebAudio 合成）、开书纸声变奏；统一受音效开关管
+  // ────────────────────────────────────────────────
+  _fx(kind) {
+    if (!this.soundOn) return;
+    this._fxCalls = (this._fxCalls || 0) + 1;
+    try {
+      if (kind === 'open') {
+        const a = new Audio(this.soundSrc);
+        a.volume = 0.4;
+        a.playbackRate = 1.25;
+        a.play().catch(() => {});
+        return;
+      }
+      const ctx = this._fxCtx || (this._fxCtx = new (window.AudioContext || window.webkitAudioContext)());
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const t0 = ctx.currentTime + 0.01;
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+      if (kind === 'tick') {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = 880;
+        o.connect(gain);
+        gain.gain.setValueAtTime(0.06, t0);
+        gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.07);
+        o.start(t0);
+        o.stop(t0 + 0.08);
+      } else if (kind === 'done') {
+        [660, 990].forEach((f, i) => {
+          const o = ctx.createOscillator();
+          o.type = 'sine';
+          o.frequency.value = f;
+          o.connect(gain);
+          const s = t0 + i * 0.07;
+          gain.gain.setValueAtTime(0.05, s);
+          gain.gain.exponentialRampToValueAtTime(0.001, s + 0.09);
+          o.start(s);
+          o.stop(s + 0.1);
+        });
+      }
+    } catch { /* 音频不可用时静默 */ }
+  }
+
+  // ────────────────────────────────────────────────
   // 快捷收藏/稍后读（R12）：S/L 键，版面=选中卡、文章=当前文章
   // ────────────────────────────────────────────────
   _quickToggle(kind) {
@@ -2016,6 +2062,7 @@ export class EditionReader {
     this._notice(next
       ? (isStar ? t('已收藏') : t('已加入稍后读'))
       : (isStar ? t('已取消收藏') : t('已移出稍后读')));
+    this._fx('tick');
     // 版面当前页重绘以刷新星标/稍后读标记；文章态仅 notice（页眉无标记位）
     if (this.mode === 'edition') this._syncSheets(true);
   }
