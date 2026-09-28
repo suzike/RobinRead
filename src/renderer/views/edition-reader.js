@@ -1556,14 +1556,6 @@ export class EditionReader {
     return zh ? `${d.getMonth() + 1}月${d.getDate()}日` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  /** 封面头条图（R7）：本期第一条带头图的文章；无图回退纯排版封面。 */
-  _coverLeadImage() {
-    for (const it of this.items) {
-      if (it.image) return it.image;
-    }
-    return '';
-  }
-
   _renderCover() {
     const cover = this.overlay.querySelector('.er-cover');
     const m = this._metrics();
@@ -1579,7 +1571,8 @@ export class EditionReader {
     const leaf = cover.querySelector('.er-cover-leaf');
     leaf.style.width = `${m.paperW / 2}px`;
     leaf.style.height = `${m.bookH}px`;
-    const lead = this._coverLeadImage();
+    const leadEntry = this.items.find((it) => it.image) || null;
+    const lead = leadEntry ? leadEntry.image : '';
     const volMatch = /(\d+)/.exec(this._coverVol() || '');
     const volNum = volMatch ? volMatch[1] : '';
     cover.querySelector('.er-cover-front').innerHTML = `
@@ -1590,7 +1583,7 @@ export class EditionReader {
         <div class="er-cover-title">${escapeHTML(this.title)}</div>
         <div class="er-rule"></div>
         ${volNum ? `<div class="er-cover-volbig"><span class="er-vol-label">${escapeHTML(t('总第'))}</span><span class="er-vol-num">${escapeHTML(volNum)}</span><span class="er-vol-label">${escapeHTML(t('期'))}</span></div>` : `<div class="er-cover-vol">${escapeHTML(this._coverVol())}</div>`}
-        ${lead ? `<div class="er-cover-lead"><img src="${escapeHTML(lead)}" alt="" referrerPolicy="no-referrer" loading="eager"></div>` : ''}
+        ${lead ? `<div class="er-cover-lead"><img src="${escapeHTML(lead)}" alt="" referrerPolicy="no-referrer" loading="eager"></div><div class="er-cover-leadcap" title="${escapeHTML(leadEntry.title)}">${escapeHTML(leadEntry.title)}</div>` : `<div class="er-cover-stats">${escapeHTML(t('本期收录'))} ${this.items.length} ${escapeHTML(t('篇'))}</div>`}
         <div class="er-cover-date">${escapeHTML(this._coverDate())}</div>
       </div>`;
     if (first) {

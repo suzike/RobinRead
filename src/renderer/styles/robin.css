@@ -4451,6 +4451,15 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
   background: rgba(139, 133, 116, 0.08); flex: 0 1 auto; min-height: 0;
 }
 .er-cover-lead img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 头条图注（R10）：图下一行小字头条标题 */
+.er-cover-leadcap {
+  width: 82%; margin-top: -18px; font-family: var(--font-serif); font-size: 11px; letter-spacing: 0.06em;
+  color: var(--erp-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+}
+/* 无图回退统计行（R10） */
+.er-cover-stats { font-family: var(--font-serif); font-size: 12px; letter-spacing: 0.2em; color: var(--erp-muted); opacity: 0.8; }
+/* 日期锚底（R10）：与上部 lockup 解耦，永远贴封底 */
+.er-cover-date { margin-top: auto; }
 /* 封面期号日期（对比度门槛：不低于墨色 78%） */
 .er-cover-date { font-family: var(--font-sans); font-weight: 500; font-size: 13.5px; letter-spacing: 0.22em; color: color-mix(in srgb, var(--erp-ink) 78%, transparent); }
 

@@ -50,6 +50,8 @@ app.whenReady().then(async () => {
         hasLead: !!lead, leadH: leadRect ? Math.round(leadRect.height) : 0,
         faceH: Math.round(faceRect.height),
         leadInside: leadRect ? (leadRect.bottom <= faceRect.bottom + 1 && leadRect.top >= faceRect.top - 1) : false,
+        capText: face.querySelector('.er-cover-leadcap')?.textContent || '',
+        dateAnchored: (() => { const d = face.querySelector('.er-cover-date'); if (!d) return false; const dr = d.getBoundingClientRect(); return faceRect.bottom - dr.bottom < 60; })(),
       };
     `.split('${IMG}').join(IMG));
     if (a.__err) throw new Error('cover: ' + a.__err);
@@ -57,6 +59,8 @@ app.whenReady().then(async () => {
     ok(/^\d+$/.test(a.volNum) && a.volLabels.includes('总第') && a.volLabels.includes('期'), '期号大字结构（总第 ' + a.volNum + ' 期）');
     ok(a.hasLead && a.leadH > 150, '头条大图挂载（高 ' + a.leadH + 'px）');
     ok(a.leadInside && a.leadH <= a.faceH * 0.5, '头条图不溢出封面（高 ' + a.leadH + ' / 封面 ' + a.faceH + '）');
+    ok(a.dateAnchored, '日期锚底（距封底 <60px）');
+    ok(a.capText.length > 0, '头条图注为头条标题（' + a.capText.slice(0, 14) + '…）');
     const b = await run('cover-fallback', `
       window.__er.dismiss();
       await new Promise(r => setTimeout(r, 200));
@@ -68,10 +72,12 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, 1300));
       const face = document.querySelector('.er-cover-face');
       return { hasLead: !!face.querySelector('.er-cover-lead'), hasVol: !!face.querySelector('.er-cover-volbig') || !!face.querySelector('.er-cover-vol'),
+        stats: face.querySelector('.er-cover-stats')?.textContent || '',
         brand: !!face.querySelector('.er-brand'), coverVisible: !document.querySelector('.er-cover').hidden };
     `);
     if (b.__err) throw new Error('fallback: ' + b.__err);
     ok(!b.hasLead && b.hasVol && b.brand && b.coverVisible, '无图回退纯排版封面（无头条图、期号/品牌在、封面可见）');
+    ok(/本期收录 24 篇/.test(b.stats), '无图回退统计行（' + b.stats + '）');
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {
