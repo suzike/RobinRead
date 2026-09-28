@@ -68,7 +68,8 @@ export class EditionReader {
     try {
       const res = await window.robin.getReader(entryID);
       const d = res && res.ok ? res.data : null;
-      if (!d || !d.content) throw new Error(t('内容为空'));
+      const content = d ? (typeof d.content === 'string' ? d.content : (d.content && d.content.html) || '') : '';
+      if (!d || !content) throw new Error(t('内容为空'));
       const feedName = d.feed?.title || item.feedTitle || '';
       const date = d.entry?.publishedAt ? new Date(d.entry.publishedAt * 1000).toLocaleDateString('zh-CN') : (item.date || '');
       page.innerHTML = `
@@ -80,7 +81,7 @@ export class EditionReader {
         <div class="er-rule"></div>
         <div class="er-art-body"></div>`;
       const body = page.querySelector('.er-art-body');
-      body.innerHTML = d.content;
+      body.innerHTML = content;
       // 轻处理：去脚本、图片懒显
       body.querySelectorAll('script,style,iframe').forEach((el) => el.remove());
       body.querySelectorAll('img').forEach((im) => { im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; });

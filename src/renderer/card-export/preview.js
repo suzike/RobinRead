@@ -233,10 +233,22 @@ export async function openCardExportModal({ data, link = '' }) {
 
   function renderPreview() {
     const card = renderCard(data, cardOptions());
-    const p = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.456;
-    shadow.innerHTML = `<style>${card.css}
-      .cardx-scale { zoom: ${p}; }</style>
-      <div class="cardx-scale">${card.html}</div>`;
+    const isLandscape = (() => { const r = RATIOS.find((x) => x.id === state.ratio)?.ratio; return r !== null && r !== undefined && r < 1; })();
+    if (isLandscape) {
+      // 横版满宽预览：卡按画幅宽渲染，host 等比适配
+      const ratio = RATIOS.find((x) => x.id === state.ratio)?.ratio;
+      const stageW = Math.round(CARD_WIDTH / ratio);
+      const fill = stageW / CARD_WIDTH;
+      const p = host.clientWidth ? host.clientWidth / stageW : 0.34;
+      shadow.innerHTML = `<style>${card.css}
+        .cardx-scale { zoom: ${p * fill}; }</style>
+        <div class="cardx-scale">${card.html}</div>`;
+    } else {
+      const p = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.456;
+      shadow.innerHTML = `<style>${card.css}
+        .cardx-scale { zoom: ${p}; }</style>
+        <div class="cardx-scale">${card.html}</div>`;
+    }
     // 画幅适配：卡片高于目标比例时整体等比缩小完整放入（与导出逻辑一致，不裁切）
     const cardEl = shadow.querySelector('.xc-card');
     // 取色（C4）：有封面时提取主色做卡片底部色带
