@@ -1155,8 +1155,10 @@ export class EditionReader {
     const headings = [];
     leaves.forEach((leaf, li) => {
       for (const blk of leaf) {
-        if (/^h[1-6]$/i.test(blk.el.tagName || '')) {
-          headings.push({ text: blk.el.textContent.trim().slice(0, 60), spread: Math.floor(li / 2) });
+        const hm = /^h([1-6])$/i.exec(blk.el.tagName || '');
+        if (hm) {
+          headings.push({ text: blk.el.textContent.trim().slice(0, 60), spread: Math.floor(li / 2),
+            level: clamp(Number(hm[1]) - 1, 1, 3) }); // h2=1 h3=2 …（R8 目录树状）
         }
       }
     });
@@ -1191,8 +1193,9 @@ export class EditionReader {
     toc = document.createElement('div');
     toc.className = 'er-toc';
     const rows = (this.article?.headings || []).map((h) =>
-      `<button class="er-toc-row${h.spread === this.index ? ' cur' : ''}" data-spread="${h.spread}"><span class="er-toc-page">${h.spread + 1}</span><span class="er-toc-text">${escapeHTML(h.text)}</span></button>`).join('');
+      `<button class="er-toc-row" data-spread="${h.spread}" data-level="${h.level || 1}"><span class="er-toc-page">${h.spread + 1}</span><span class="er-toc-text">${escapeHTML(h.text)}</span></button>`).join('');
     toc.innerHTML = `<div class="er-toc-head">${escapeHTML(t('文章目录'))}</div><div class="er-toc-list">${rows || `<div class="er-toc-empty">${escapeHTML(t('本文暂无小节标题'))}</div>`}</div>`;
+    this._syncToc(toc);
     toc.addEventListener('click', (ev) => {
       const row = ev.target.closest('.er-toc-row');
       if (row) { toc.remove(); this._go(Number(row.dataset.spread)); }
@@ -1203,6 +1206,20 @@ export class EditionReader {
       toc.classList.add('on');
       toc.querySelector('.er-toc-row.cur')?.scrollIntoView({ block: 'center' });
     });
+  }
+
+  /** 目录当前节锚定（R8）：当前页所属的「最后一个起始页 ≤ 当前页」的标题为唯一高亮行。 */
+  _syncToc(toc) {
+    const panel = toc || this.overlay?.querySelector('.er-toc');
+    if (!panel || !this.article) return;
+    const hs = this.article.headings || [];
+    const rowEls = [...panel.querySelectorAll('.er-toc-row')];
+    let anchor = -1;
+    for (let i = 0; i < hs.length && i < rowEls.length; i++) {
+      if (hs[i].spread <= this.index) anchor = i;
+    }
+    rowEls.forEach((row, i) => row.classList.toggle('cur', i === anchor));
+    if (toc) panel.querySelector('.er-toc-row.cur')?.scrollIntoView({ block: 'center' });
   }
 
   /** 正文图片灯箱：画廊式（R5 增强：滚轮缩放/拖拽平移/双击 1:1/键盘切换/百分比角标）。 */
@@ -2348,9 +2365,16 @@ export class EditionReader {
     const indices = this._tickIndices();
     const cur = this._railCurrent();
     ticks.style.width = `${this._railWidth()}px`;
-    ticks.innerHTML = indices.map((pageIndex, slot) => `
-      <button class="er-tick${pageIndex === cur ? ' on' : ''}" data-index="${pageIndex}" data-slot="${slot}"
-        aria-label="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}"></button>`).join('');
+    // 栏目分段（R8）：头条专题页（feature/imageLead）前加分隔线，对应「本期栏目」边界
+    let prevTpl = null;
+    ticks.innerHTML = indices.map((pageIndex, slot) => {
+      const page = this.pages[pageIndex];
+      const isLead = page && (page.template === 'feature' || page.template === 'imageLead');
+      const sep = prevTpl && isLead && prevTpl !== page.template ? '<i class="er-tick-sep" title=""></i>' : '';
+      if (page) prevTpl = page.template;
+      return `${sep}<button class="er-tick${pageIndex === cur ? ' on' : ''}" data-index="${pageIndex}" data-slot="${slot}"
+        aria-label="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}"></button>`;
+    }).join('');
     // 阅读进度与剩余时间预估（R4）
     const count = rail.querySelector('.er-count');
     if (this.open && this.pages.length > 1) {
@@ -2361,6 +2385,7 @@ export class EditionReader {
     } else {
       count.hidden = true;
     }
+    this._syncToc(); // 目录面板开着时，翻页同步当前节高亮（R8）
   }
   /** 本期总阅读分钟（readMinutes 优先，无则按标题+摘要字数估算），缓存一次。 */
   _remainMinutes(progress) {
