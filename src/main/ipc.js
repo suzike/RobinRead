@@ -817,6 +817,7 @@ function registerIPCHandlers(store, window) {
   handle('card:renderPng', (payload = {}) => {
     const { templateId, data, options, zoom = 2, ratio = null, format = 'png' } = payload || {};
     // 串行化：隐藏窗口同一时刻只渲染一张（排队执行，结果按序返回）
+
     const task = cardExportChain.catch(() => {}).then(() =>
       renderCardPngOnce({ templateId, data, options, zoom, ratio, format }));
     cardExportChain = task.catch(() => {});
@@ -829,6 +830,22 @@ function registerIPCHandlers(store, window) {
     const page = renderStagePage(data, options, opts);
 
     const tmpPath = path.join(app.getPath('temp'), `robin-card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.html`);
+    // 横版满宽长图：宽度=画幅宽×zoom，高度随内容（渲染后实测，不再等比缩小）
+    if (ratio && ratio < 1) {
+      const page = renderStagePage(data, options, { zoom, ratio, naturalHeight: null });
+      fs.writeFileSync(tmpPath, page.html, 'utf8');
+      await win.loadFile(tmpPath);
+      await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
+      await new Promise((r) => setTimeout(r, 300));
+      const dim = JSON.parse(await win.webContents.executeJavaScript('(()=>{const s=document.querySelector(".xc-stage").getBoundingClientRect();return JSON.stringify({w:Math.ceil(s.width*zoom),h:Math.ceil(s.height*zoom)})})()'));
+      win.setContentSize(dim.w, Math.min(dim.h, 16000));
+      win.setBackgroundColor(page.bg);
+      await new Promise((r) => setTimeout(r, 150));
+      const image = await win.webContents.capturePage();
+      const png = image.toPNG();
+      if (png.length < 1000) throw new Error('卡片渲染结果为空');
+      return { base64: png.toString('base64'), width: dim.w, height: Math.min(dim.h, 16000), truncated: dim.h > 16000 };
+    }
     fs.writeFileSync(tmpPath, page.html, 'utf8');
     try {
       const measure = async () => {

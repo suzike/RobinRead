@@ -1617,14 +1617,16 @@ export function renderCard(data, options = {}) {
   const d0Cover = !!data.cover;
   // 横版画幅：内容海报化精简（长文在横版下等比缩放会产生大空白与不可读小字）
   if (options.orientation === 'landscape') {
+    const lvl = Number(options.slimLevel) || 2;
     const slim = { ...data };
-    if (Array.isArray(slim.steps)) slim.steps = slim.steps.slice(0, 3);
-    if (Array.isArray(slim.points)) slim.points = slim.points.slice(0, 3);
-    if (Array.isArray(slim.prose)) slim.prose = [];
-    if (Array.isArray(slim.quotes)) slim.quotes = slim.quotes.slice(0, 1);
-    if (Array.isArray(slim.actions)) slim.actions = slim.actions.slice(0, 1);
-    if (Array.isArray(slim.concepts)) slim.concepts = slim.concepts.slice(0, 4);
-    slim.counter = null;
+    const capN = (arr, n) => (Array.isArray(arr) ? arr.slice(0, n) : arr);
+    slim.steps = capN(slim.steps, lvl >= 3 ? 1 : 2);
+    slim.points = capN(slim.points, lvl >= 3 ? 1 : 2);
+    slim.concepts = capN(slim.concepts, lvl >= 3 ? 2 : 4);
+    slim.quotes = capN(slim.quotes, 1);
+    slim.actions = capN(slim.actions, 1);
+    if (lvl >= 2) slim.prose = [];
+    if (lvl >= 3) slim.counter = null;
     data = slim;
   }
   if (options.lengthMode && options.lengthMode !== 'long') data = applyLengthMode(data, options.lengthMode);
@@ -1686,13 +1688,28 @@ export function renderStagePage(data, options = {}, fit = {}) {
   const vf = variantFilter(options.variant);
   const vstyle = vf !== 'none' ? `filter:${vf}` : '';
   const zoom = fit.zoom || 2;
+  // 横版满宽长图：卡放大铺满画幅宽（zoom=画幅宽/750），高度随内容（渲染后实测）
+  if (fit.ratio !== null && fit.ratio !== undefined && fit.ratio < 1) {
+    const slimLevel = fit.ratio < 0.7 ? 3 : 2;
+    const cardOpts = { ...options, orientation: 'landscape', slimLevel };
+    const stageW = Math.round(CARD_WIDTH / fit.ratio);
+    const fill = stageW / CARD_WIDTH;
+    const card = renderCard(data, cardOpts);
+    const w = Math.round(stageW * zoom);
+    const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+      html,body{margin:0;padding:0;background:${card.bg}}
+      .xc-stage{width:${stageW}px}
+      .xc-stage > .xc-card{zoom:${fill}}
+    </style><style>${card.css}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`;
+    return { html, bg: card.bg, width: w, height: null };
+  }
   const ratio = fit.ratio || null;
   // 横版画幅（16:9 / 2.35:1 等）：卡片拉宽至画幅宽 + 内容双栏重排 + 海报化精简，
   // 内容自然高度作为 fit.naturalHeight 传入（两遍渲染），仅当仍超高时才等比缩放。
   const landscape = ratio !== null && ratio < 1;
   const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
   const cardOpts = landscape ? { ...options, orientation: 'landscape' } : options;
-  const landCss = landscape ? `.xc-card{width:${stageW}px}.xc-card .xc-hero,.xc-card .xc-cover-gen{height:300px !important;aspect-ratio:auto}.xc-card .xc-lead{margin-top:18px !important}` : '';
+  const landCss = landscape ? `.xc-card{width:${stageW}px}.xc-card .xc-hero,.xc-card .xc-cover-gen{height:300px !important;aspect-ratio:auto}.xc-card .xc-lead{margin-top:14px !important}.xc-card .xc-sec{margin-top:24px !important}.xc-card .xc-foot{margin-top:26px !important}.xc-card .xc-title{font-size:1.55em !important;margin-bottom:10px !important}.xc-card .xc-meta{margin-bottom:12px !important}.xc-card .xc-cover,.xc-card .xc-cover-gen{margin-top:14px !important}.xc-card .xc-stats,.xc-card .xc-chips{margin-top:14px !important}` : '';
   const card = renderCard(data, cardOpts);
   if (!ratio || !fit.naturalHeight) {
     const page = renderFullPage(data, cardOpts, zoom);
@@ -1710,7 +1727,7 @@ export function renderStagePage(data, options = {}, fit = {}) {
       .xc-export{zoom:${zoom};${vstyle}}
       .xc-stage{width:${boxW}px;height:${boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${options.bgGradient || seededGradient(data.title)}}
       .xc-stage > .xc-card{width:${boxW}px;zoom:${f}}
-    </style><style>${card.css}</style></head><body><div class="xc-export"><div class="xc-stage">${card.html}</div></div></body></html>`,
+    </style><style>${card.css}${landCss}</style></head><body><div class="xc-export"><div class="xc-stage">${card.html}</div></div></body></html>`,
     bg: card.bg,
     width: Math.round(boxW * zoom),
     height: Math.round(boxH * zoom),

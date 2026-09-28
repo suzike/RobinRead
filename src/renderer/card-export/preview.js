@@ -8,10 +8,7 @@ const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, renderFullPage, variantFilter, renderCard } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';
-const CARD_HIST_KEY = 'robinread.cardExport.history';
 const CARD_FAV_KEY = 'robinread.cardExport.favs';
-const loadHist = () => { try { return JSON.parse(localStorage.getItem(CARD_HIST_KEY) || '[]'); } catch (_) { return []; } };
-const saveHist = (h) => localStorage.setItem(CARD_HIST_KEY, JSON.stringify(h.slice(0, 8)));
 const loadFavs = () => { try { return JSON.parse(localStorage.getItem(CARD_FAV_KEY) || '[]'); } catch (_) { return []; } };
 const saveFavs = (f) => localStorage.setItem(CARD_FAV_KEY, JSON.stringify(f));
 const RATIOS = [
@@ -373,27 +370,6 @@ export async function openCardExportModal({ data, link = '' }) {
     });
     tplBox.appendChild(favBtn);
 
-    // ── 历史配置（最近 5 条点击重现）──
-    const hist = loadHist();
-    if (hist.length) {
-      const hWrap = document.createElement('div');
-      hWrap.className = 'cardx-optgroup';
-      hWrap.innerHTML = '<div class="cardx-side-h">' + escapeHTML(t('历史配置')) + '</div>';
-      for (const it of hist.slice(0, 5)) {
-        const row = document.createElement('button');
-        row.className = 'cardx-hist';
-        row.innerHTML = '<span class="cardx-hist-tpl"></span><span class="cardx-hist-time"></span>';
-        row.querySelector('.cardx-hist-tpl').textContent = (CARD_TEMPLATES.find((x) => x.id === it.tpl) || {}).name || it.tpl;
-        row.querySelector('.cardx-hist-time').textContent = new Date(it.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        row.title = it.title || '';
-        row.addEventListener('click', () => {
-          Object.assign(state, { tpl: it.tpl, variant: it.variant, ratio: it.ratio, coverFilter: it.coverFilter, density: it.density, fontPair: it.fontPair });
-          persist(); renderSidebar(); renderPreview();
-        });
-        hWrap.appendChild(row);
-      }
-      sideEl.appendChild(hWrap);
-    }
     const zoomBox = modal.querySelector('.cardx-zoom');
     zoomBox.innerHTML = '';
     for (const z of [{ id: 2, label: '2x' }, { id: 3, label: '3x' }]) {
@@ -431,11 +407,6 @@ export async function openCardExportModal({ data, link = '' }) {
     return res.data;
   };
 
-  const pushHistory = () => {
-    const h = loadHist();
-    h.unshift({ ts: Date.now(), tpl: state.tpl, variant: state.variant, ratio: state.ratio, coverFilter: state.coverFilter, density: state.density, fontPair: state.fontPair, title: String(data && data.title || '').slice(0, 40) });
-    saveHist(h);
-  };
   const exportPng = async (format = 'png') => {
     const png = unwrap(await window.robin.renderCardPng({
       templateId: state.tpl, data, options: cardOptions(), zoom: state.zoom,
@@ -465,7 +436,6 @@ export async function openCardExportModal({ data, link = '' }) {
       setBusy(true);
       setStatus(t('正在渲染全部模板…'));
       const zip = unwrap(await window.robin.renderAllTemplates({ data, options: cardOptions(), zoom: state.zoom, ratio: RATIOS.find((r) => r.id === state.ratio)?.ratio || null }), '批量渲染失败');
-      pushHistory();
       const picked = await window.robin.pickSavePath('robinread-cards-all-templates.zip');
       const filePath = picked?.ok ? picked.data : null;
       if (!filePath) { setBusy(false); return; }
@@ -485,7 +455,6 @@ export async function openCardExportModal({ data, link = '' }) {
       setBusy(true);
       setStatus(t('正在渲染高清卡片…'));
       const png = await exportPng(state.format);
-      pushHistory();
       unwrap(await window.robin.writeBinaryFile(filePath, png.base64), '保存失败');
       setStatus(`${t('已保存')} ✓  ${png.width}×${png.height}px${png.truncated ? ` · ${t('注意：内容超长，尾部已截断')}` : ''}`);
     } catch (e) {
@@ -501,7 +470,6 @@ export async function openCardExportModal({ data, link = '' }) {
       setBusy(true);
       setStatus(t('正在渲染高清卡片…'));
       const png = await exportPng();
-      pushHistory();
       unwrap(await window.robin.copyImage(png.base64), '复制失败');
       setStatus(`${t('已复制到剪贴板，可直接粘贴分享')} ✓`);
     } catch (e) {
