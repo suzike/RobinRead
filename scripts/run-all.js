@@ -28,6 +28,7 @@ const OFFLINE = [
   { file: 'scripts/diag-edition-cover.js', runner: 'electron', desc: 'R7 封面升级：期号大字/头条大图/无图回退（离线）' },
   { file: 'scripts/diag-edition-toc.js', runner: 'electron', desc: 'R8 滑轨分段/目录树状（离线）' },
   { file: 'scripts/diag-edition-colwidth.js', runner: 'electron', desc: 'R9 栏宽舒适度：三档切换/分页联动/持久化（离线）' },
+  { file: 'scripts/diag-edition-find.js', runner: 'electron', desc: 'R11 期刊内搜索：Ctrl+F/计数/跳页定位（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },

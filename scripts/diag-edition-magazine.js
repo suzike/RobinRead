@@ -132,10 +132,10 @@ app.whenReady().then(async () => {
       const artHeadBack = !!ov.querySelector('.er-sheet[data-role="a"] .er-head-back');
       const artTitleInHead = (ov.querySelector('.er-sheet[data-role="a"] .er-head-title') || {}).textContent || '';
       const artSpread = er.pages.every(p => p.form === 'spread');
-      // 正文内翻页（轮询等待落页，负载下动画+settle 可能超过固定等待）
+      // 正文内翻页（轮询等待落页，重负载下动画+settle 可能显著超过常规时长）
       er._go(1);
       let artPage2 = false;
-      for (let i = 0; i < 20 && !artPage2; i++) { await new Promise(r => setTimeout(r, 150)); artPage2 = er.index === 1; }
+      for (let i = 0; i < 30 && !artPage2; i++) { await new Promise(r => setTimeout(r, 200)); artPage2 = er.index === 1; }
       // Esc 返回版面且恢复落点
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await new Promise(r => setTimeout(r, 300));

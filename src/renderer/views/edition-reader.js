@@ -711,6 +711,7 @@ export class EditionReader {
         <button class="er-sound" title="${escapeHTML(t('翻页音效'))}"></button>
         <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
         <button class="er-type" title="${escapeHTML(t('阅读排版'))}">Aa</button>
+        <button class="er-find" title="${escapeHTML(t('搜索 (Ctrl+F)'))}">${icon('search')}</button>
         <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
         <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
       </div>
@@ -743,6 +744,8 @@ export class EditionReader {
     });
     // 沉浸全屏（F 键同效）
     overlay.querySelector('.er-full').addEventListener('click', () => this._toggleFullscreen());
+    // 期刊内搜索（R11）：Ctrl+F 或工具条按钮
+    overlay.querySelector('.er-find').addEventListener('click', () => this._findOpen());
     // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化；R9 增栏宽档
     this.typo = { density: 'standard', margin: 'standard', firstCap: false, col: 'standard', ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
     overlay.querySelector('.er-type').addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleTypePanel(ev.currentTarget); });
@@ -1013,7 +1016,7 @@ export class EditionReader {
 
   async _paginateArticle(entry, html) {
     const m = this._metrics();
-    const leafH = Math.max(160, m.bookH - HEADING_H - 14); // 底部安全余量：防右叶末行贴纸缘被切
+    const leafH = Math.max(160, m.bookH - HEADING_H - 28); // 底部安全余量：防叶末行贴纸缘被切（两轮实证 7-14px 级误差，一次盖住）
     const colW = this._colW();
     // 解析块
     const host = document.createElement('div');
@@ -1146,7 +1149,7 @@ export class EditionReader {
     let cur = [], used = 0;
     for (let bi = 0; bi < blocks.length; bi++) {
       const blk = blocks[bi];
-      const need = used + blk.h + (isHeadingBlk(blk) && blocks[bi + 1] ? 8 + blocks[bi + 1].h : 0);
+      const need = used + blk.h + (isHeadingBlk(blk) && blocks[bi + 1] ? BLK_GAP + blocks[bi + 1].h : 0);
       if (used > 0 && need > leafH) { leaves.push(cur); cur = []; used = 0; }
       cur.push(blk);
       used += blk.h + (cur.length === 1 ? 4 : BLK_GAP);
@@ -1813,6 +1816,98 @@ export class EditionReader {
     this._selRequestID = null;
   }
 
+  // ────────────────────────────────────────────────
+  // 期刊内搜索（R11）：Ctrl+F 搜索条——文章模式全文定位（叶高亮），版面模式条目跳页
+  // ────────────────────────────────────────────────
+  _findOpen() {
+    if (!this.overlay) return;
+    let bar = this.overlay.querySelector('.er-findbar');
+    if (bar) { bar.querySelector('.er-find-input').focus(); return; }
+    bar = document.createElement('div');
+    bar.className = 'er-findbar';
+    bar.innerHTML = `<input class="er-find-input" placeholder="${escapeHTML(t('搜索本期 / 本文…'))}"/>
+      <span class="er-find-count"></span>
+      <button class="er-find-btn prev" title="${escapeHTML(t('上一个 (Shift+Enter)'))}">↑</button>
+      <button class="er-find-btn next" title="${escapeHTML(t('下一个 (Enter)'))}">↓</button>
+      <button class="er-find-btn close" title="${escapeHTML(t('关闭 (Esc)'))}">✕</button>`;
+    this.overlay.appendChild(bar);
+    requestAnimationFrame(() => bar.classList.add('on'));
+    const input = bar.querySelector('.er-find-input');
+    input.addEventListener('input', () => this._findRun(input.value));
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); this._findStep(e.shiftKey ? -1 : 1); }
+      if (e.key === 'Escape') { e.preventDefault(); this._findClose(); }
+    });
+    bar.querySelector('.prev').addEventListener('click', () => this._findStep(-1));
+    bar.querySelector('.next').addEventListener('click', () => this._findStep(1));
+    bar.querySelector('.close').addEventListener('click', () => this._findClose());
+    setTimeout(() => input.focus(), 60);
+  }
+
+  _findClose() {
+    this.overlay?.querySelector('.er-findbar')?.remove();
+    this._findMatches = [];
+    this._findIdx = -1;
+    this.overlay?.querySelectorAll('.er-leaf-hit').forEach((el) => el.classList.remove('er-leaf-hit'));
+  }
+
+  _findRun(q) {
+    this._findMatches = [];
+    this._findIdx = -1;
+    const count = this.overlay?.querySelector('.er-find-count');
+    if (!count) return;
+    if (!q) { count.textContent = ''; return; }
+    const needle = String(q).toLowerCase();
+    if (this.mode === 'article' && this.article) {
+      // 处级展开：每一处命中一个条目，计数与页面可数事实同口径（R11 评审）
+      this._findMatches = [];
+      (this.article.spreads || []).forEach((sp, pi) => {
+        for (const leafKey of ['left', 'right']) {
+          const blocks = sp[leafKey];
+          if (!blocks || !blocks.length) continue;
+          const low = blocks.map((b) => b.el.textContent).join(' ').toLowerCase();
+          let pos = 0;
+          while ((pos = low.indexOf(needle, pos)) !== -1) {
+            this._findMatches.push({ page: pi, leaf: leafKey });
+            pos += needle.length;
+          }
+        }
+      });
+      count.textContent = `${this._findMatches.length} ${t('处')}`;
+    } else {
+      this._findMatches = this.items
+        .filter((it) => (String(it.title || '') + ' ' + String(it.summary || '')).toLowerCase().includes(needle))
+        .map((it) => ({ id: it.id, page: this.pages.findIndex((p) => p.entries.some((e) => e.id === it.id)) }));
+      count.textContent = `${this._findMatches.length} ${t('条')}`;
+    }
+  }
+
+  _findStep(dir) {
+    if (!this._findMatches.length) return;
+    this._findIdx = (this._findIdx + dir + this._findMatches.length) % this._findMatches.length;
+    const m = this._findMatches[this._findIdx];
+    const count = this.overlay?.querySelector('.er-find-count');
+    if (!count) return;
+    if (this.mode === 'article') {
+      const jump = m.page !== this.index;
+      if (jump) this._go(m.page);
+      count.textContent = `${this._findIdx + 1} / ${this._findMatches.length} ${t('处')}`;
+      // 落页后高亮目标叶（动画 ~0.65s + settle）
+      setTimeout(() => {
+        this.overlay?.querySelectorAll('.er-leaf-hit').forEach((el) => el.classList.remove('er-leaf-hit'));
+        const leaves = this.overlay?.querySelectorAll('.er-article-leaf');
+        const leafEl = leaves?.[m.leaf === 'right' ? 1 : 0];
+        leafEl?.classList.add('er-leaf-hit');
+        setTimeout(() => leafEl?.classList.remove('er-leaf-hit'), 1600);
+      }, jump ? 900 : 60);
+    } else {
+      if (m.page >= 0 && m.page !== this.index) this._go(m.page);
+      this._select(m.id);
+      count.textContent = `${this._findIdx + 1} / ${this._findMatches.length} ${t('条')}`;
+    }
+  }
+
   /** 封面期号：最新文章所在年的周序号（「总第 N 期」/ Vol.N）。 */  _coverVol() {
     const newest = this.items.reduce((acc, it) => ((it.date || 0) > (acc || 0) ? it.date : acc), 0);
     if (!newest) return '';
@@ -1959,13 +2054,21 @@ export class EditionReader {
     turn.progress = clamp(p, 0, 1);
     // 拖拽翻页启动时清掉误选的文字选区（正文可选中，与拖拽跟手共用手势）
     if (!this._selCleared) { window.getSelection?.()?.removeAllRanges(); this._selCleared = true; }
-    const book = this.overlay.querySelector('.er-book');
-    const leaf = this.overlay.querySelector('.er-leaf');
-    const cast = this.overlay.querySelector('.er-cast');
+    // 元素引用缓存（R11 性能：动画每帧 3-4 次 querySelector 是滚动卡顿的主因之一）
+    if (!turn._els || turn._els.book.ownerDocument !== this.overlay.ownerDocument) {
+      turn._els = {
+        book: this.overlay.querySelector('.er-book'),
+        leaf: this.overlay.querySelector('.er-leaf'),
+        cast: this.overlay.querySelector('.er-cast'),
+        sheetB: this.overlay.querySelector('.er-sheet[data-role="b"]'),
+        shadeFront: this.overlay.querySelector('.er-leaf .er-face-front .er-face-shade'),
+        shadeBack: this.overlay.querySelector('.er-leaf .er-face-back .er-face-shade'),
+      };
+    }
+    const { book, leaf, cast } = turn._els;
     const pulse = Math.sin(Math.PI * turn.progress);
     if (turn.fade) {
-      const b = this.overlay.querySelector('.er-sheet[data-role="b"]');
-      b.style.opacity = String(turn.progress);
+      turn._els.sheetB.style.opacity = String(turn.progress);
       return;
     }
     const fwd = turn.dir > 0;
@@ -1983,8 +2086,8 @@ export class EditionReader {
     leaf.style.transform = `rotateY(${fwd ? -angle : angle}deg) rotate(${fwd ? rz : -rz}deg) translateY(${ty}px)`;
     // 折带光影（MagazineMetalRenderer shader 语义）：掠射增亮 + 书脊侧暗影
     const glow = Math.pow(pulse, 0.8);
-    leaf.querySelector('.er-face-front .er-face-shade').style.opacity = String(0.4 * glow);
-    leaf.querySelector('.er-face-back .er-face-shade').style.opacity = String(0.3 * glow);
+    turn._els.shadeFront.style.opacity = String(0.4 * glow);
+    turn._els.shadeBack.style.opacity = String(0.3 * glow);
     cast.style.opacity = String(0.2 * pulse);
     book.style.setProperty('--er-pulse', String(pulse));
   }
@@ -1999,8 +2102,12 @@ export class EditionReader {
     turn.slope = slope;
     turn.animDur = fixedDur ?? Math.max(0.12, turn.preset.dur * Math.abs(to - from) * (this.reduceMotion ? 0.35 : 1));
     if (this.reduceMotion) turn.animDur = Math.min(turn.animDur, 0.12);
-    // 16ms timer 驱动（对标上游 clockTask 的 Task.sleep(16ms) 兜底钟）：
-    // rAF 在 Electron 隐藏窗口会被冻结，timer 稳定；真实窗口下 transform 走合成器，顺滑度无损
+    // 帧驱动（R11 性能）：可见窗口用 rAF（与显示器刷新同步，消除 16ms timer 抖动卡顿）；
+    // 隐藏窗口 rAF 被冻结，回退 16ms timer（对标上游 clockTask 兜底钟）。合成器走 transform，主线程只写样式。
+    const schedule = (fn) => {
+      if (document.visibilityState === 'visible') this._raf = requestAnimationFrame(fn);
+      else this._raf = setTimeout(fn, 16);
+    };
     const tick = () => {
       const tn = this.turn;
       if (!tn || tn !== turn || tn.phase !== 'settle') return;
@@ -2017,9 +2124,9 @@ export class EditionReader {
       const eased = turn.slope != null ? settledEase(time, turn.slope) : bezierEase(time);
       this._applyProgress(turn.animFrom + (turn.animTo - turn.animFrom) * eased);
       if (time >= 1) this._finishTurn(turn.animTo >= 0.999);
-      else this._raf = setTimeout(tick, 16);
+      else schedule(tick);
     };
-    this._raf = setTimeout(tick, 16);
+    schedule(tick);
   }
 
   _finishTurn(committed) {
@@ -2191,9 +2298,11 @@ export class EditionReader {
       if (e.key === 'ArrowLeft') { e.preventDefault(); return this._lightboxStep(-1); }
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); return this._findOpen(); }
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
     if (e.key === 'Escape') {
-      // 灯箱最优先 → 划词弹层 → 排版面板 → 文章目录 → 返回版面 → 退出
+      // 搜索条 → 灯箱 → 划词弹层 → 排版面板 → 文章目录 → 返回版面 → 退出
+      if (this.overlay.querySelector('.er-findbar')) { e.preventDefault(); return this._findClose(); }
       const lb = this.overlay.querySelector('.er-lightbox.on');
       if (lb) {
         e.preventDefault();
@@ -2550,5 +2659,8 @@ export class EditionReader {
     sheetA.classList.remove('clip-left', 'clip-right');
     leaf.hidden = true;
     this.turn = null;
+    // 帧驱动双清（rAF 与 timer 句柄共用 this._raf，rAF id 非法时 clearTimeout 无害）
+    clearTimeout(this._raf);
+    cancelAnimationFrame(this._raf);
   }
 }
