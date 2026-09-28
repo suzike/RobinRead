@@ -707,6 +707,12 @@ export class EditionReader {
     this.measureHost = document.createElement('div');
     this.measureHost.className = 'er-measure';
     overlay.appendChild(this.measureHost);
+    // 全局字号（Ctrl+= / − / 0 → --article-font-size）变化时文章分页自动重排
+    this._fontMo = new MutationObserver(() => {
+      clearTimeout(this._fontT);
+      this._fontT = setTimeout(() => { if (this.overlay && this.mode === 'article') this._relayout(false); }, 200);
+    });
+    this._fontMo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
     this._sound = new Audio(this.soundSrc);
     this._sound.volume = 0.72;
     this._bind();
@@ -743,6 +749,8 @@ export class EditionReader {
   dismiss() {
     clearTimeout(this._autoTimer);
     clearTimeout(this._resizeTimer);
+    clearTimeout(this._fontT);
+    this._fontMo?.disconnect();
     clearTimeout(this._raf); cancelAnimationFrame(this._raf);
     document.removeEventListener('keydown', this._key, true);
     window.removeEventListener('resize', this._onResize);
@@ -1105,7 +1113,7 @@ export class EditionReader {
     return parts.length > 1 ? parts : [t0];
   }
 
-  /** 文章目录面板：右侧滑出，点击节标题跳转所在对开页。 */
+  /** 文章目录面板：右侧滑出，点击节标题跳转所在对开页；当前页所在节高亮。 */
   _toggleToc(fromIndex) {
     if (!this.overlay) return;
     let toc = this.overlay.querySelector('.er-toc');
@@ -1113,7 +1121,7 @@ export class EditionReader {
     toc = document.createElement('div');
     toc.className = 'er-toc';
     const rows = (this.article?.headings || []).map((h) =>
-      `<button class="er-toc-row" data-spread="${h.spread}"><span class="er-toc-page">${h.spread + 1}</span><span class="er-toc-text">${escapeHTML(h.text)}</span></button>`).join('');
+      `<button class="er-toc-row${h.spread === this.index ? ' cur' : ''}" data-spread="${h.spread}"><span class="er-toc-page">${h.spread + 1}</span><span class="er-toc-text">${escapeHTML(h.text)}</span></button>`).join('');
     toc.innerHTML = `<div class="er-toc-head">${escapeHTML(t('文章目录'))}</div><div class="er-toc-list">${rows || `<div class="er-toc-empty">${escapeHTML(t('本文暂无小节标题'))}</div>`}</div>`;
     toc.addEventListener('click', (ev) => {
       const row = ev.target.closest('.er-toc-row');
@@ -1121,7 +1129,10 @@ export class EditionReader {
       else if (!ev.target.closest('.er-toc-list')) toc.remove();
     });
     this.overlay.appendChild(toc);
-    requestAnimationFrame(() => toc.classList.add('on'));
+    requestAnimationFrame(() => {
+      toc.classList.add('on');
+      toc.querySelector('.er-toc-row.cur')?.scrollIntoView({ block: 'center' });
+    });
   }
 
   /** 正文图片灯箱：点击放大，点击图片/Esc 关闭（Esc 优先级高于返回版面）。 */
@@ -1429,7 +1440,8 @@ export class EditionReader {
     if (toIdx === this.index) return null;
     const preset = TURN_PRESETS[Math.floor(Math.random() * TURN_PRESETS.length)];
     const fromPage = this.pages[this.index], toPage = this.pages[toIdx];
-    const fade = !this._metrics().spread || fromPage.form !== 'spread' || toPage.form !== 'spread' || this.reduceMotion;
+    // 低端机帧率自适应：折页时连续掉帧（<22fps）则本次会话自动回退淡入
+    const fade = !this._metrics().spread || fromPage.form !== 'spread' || toPage.form !== 'spread' || this.reduceMotion || this._perfDegraded === true;
     const book = this.overlay.querySelector('.er-book');
     const leaf = this.overlay.querySelector('.er-leaf');
     const sheetB = this.overlay.querySelector('.er-sheet[data-role="b"]');
@@ -1536,6 +1548,15 @@ export class EditionReader {
     const tick = () => {
       const tn = this.turn;
       if (!tn || tn !== turn || tn.phase !== 'settle') return;
+      // 帧率采样（仅前台聚焦窗口）：连续 5 帧间隔 >45ms 判定低端机，本次会话折页自动降级淡入
+      const now = performance.now();
+      const dt = now - (this._lastTickAt || now);
+      this._lastTickAt = now;
+      if (document.visibilityState === 'visible' && document.hasFocus()) {
+        if (dt > 45) this._slowFrames = (this._slowFrames || 0) + 1;
+        else this._slowFrames = Math.max(0, (this._slowFrames || 0) - 1);
+        if (this._slowFrames >= 5) this._perfDegraded = true;
+      }
       const time = clamp((performance.now() - turn.animStart) / (turn.animDur * 1000), 0, 1);
       const eased = turn.slope != null ? settledEase(time, turn.slope) : bezierEase(time);
       this._applyProgress(turn.animFrom + (turn.animTo - turn.animFrom) * eased);
