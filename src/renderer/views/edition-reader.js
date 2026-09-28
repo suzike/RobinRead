@@ -737,6 +737,9 @@ export class EditionReader {
     setTimeout(() => {
       cover.hidden = true;
       cover.classList.remove('er-cover-animating', 'er-cover-open');
+      // 开书后释放封面内的两份首页克隆（right/back），合书时 _renderCover 重建
+      cover.querySelector('.er-cover-right').innerHTML = '';
+      cover.querySelector('.er-cover-back').innerHTML = '';
       this.overlay.querySelector('.er-book').classList.add('er-reveal');
       this._syncRail();
     }, dur * 1000 + 40);
@@ -1027,6 +1030,22 @@ export class EditionReader {
     return parts.length > 1 ? parts : [t0];
   }
 
+  /** 正文图片灯箱：点击放大，点击图片/Esc 关闭（Esc 优先级高于返回版面）。 */
+  _openLightbox(src) {
+    if (!this.overlay) return;
+    let lb = this.overlay.querySelector('.er-lightbox');
+    if (!lb) {
+      lb = document.createElement('div');
+      lb.className = 'er-lightbox';
+      lb.innerHTML = '<img alt="">';
+      this.overlay.appendChild(lb);
+      lb.addEventListener('click', () => lb.classList.remove('on'));
+    }
+    lb.querySelector('img').src = src;
+    lb.classList.add('on');
+    this._lightboxOn = true;
+  }
+
   _pageArticleInner(page, index) {
     const m = this._metrics();
     const leafW = m.leafW;
@@ -1043,6 +1062,11 @@ export class EditionReader {
     const canvas = document.createElement('div');
     canvas.className = 'er-canvas';
     canvas.style.height = `${page.height}px`;
+    // 正文图片灯箱：点击放大（Esc/点击关闭）
+    canvas.addEventListener('click', (ev) => {
+      const img = ev.target.closest('img');
+      if (img && img.src && img.closest('.er-article')) { ev.stopPropagation(); this._openLightbox(img.src); }
+    });
     const mkLeaf = (blocks, x, isEndLeaf) => {
       const leaf = document.createElement('div');
       leaf.className = 'er-article-leaf';
@@ -1202,11 +1226,22 @@ export class EditionReader {
         <div class="er-stack s3"></div><div class="er-stack s2"></div><div class="er-stack s1"></div>
         <div class="er-brand">知更</div>
         <div class="er-cover-title">${escapeHTML(this.title)}</div>
+        <div class="er-cover-date">${escapeHTML(this._coverDate())}</div>
       </div>`;
     if (first) {
       right.appendChild(this._pageInner(first, 0));
       back.appendChild(this._pageInner(first, 0));
     }
+  }
+
+  /** 封面期号日期：本期最新文章日期（中文「2026 年 9 月 28 日」/英文长格式）。 */
+  _coverDate() {
+    const newest = this.items.reduce((acc, it) => ((it.date || 0) > (acc || 0) ? it.date : acc), 0);
+    if (!newest) return '';
+    const d = new Date(newest * 1000);
+    const zh = (window.__robinLanguage || 'zh') === 'zh';
+    return zh ? `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`
+      : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
   _prepareSheetB(idx, force = false) {
@@ -1540,7 +1575,15 @@ export class EditionReader {
   // ────────────────────────────────────────────────
   _keydown(e) {
     if (!this.overlay) return;
+    // 灯箱开启时仅响应 Esc（关灯箱），其余按键忽略防误翻页
+    if (this._lightboxOn && this.overlay.querySelector('.er-lightbox.on')) {
+      if (e.key === 'Escape') { e.preventDefault(); this.overlay.querySelector('.er-lightbox').classList.remove('on'); this._lightboxOn = false; }
+      return;
+    }
     if (e.key === 'Escape') {
+      // 灯箱最优先：关灯箱不动阅读器状态
+      const lb = this.overlay.querySelector('.er-lightbox.on');
+      if (lb) { e.preventDefault(); lb.classList.remove('on'); this._lightboxOn = false; return; }
       if (this.mode === 'article') { e.preventDefault(); return this._closeArticle(); }
       return this.dismiss();
     }
@@ -1721,8 +1764,30 @@ export class EditionReader {
     if (!rail) return;
     const preview = rail.querySelector('.er-preview');
     if (!on) { preview.hidden = true; return; }
-    const page = this.pages[this._railCurrent()];
+    const idx = this._railCurrent();
+    const page = this.pages[idx];
     if (!page) return;
+    // 文章模式：pages.entries 为空，预览显示该对开页两叶的首节标题
+    if (page.template === 'article' && page.article) {
+      const firstHeading = (leaf) => {
+        for (const b of (leaf || [])) {
+          if (/^h[1-6]$/i.test(b.el.tagName || '')) return b.el.textContent.trim();
+          const inner = b.el.querySelector?.('h1,h2,h3,h4');
+          if (inner) return inner.textContent.trim();
+        }
+        return null;
+      };
+      const rows = [];
+      const l = firstHeading(page.article.left), r = firstHeading(page.article.right);
+      if (l) rows.push(`<div class="er-pv-row"><span class="er-pv-no">L</span><span class="er-pv-title">${escapeHTML(l)}</span></div>`);
+      if (page.article.right) {
+        if (r) rows.push(`<div class="er-pv-row"><span class="er-pv-no">R</span><span class="er-pv-title">${escapeHTML(r)}</span></div>`);
+        else rows.push(`<div class="er-pv-row"><span class="er-pv-no">R</span><span class="er-pv-title">${escapeHTML(t('完'))}</span></div>`);
+      }
+      preview.innerHTML = rows.join('') || `<div class="er-pv-row"><span class="er-pv-no">·</span><span class="er-pv-title">${escapeHTML(page.title)}</span></div>`;
+      preview.hidden = false;
+      return;
+    }
     preview.innerHTML = page.entries.map((en, i) =>
       `<div class="er-pv-row"><span class="er-pv-no">${i + 1}.</span><span class="er-pv-title">${escapeHTML(en.title)}</span></div>`).join('');
     preview.hidden = false;

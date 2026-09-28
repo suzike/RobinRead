@@ -4253,8 +4253,9 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 /* 页内：页边 36 / 页眉 76（标题行 20 + 间距 16 + 上下 20×2） */
 .er-in { position: relative; height: 100%; padding: 20px 36px; box-sizing: border-box; display: flex; flex-direction: column; }
 .er-head { flex: 0 0 auto; display: flex; align-items: baseline; height: 20px; position: relative; }
-.er-head-title { font-family: var(--font-serif); font-weight: 600; font-size: 13.5px; color: var(--erp-muted); letter-spacing: 0.14em; }
-.er-head-no { margin-left: auto; font-size: 11px; color: var(--erp-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }
+.er-head-title { font-family: var(--font-serif); font-weight: 600; font-size: 13.5px; color: var(--erp-muted); letter-spacing: 0.14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; margin-right: 12px; }
+.er-head-back { flex: 0 0 auto; }
+.er-head-no { margin-left: auto; flex: 0 0 auto; font-size: 11px; color: var(--erp-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }
 .er-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -8px; height: 0.5px; background: rgba(139, 133, 116, 0.38); }
 .er-canvas { position: relative; width: 100%; margin-top: 16px; flex: 1 1 auto; min-height: 0; }
 
@@ -4290,6 +4291,14 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 /* 背封页（整叶排完后的右半叶） */
 .er-backcover { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
 .er-brand { font-family: var(--font-serif); font-weight: 700; font-size: 26px; letter-spacing: 0.3em; text-indent: 0.3em; color: var(--erp-ink); opacity: 0.8; }
+/* 封面期号日期（品牌与刊名之下） */
+.er-cover-date { font-family: var(--font-sans); font-size: 12.5px; letter-spacing: 0.22em; color: var(--erp-muted); opacity: 0.85; }
+
+/* 正文图片灯箱（文章模式点击图片放大） */
+.er-lightbox { position: absolute; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; background: rgba(20, 17, 12, 0.86); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); cursor: zoom-out; }
+.er-lightbox.on { opacity: 1; pointer-events: auto; }
+.er-lightbox img { max-width: calc(100vw - 96px); max-height: calc(100vh - 96px); border-radius: var(--radius-sm); box-shadow: 0 24px 72px rgba(0, 0, 0, 0.5); transform: scale(0.96); transition: transform var(--dur-base) var(--ease-out); }
+.er-lightbox.on img { transform: scale(1); }
 .er-cover-title { font-family: var(--font-serif); font-weight: 500; font-size: 20px; color: var(--erp-ink); opacity: 0.72; padding: 0 24px; line-height: 1.5; }
 .er-rule { width: 32px; height: 1px; background: rgba(139, 133, 116, 0.35); }
 .er-endnote { font-family: var(--font-serif); font-size: 13px; color: var(--erp-muted); }
@@ -4422,6 +4431,7 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 }
 .er-article h1 { font-size: 22px; } .er-article h2 { font-size: 18.5px; } .er-article h3 { font-size: 16.5px; }
 .er-article img, .er-article video { max-width: 100%; border-radius: var(--radius-sm); display: block; margin: 0.4em auto 1.1em; }
+.er-article-img img, .er-article p img, .er-article figure img { cursor: zoom-in; }
 .er-article a { color: var(--accent, #617357); text-decoration: none; border-bottom: 0.5px solid rgba(97, 115, 87, 0.5); }
 .er-article blockquote { border-left: 2px solid rgba(97, 115, 87, 0.45); padding: 2px 0 2px 14px; color: var(--erp-muted); }
 .er-article pre { font-family: ui-monospace, monospace; font-size: 12.5px; background: rgba(43, 39, 33, 0.05); padding: 12px 14px; border-radius: var(--radius-sm); overflow-x: auto; line-height: 1.6; }
