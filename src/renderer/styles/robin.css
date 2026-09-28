@@ -4186,3 +4186,27 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 
 /* D18：真实频谱模式下禁用 CSS 律动（柱高由 AnalyserNode 逐帧驱动） */
 .nj-tts-player.is-spectrum .nj-tts-wave i { animation: none !important; }
+
+/* ── 期刊翻页阅读（借鉴上游杂志浏览模式） ── */
+.er-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(24, 20, 14, 0.88); display: flex; flex-direction: column; }
+.er-chrome { display: flex; align-items: center; gap: 14px; padding: 12px 22px; color: rgba(246, 240, 226, 0.8); }
+.er-mast { font-family: var(--font-serif); font-size: 14px; letter-spacing: 0.2em; }
+.er-pageno { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: 0.15em; }
+.er-actions { display: flex; gap: 8px; }
+.er-btn { appearance: none; border: 1px solid rgba(246, 240, 226, 0.35); background: transparent; color: rgba(246, 240, 226, 0.9);
+  width: 32px; height: 32px; border-radius: 8px; font-size: 16px; cursor: pointer; line-height: 1; }
+.er-btn:hover { background: rgba(246, 240, 226, 0.14); }
+.er-stage { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: 0 24px 40px; }
+.er-page { width: min(860px, 92%); min-height: 100%; background: #faf7ef; color: #2c2921;
+  border-radius: 10px 10px 0 0; padding: 40px 52px 60px; box-sizing: border-box;
+  font-family: "Source Han Serif SC", "Noto Serif SC", Georgia, serif; }
+.er-loading { text-align: center; padding: 80px 0; color: #8b8574; font-size: 14px; }
+.er-art-head { display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.14em; color: #8b8574; }
+.er-art-feed { color: #617357; font-weight: 700; }
+.er-art-title { font-size: 30px; line-height: 1.32; font-weight: 700; margin: 14px 0 10px; color: #292620; text-wrap: balance; }
+.er-rule { height: 3px; border-top: 1px solid #b9b39a; border-bottom: 1px solid #b9b39a; margin: 16px 0 26px; }
+.er-art-body { font-size: 16px; line-height: 2; color: #3a362c; }
+.er-art-body img { max-width: 100%; border-radius: 8px; margin: 14px auto; display: block; }
+.er-art-body h2, .er-art-body h3 { margin: 1.4em 0 0.5em; }
+.er-art-body p { margin: 0 0 1.1em; }
+.er-art-body a { color: #617357; }

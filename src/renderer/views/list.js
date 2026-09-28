@@ -10,6 +10,7 @@
  */
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
+import { EditionReader } from './edition-reader.js';
 import { feedIconURL } from './sidebar.js';
 
 const PAGE_SIZE = 100;
@@ -377,6 +378,15 @@ export class ListView {
     }
     mastLine.append(brand, dateEl);
     mastLine.appendChild(paperBtn);
+    const readBtn = document.createElement('button');
+    readBtn.className = 'nj-edition-paper';
+    readBtn.title = t('翻页阅读本期文章');
+    readBtn.textContent = '翻页阅读';
+    readBtn.addEventListener('click', () => {
+      const er = new EditionReader({ items, startIndex: 0 });
+      er.present();
+    });
+    mastLine.appendChild(readBtn);
   mast.appendChild(mastLine);
 
     const open = (item) => this.handlers.onSelect(item.id, item);
