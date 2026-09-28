@@ -4184,6 +4184,13 @@ body.dark .list-scroll.nj-mag-paper { background: linear-gradient(180deg, #26231
 body.dark .list-scroll.nj-mag-white { background: #1c1c1c; }
 body.dark .list-scroll.nj-mag-book { background: linear-gradient(180deg, #2d281f, #262119); }
 body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1d, #2b2318); }
+/* 强调色随纸态微调（R17）：列表刊头与阅读器同族 */
+.list-scroll.nj-mag-white { --accent: #50604A; }
+.list-scroll.nj-mag-book { --accent: #5D6B49; }
+.list-scroll.nj-mag-kraft { --accent: #4E5B41; }
+body.dark .list-scroll.nj-mag-paper { --accent: #7C9070; }
+body.dark .list-scroll.nj-mag-book { --accent: #8A9A6E; }
+body.dark .list-scroll.nj-mag-kraft { --accent: #9AA87C; }
 .list-scroll.nj-mag-book .nj-mag-card { background: rgba(255, 251, 240, 0.92); }
 .list-scroll.nj-mag-paper .nj-mag-card { background: rgba(255, 253, 246, 0.92); }
 .nj-img-retrying { opacity: 0.45; filter: blur(1px); }
@@ -4214,6 +4221,13 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 .er-overlay.er-dark[data-paper="white"] { --erp-paper: #1C1C1C; --erp-grain: none; }
 .er-overlay.er-dark[data-paper="book"] { --erp-paper: #2D281F; --erp-muted: #ADA288; }
 .er-overlay.er-dark[data-paper="kraft"] { --erp-paper: #2E2820; --erp-ink: #F0E9D9; --erp-muted: #C9BFA9; --erp-stage: #2C2316; --erp-stage-hi: #3A2F1E; }
+/* 强调色随纸态微调（R17）：同一绿系家族按纸底明度/色温收敛 */
+.er-overlay[data-paper="white"] { --accent: #50604A; }
+.er-overlay[data-paper="book"] { --accent: #5D6B49; }
+.er-overlay[data-paper="kraft"] { --accent: #4E5B41; }
+.er-overlay.er-dark { --accent: #7C9070; }
+.er-overlay.er-dark[data-paper="book"] { --accent: #8A9A6E; }
+.er-overlay.er-dark[data-paper="kraft"] { --accent: #9AA87C; }
 /* 密度三档：行距/段距（版面测量随 CSS 变量自动跟随重排；版面卡片另有 JS 密度因子） */
 .er-overlay[data-density="compact"] { --er-leading: 1.78; --er-para: 0.95em; }
 .er-overlay[data-density="airy"] { --er-leading: 2.08; --er-para: 1.4em; }
