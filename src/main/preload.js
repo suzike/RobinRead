@@ -239,6 +239,7 @@ contextBridge.exposeInMainWorld('robin', {
   renderAllTemplates: (payload) => invoke('card:renderAllTemplates', payload),
   writeBinaryFile: (filePath, base64) => invoke('app:writeBinaryFile', { filePath, base64 }),
   copyImage: (base64) => invoke('app:copyImage', { base64 }),
+  captureRect: (rect) => invoke('app:captureRect', rect),
   fetchCardCover: (url) => invoke('net:fetchCardCover', url),
 
   // 商店健康 + AI 探索（订阅源发现）

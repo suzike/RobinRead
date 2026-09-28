@@ -4257,6 +4257,9 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 .er-find { height: 32px; padding: 0 9px; appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55; cursor: pointer; border-radius: var(--radius-sm); display: inline-flex; align-items: center; }
 .er-find:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
 .er-find svg { width: 14px; height: 14px; }
+.er-export { height: 32px; padding: 0 9px; appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55; cursor: pointer; border-radius: var(--radius-sm); display: inline-flex; align-items: center; }
+.er-export:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
+.er-export svg { width: 14px; height: 14px; }
 
 /* 纸张纤维噪点（feTurbulence 生成一次平铺，接近上游 MagazineBookGrain） */
 .er-overlay {

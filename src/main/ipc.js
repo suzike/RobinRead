@@ -801,6 +801,17 @@ function registerIPCHandlers(store, window) {
     return true;
   });
 
+  // 期刊当前页导出（R13）：主进程按 DIP 矩形截取窗口区域，返回 PNG base64
+  handle('app:captureRect', async (rect) => {
+    const image = await win.capturePage({
+      x: Math.max(0, Math.round(Number(rect?.x) || 0)),
+      y: Math.max(0, Math.round(Number(rect?.y) || 0)),
+      width: Math.max(1, Math.round(Number(rect?.width) || 1)),
+      height: Math.max(1, Math.round(Number(rect?.height) || 1)),
+    });
+    return image.toPNG().toString('base64');
+  });
+
   // MARK: 精读/摘要卡片导出 PNG（隐藏 offscreen 窗口 + 真 Chromium 渲染 + capturePage）
   let cardExportWin = null;
   let cardExportChain = Promise.resolve();

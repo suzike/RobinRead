@@ -715,6 +715,7 @@ export class EditionReader {
         <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
         <button class="er-type" title="${escapeHTML(t('阅读排版'))}">Aa</button>
         <button class="er-find" title="${escapeHTML(t('搜索 (Ctrl+F)'))}">${icon('search')}</button>
+        <button class="er-export" title="${escapeHTML(t('导出当前页图片'))}">${icon('export')}</button>
         <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
         <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
       </div>
@@ -749,6 +750,8 @@ export class EditionReader {
     overlay.querySelector('.er-full').addEventListener('click', () => this._toggleFullscreen());
     // 期刊内搜索（R11）：Ctrl+F 或工具条按钮
     overlay.querySelector('.er-find').addEventListener('click', () => this._findOpen());
+    // 当前页导出图片（R13）：截取书页矩形 → 复制剪贴板
+    overlay.querySelector('.er-export').addEventListener('click', () => this._exportPage());
     // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化；R9 增栏宽档
     this.typo = { density: 'standard', margin: 'standard', firstCap: false, col: 'standard', ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
     overlay.querySelector('.er-type').addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleTypePanel(ev.currentTarget); });
@@ -1818,6 +1821,40 @@ export class EditionReader {
     this.selPopover?.remove();
     this.selPopover = null;
     this._selRequestID = null;
+  }
+
+  // ────────────────────────────────────────────────
+  // 当前页导出（R13）：截书页矩形 → 剪贴板
+  // ────────────────────────────────────────────────
+  async _exportPage() {
+    if (!this.overlay) return;
+    // 收起浮层避免入画
+    this._findClose();
+    this._dismissSelBar();
+    this._dismissSelPopover();
+    this.overlay.querySelector('.er-type-panel')?.remove();
+    this.overlay.querySelector('.er-toc')?.remove();
+    await new Promise((r) => setTimeout(r, 120));
+    const book = this.overlay.querySelector('.er-book');
+    if (!book) return;
+    const r = book.getBoundingClientRect();
+    if (r.width < 10) return;
+    try {
+      // 工具条叠在书页 rect 顶带内，先隐藏避免烙进导出图
+      const tools = this.overlay.querySelector('.er-tools');
+      const prevVisibility = tools ? tools.style.visibility : '';
+      if (tools) tools.style.visibility = 'hidden';
+      let base64;
+      try {
+        base64 = await window.robin.captureRect({ x: r.x, y: r.y, width: r.width, height: r.height });
+      } finally {
+        if (tools) tools.style.visibility = prevVisibility;
+      }
+      await window.robin.copyImage(base64);
+      this._notice(t('当前页图片已复制到剪贴板'));
+    } catch {
+      this._notice(t('导出失败：请重试'));
+    }
   }
 
   // ────────────────────────────────────────────────
