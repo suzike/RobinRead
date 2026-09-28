@@ -39,7 +39,8 @@ const TURN_PRESETS = [
   { corner: -0.35, dur: 0.32 }, { corner: 1, dur: 0.35 },
 ];
 
-const pageWidth = (w) => Math.min(1680, Math.max(1, w - (w < 620 ? 32 : 40)));
+// 版心随窗口比例自适应（92%），跨显示器尺寸连续缩放；上限 2100 防超宽屏夸张
+const pageWidth = (w) => Math.min(2100, Math.max(1, Math.round(w * 0.92)));
 const hInset = (w) => Math.min(w < 620 ? 20 : 36, (pageWidth(w) - 1) / 2);
 const turnInset = (h) => Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
 
@@ -71,10 +72,10 @@ export class EditionReader {
   constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false, fetchArticle = null, feedKey = '', onContext = null } = {}) {
     this.items = (items || []).filter((it) => it && it.id).map((it) => ({
       id: it.id,
-      title: it.title || t('未命名文章'),
-      summary: it.summaryPreview || '',
+      title: this._stripHTML(it.title) || t('未命名文章'),
+      summary: this._stripHTML(it.summaryPreview),
       image: this._firstImage(it.contentHead),
-      source: it.sourceTitle || '',
+      source: this._stripHTML(it.sourceTitle),
       date: it.publishedAt || 0,
       isRead: !!it.isRead,
       isStarred: !!it.isStarred,
@@ -109,6 +110,17 @@ export class EditionReader {
     if (!html) return '';
     const m = String(html).match(/<img[^>]+src=["']([^"']+)["']/i);
     return m && /^https?:|data:/.test(m[1]) ? m[1] : '';
+  }
+
+  /** 剥 HTML 标签 + 解常见实体（RSS 摘要/标题常含片段 HTML，杂志卡片只显示纯文本）。 */
+  _stripHTML(s) {
+    return String(s ?? '')
+      .replace(/<(script|style)[\s\S]*?<\/(script|style)>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   /** 全文治理链（对齐正文视图 _openBody）：needsExtraction 抓取 → 过短(<400字)抓原文补全 → 摘要兜底。 */
@@ -1515,7 +1527,7 @@ export class EditionReader {
       dir, toIdx, preset, fade,
       progress: interactive ? 0 : null,
       phase: interactive ? 'drag' : 'settle',
-      animStart: 0, animDur: 0, animFrom: 0, animTo: dir > 0 ? 1 : 0, slope: null,
+      animStart: 0, animDur: 0, animFrom: 0, animTo: 1, slope: null,
       velocity: 0,
     };
     this.turn = turn;
@@ -1524,10 +1536,10 @@ export class EditionReader {
     if (fade) {
       leaf.hidden = true;
       sheetB.classList.add('er-fadein');
-      if (!interactive) this._startSettle(0, dir > 0 ? 1 : 0, null, this.reduceMotion ? 0.12 : 0.2);
+      if (!interactive) this._startSettle(0, 1, null, this.reduceMotion ? 0.12 : 0.2);
     } else {
       this._mountLeaf(turn);
-      if (!interactive) this._startSettle(0, dir > 0 ? 1 : 0, null, null);
+      if (!interactive) this._startSettle(0, 1, null, null);
     }
     return turn;
   }

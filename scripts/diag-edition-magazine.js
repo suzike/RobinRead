@@ -97,6 +97,12 @@ app.whenReady().then(async () => {
       const railW = ov.querySelector('.er-ticks').style.width;
       const expectTicks = Math.min(er.pages.length, Math.max(2, Math.floor(parseInt(railW) / 7)));
       const onTick = !!ov.querySelector('.er-tick.on[data-index="1"]');
+      // P4b 向前翻（bwd 方向）：index 回退、翻页叶 bwd 类（实机「往前翻页」bug 回归）
+      er._go(0);
+      await new Promise(r => setTimeout(r, 120));
+      const bwdTurning = ov.querySelector('.er-leaf').className.includes('bwd');
+      await new Promise(r => setTimeout(r, 1100));
+      const bwdBack = er.index === 0;
       // P6 背封页
       er._go(er.pages.length - 1);
       await new Promise(r => setTimeout(r, 1300));
@@ -141,7 +147,7 @@ app.whenReady().then(async () => {
       const backEdition = er.mode === 'edition' && er.index === editionIndexBefore;
       er.dismiss();
       return { pages1, spreadForms, paperW, inBounds, headTitle, headNo, coverVisible, leafW, stacks, sheetsHidden,
-        coverGone, sheetShown, storyCount, leafShown, turningFwd, clipped, settled, clipGone, tickCount, expectTicks,
+        coverGone, sheetShown, storyCount, leafShown, turningFwd, clipped, settled, clipGone, bwdTurning, bwdBack, tickCount, expectTicks,
         onTick, backcover, pageNo, soundOk, countBefore, countAfter, narrowForm, fadeNoLeaf, bFadein,
         artMode, artPages, artFirstIsArticle, artHeadBack, artTitleInHead, artSpread, artPage2, backEdition,
         forms: pages1.map(p => p.form + ':' + p.tpl + ':' + p.n).join(','),
@@ -156,9 +162,10 @@ app.whenReady().then(async () => {
     ok(res.inBounds, 'P1 全部 placements 落在版心内且高度>0');
     ok(res.headTitle === '潮流周刊' && res.headNo === '01', `P2 页眉「${res.headTitle}」+ 页码「${res.headNo}」`);
     ok(res.coverVisible && res.stacks === 3 && res.sheetsHidden, 'P3 封面可见 + 三层纸叠 + sheets 隐藏');
-    ok(parseInt(res.leafW) === parseInt(res.paperW) / 2, `P3 封面叶宽 = 半纸宽（${res.leafW} / ${res.paperW}）`);
+    ok(Math.round(parseFloat(res.leafW)) === Math.round(parseFloat(res.paperW) / 2), `P3 封面叶宽 = 半纸宽（${res.leafW} / ${res.paperW}）`);
     ok(res.coverGone && res.sheetShown && res.storyCount > 0, `P3 开书后封面隐藏、纸页显现（${res.storyCount} 张稿件卡）`);
     ok(res.leafShown && res.turningFwd && res.clipped, 'P4 折页：翻页叶展开 + fwd 方向 + 当前页 clip');
+        ok(res.bwdTurning && res.bwdBack, 'P4b 向前翻：bwd 方向 + index 回退到 0（实机 bug 回归）');
     ok(res.settled && res.clipGone, 'P4 落页：index 前进、翻页叶收起、clip 移除');
     ok(res.tickCount === res.expectTicks, `P5 滑轨刻度 ${res.tickCount} = min(页数, railW/7)=${res.expectTicks}`);
     ok(res.onTick, 'P5 当前页刻度高亮');
