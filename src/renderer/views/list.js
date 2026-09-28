@@ -11,6 +11,7 @@
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { EditionReader } from './edition-reader.js';
+import { paperPref, setPaperPref } from './paper-pref.js';
 import { feedIconURL } from './sidebar.js';
 
 const PAGE_SIZE = 100;
@@ -345,9 +346,9 @@ export class ListView {
     const mast = document.createElement('header');
     mast.className = 'nj-edition';
 
-    // 纸张质感三选（借鉴上游 v1.4.5）：paper 纸感 / white 素白 / book 书卷
-    const papers = [['paper', '纸感'], ['white', '素白'], ['book', '书卷']];
-    const paperNow = localStorage.getItem('robinread.magPaper') || 'paper';
+    // 纸张质感四选（paper/white/book/kraft；夜间独立记忆见 paper-pref.js）
+    const papers = [['paper', '纸感'], ['white', '素白'], ['book', '书卷'], ['kraft', '牛皮']];
+    const paperNow = paperPref();
     this.rowsHost.closest('.list-scroll')?.classList.add(`nj-mag-${paperNow}`);
     const paperBtn = document.createElement('button');
     paperBtn.className = 'nj-edition-paper';
@@ -355,10 +356,10 @@ export class ListView {
     paperBtn.textContent = (papers.find((x) => x[0] === paperNow) || papers[0])[1];
     paperBtn.addEventListener('click', () => {
       // 实时读偏好（闭包捕获旧值会导致循环打转、切不到第三态）
-      const now = localStorage.getItem('robinread.magPaper') || 'paper';
+      const now = paperPref();
       const idx = papers.findIndex((x) => x[0] === now);
       const next = papers[(idx + 1) % papers.length][0];
-      localStorage.setItem('robinread.magPaper', next);
+      setPaperPref(next);
       const host = this.rowsHost.closest('.list-scroll');
       papers.forEach(([id]) => host && host.classList.remove(`nj-mag-${id}`));
       host?.classList.add(`nj-mag-${next}`);

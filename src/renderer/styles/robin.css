@@ -4177,6 +4177,13 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .list-scroll.nj-mag-white { background: #fdfdfb; }
 .list-scroll.nj-mag-book { background: linear-gradient(180deg, #efe6d4, #e8dcc2); }
 .list-scroll.nj-mag-book .nj-edition-brand, .list-scroll.nj-mag-book .nj-edition-date { color: #6b5335; }
+.list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #eee0c4, #e3d1ab); }
+.list-scroll.nj-mag-kraft .nj-edition-brand, .list-scroll.nj-mag-kraft .nj-edition-date { color: #7a5c33; }
+/* 夜间四态：纸色独立记忆生效于列表刊头 */
+body.dark .list-scroll.nj-mag-paper { background: linear-gradient(180deg, #26231e, #211f1a); }
+body.dark .list-scroll.nj-mag-white { background: #1c1c1c; }
+body.dark .list-scroll.nj-mag-book { background: linear-gradient(180deg, #2d281f, #262119); }
+body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1d, #2b2318); }
 .list-scroll.nj-mag-book .nj-mag-card { background: rgba(255, 251, 240, 0.92); }
 .list-scroll.nj-mag-paper .nj-mag-card { background: rgba(255, 253, 246, 0.92); }
 .nj-img-retrying { opacity: 0.45; filter: blur(1px); }
@@ -4202,18 +4209,25 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 @keyframes erOverlayIn { from { opacity: 0; } to { opacity: 1; } }
 .er-overlay.er-dark { --erp-paper: #211F1A; --erp-ink: #E6E0D2; --erp-muted: #98917F; --erp-stage: #232120; --erp-stage-hi: #2B2927; }
 .er-overlay[data-paper="white"] { --erp-paper: #FFFFFF; --erp-grain: none; }
-.er-overlay[data-paper="book"] { --erp-paper: #EFE2C8; }
+.er-overlay[data-paper="book"] { --erp-paper: #EFE2C8; --erp-muted: #74684E; }
+.er-overlay[data-paper="kraft"] { --erp-paper: #E9DCC0; --erp-ink: #2E281C; --erp-muted: #6E6047; --erp-stage: #E0D0AE; --erp-stage-hi: #EFE4CC; }
 .er-overlay.er-dark[data-paper="white"] { --erp-paper: #1C1C1C; --erp-grain: none; }
-.er-overlay.er-dark[data-paper="book"] { --erp-paper: #2D281F; }
+.er-overlay.er-dark[data-paper="book"] { --erp-paper: #2D281F; --erp-muted: #ADA288; }
+.er-overlay.er-dark[data-paper="kraft"] { --erp-paper: #2E2820; --erp-ink: #F0E9D9; --erp-muted: #C9BFA9; --erp-stage: #2C2316; --erp-stage-hi: #3A2F1E; }
 /* 密度三档：行距/段距（版面测量随 CSS 变量自动跟随重排；版面卡片另有 JS 密度因子） */
 .er-overlay[data-density="compact"] { --er-leading: 1.78; --er-para: 0.95em; }
 .er-overlay[data-density="airy"] { --er-leading: 2.08; --er-para: 1.4em; }
 /* 页边三档：--er-inset-x 由 edition-reader._relayout 按档位下发（唯一真源，勿在此重复定义） */
-/* 书卷：暖棕对角渐变叠加，与纸感拉开可感知差异 */
+/* 书卷/牛皮：以中缝为轴的对称受光渐变（外缘微暗、叶心亮）——两叶观感一致，不读作两种纸 */
 .er-overlay[data-paper="book"] .er-sheet,
 .er-overlay[data-paper="book"] .er-face,
 .er-overlay[data-paper="book"] .er-cover-face {
-  background-image: linear-gradient(135deg, rgba(255, 252, 240, 0.55), rgba(146, 105, 48, 0.08) 62%, rgba(120, 84, 38, 0.12)), var(--erp-grain);
+  background-image: linear-gradient(90deg, rgba(120, 84, 38, 0.15), rgba(255, 252, 240, 0.42) 15%, rgba(255, 252, 240, 0.10) 50%, rgba(255, 252, 240, 0.42) 85%, rgba(120, 84, 38, 0.15)), var(--erp-grain);
+}
+.er-overlay[data-paper="kraft"] .er-sheet,
+.er-overlay[data-paper="kraft"] .er-face,
+.er-overlay[data-paper="kraft"] .er-cover-face {
+  background-image: linear-gradient(90deg, rgba(96, 66, 24, 0.21), rgba(255, 250, 235, 0.34) 15%, rgba(255, 250, 235, 0.08) 50%, rgba(255, 250, 235, 0.34) 85%, rgba(96, 66, 24, 0.21)), var(--erp-grain);
 }
 .er-overlay.er-dark[data-paper="book"] .er-sheet,
 .er-overlay.er-dark[data-paper="book"] .er-face,
@@ -4301,6 +4315,12 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 }
 .er-type-opts button:hover { opacity: 1; }
 .er-type-opts button.on { background: var(--accent, #617357); border-color: var(--accent, #617357); color: #F6F2E7; opacity: 1; }
+/* 纸态按钮的当前纸色样本点 */
+.er-paper-chip {
+  display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  border: 0.5px solid rgba(43, 39, 33, 0.4); margin-right: 6px; vertical-align: -1px;
+}
+.er-overlay.er-dark .er-paper-chip { border-color: rgba(230, 224, 210, 0.45); }
 /* 版面头条首字下沉（-webkit-box 不支持 ::first-letter，JS 显式包裹 .er-cap） */
 .er-sum .er-cap {
   float: left; font-family: var(--font-serif); font-weight: 700;

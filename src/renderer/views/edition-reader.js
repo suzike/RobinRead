@@ -23,6 +23,7 @@
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { PAGE_TURN_SOUND_SRC } from '../data/page-turn-sound.js';
+import { PAPERS, paperPref, setPaperPref, paperLabel } from './paper-pref.js';
 
 const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -680,7 +681,7 @@ export class EditionReader {
     if (!this.items.length) return;
     const overlay = document.createElement('div');
     overlay.className = 'er-overlay';
-    overlay.dataset.paper = localStorage.getItem('robinread.magPaper') || 'paper';
+    overlay.dataset.paper = paperPref();
     if (document.body.classList.contains('dark')) overlay.classList.add('er-dark');
     overlay.innerHTML = `
       <div class="er-stage">
@@ -717,16 +718,18 @@ export class EditionReader {
     document.body.appendChild(overlay);
     this.overlay = overlay;
     overlay.__editionReader = this;
-    // 纸张质感三态（与列表刊头共用 robinread.magPaper 偏好）
+    // 纸张质感四态（与列表刊头共用偏好；夜间独立记忆见 paper-pref.js）；按钮带当前纸色样本
     const paperBtn = overlay.querySelector('.er-paper');
-    const paperLabel = () => ({ paper: t('纸感'), white: t('素白'), book: t('书卷') })[overlay.dataset.paper] || t('纸感');
-    paperBtn.textContent = paperLabel();
+    const paperBtnSync = () => {
+      const chip = { paper: '#F6F2E7', white: '#FFFFFF', book: '#EFE2C8', kraft: '#E9DCC0' }[overlay.dataset.paper] || '#F6F2E7';
+      paperBtn.innerHTML = `<i class="er-paper-chip" style="background:${chip}"></i>${escapeHTML(t(paperLabel(overlay.dataset.paper)))}`;
+    };
+    paperBtnSync();
     paperBtn.addEventListener('click', () => {
-      const order = ['paper', 'white', 'book'];
-      const next = order[(order.indexOf(overlay.dataset.paper) + 1) % order.length];
+      const next = PAPERS[(PAPERS.indexOf(overlay.dataset.paper) + 1) % PAPERS.length];
       overlay.dataset.paper = next;
-      localStorage.setItem('robinread.magPaper', next);
-      paperBtn.textContent = paperLabel();
+      setPaperPref(next);
+      paperBtnSync();
     });
     // 翻页音效开关（偏好持久化）
     this.soundOn = localStorage.getItem('robinread.editionSound') !== '0';
