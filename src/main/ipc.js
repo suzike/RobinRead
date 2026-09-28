@@ -81,6 +81,12 @@ function createMainWindow(store) {
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // 同窗口导航防护：正文/期刊里点击 <a href> 不许替换应用窗口，一律转系统浏览器
+  window.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('file://') || url.startsWith('devtools://') || url.startsWith('data:')) return;
+    event.preventDefault();
+    if (/^https?:/i.test(url)) shell.openExternal(url);
+  });
 
   // 记忆窗口位置
   const saveBounds = () => {

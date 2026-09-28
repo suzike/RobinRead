@@ -861,26 +861,44 @@ export class EditionReader {
     this._play();
   }
 
-  /** 预取图片宽高比（同时 warm 缓存）：单图 1.5s 超时兜底按 0.66 比例。 */
+  /** 预取图片宽高比（同时 warm 缓存）：单图 1.5s 超时兜底按 0.66 比例；实例级缓存，resize 重排零等待。 */
   async _preloadImageRatios(nodes) {
+    if (!this._imgRatioCache) this._imgRatioCache = new Map();
     const srcs = new Set();
     for (const n of nodes) {
       if (n.tagName?.toLowerCase() === 'img') {
         const s = n.getAttribute('src');
-        if (s && (/^https?:/.test(s) || /^data:image\//.test(s))) srcs.add(s);
+        if (s && (/^https?:/.test(s) || /^data:image\//.test(s)) && !this._imgRatioCache.has(s)) srcs.add(s);
       }
     }
     const map = new Map();
     await Promise.all([...srcs].slice(0, 16).map((src) => new Promise((resolve) => {
       const im = new Image();
       let done = false;
-      const finish = () => { if (!done) { done = true; if (im.naturalWidth > 0 && im.naturalHeight > 0) map.set(src, im.naturalHeight / im.naturalWidth); resolve(); } };
+      const finish = () => {
+        if (!done) {
+          done = true;
+          if (im.naturalWidth > 0 && im.naturalHeight > 0) {
+            const r = im.naturalHeight / im.naturalWidth;
+            map.set(src, r);
+            this._imgRatioCache.set(src, r);
+          }
+        }
+        resolve();
+      };
       im.onload = finish;
       im.onerror = () => { done = true; resolve(); };
       setTimeout(finish, 1500);
       im.referrerPolicy = 'no-referrer';
       im.src = src;
     })));
+    // 已缓存的比例并入返回（未命中才等预取）
+    for (const n of nodes) {
+      if (n.tagName?.toLowerCase() === 'img') {
+        const s = n.getAttribute('src');
+        if (s && this._imgRatioCache.has(s) && !map.has(s)) map.set(s, this._imgRatioCache.get(s));
+      }
+    }
     return map;
   }
 
@@ -899,6 +917,7 @@ export class EditionReader {
     body.innerHTML = String(html || '');
     body.querySelectorAll('script,style,iframe,link,noscript').forEach((el) => el.remove());
     body.querySelectorAll('img').forEach((im) => { im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; });
+    body.querySelectorAll('video').forEach((v) => { v.controls = true; v.preload = 'metadata'; v.loading = 'lazy'; });
     host.appendChild(body);
     const blocks = [];
     // 测量必须与渲染同环境：块要放进 .er-article 容器才有 15.5px/1.92 行距等排版样式；
@@ -1744,7 +1763,7 @@ export class EditionReader {
     ticks.style.width = `${this._railWidth()}px`;
     ticks.innerHTML = indices.map((pageIndex, slot) => `
       <button class="er-tick${pageIndex === cur ? ' on' : ''}" data-index="${pageIndex}" data-slot="${slot}"
-        title="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}"></button>`).join('');
+        aria-label="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}"></button>`).join('');
   }
   _railWave(e) {
     if (this.reduceMotion) return;
@@ -1790,7 +1809,23 @@ export class EditionReader {
     }
     preview.innerHTML = page.entries.map((en, i) =>
       `<div class="er-pv-row"><span class="er-pv-no">${i + 1}.</span><span class="er-pv-title">${escapeHTML(en.title)}</span></div>`).join('');
+    this._positionPreview(preview, idx);
     preview.hidden = false;
+  }
+
+  /** 预览浮层锚定当前刻度 x 位置（clamp 在滑轨范围内，不遮边缘）。 */
+  _positionPreview(preview, idx) {
+    const rail = this.overlay?.querySelector('.er-rail');
+    if (!rail) return;
+    const ticks = rail.querySelector('.er-ticks');
+    const tick = ticks?.querySelector(`.er-tick[data-index="${idx}"]`);
+    if (!tick || !ticks) { preview.style.left = '50%'; return; }
+    const railRect = rail.getBoundingClientRect();
+    const tickRect = tick.getBoundingClientRect();
+    const half = preview.offsetWidth / 2 || 120;
+    const x = clamp(tickRect.left + tickRect.width / 2 - railRect.left, half + 4, railRect.width - half - 4);
+    preview.style.left = `${x}px`;
+    preview.style.transform = 'translateX(-50%)';
   }
   _railDown(e) {
     if (!this.open || this.pages.length < 2) return;

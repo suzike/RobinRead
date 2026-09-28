@@ -4195,7 +4195,9 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
   position: fixed; inset: 0; z-index: 900; overflow: hidden;
   background: radial-gradient(120% 95% at 50% 38%, var(--erp-stage-hi) 0%, var(--erp-stage) 62%, rgba(43, 39, 33, 0.10) 100%);
   font-family: var(--font-sans); user-select: none;
+  animation: erOverlayIn 0.18s var(--ease-out);
 }
+@keyframes erOverlayIn { from { opacity: 0; } to { opacity: 1; } }
 .er-overlay.er-dark { --erp-paper: #211F1A; --erp-ink: #E6E0D2; --erp-muted: #98917F; --erp-stage: #232120; --erp-stage-hi: #2B2927; }
 .er-overlay[data-paper="white"] { --erp-paper: #FFFFFF; --erp-grain: none; }
 .er-overlay[data-paper="book"] { --erp-paper: #EFE2C8; }
