@@ -689,6 +689,8 @@ export class EditionReader {
       </div>
       <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
       <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
+      <button class="er-sound" title="${escapeHTML(t('翻页音效'))}"></button>
+      <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
       <div class="er-notice" hidden></div>`;
     document.body.appendChild(overlay);
     this.overlay = overlay;
@@ -704,6 +706,18 @@ export class EditionReader {
       localStorage.setItem('robinread.magPaper', next);
       paperBtn.textContent = paperLabel();
     });
+    // 翻页音效开关（偏好持久化）
+    this.soundOn = localStorage.getItem('robinread.editionSound') !== '0';
+    const soundBtn = overlay.querySelector('.er-sound');
+    const soundLabel = () => (this.soundOn ? t('有声') : t('静音'));
+    soundBtn.textContent = soundLabel();
+    soundBtn.addEventListener('click', () => {
+      this.soundOn = !this.soundOn;
+      localStorage.setItem('robinread.editionSound', this.soundOn ? '1' : '0');
+      soundBtn.textContent = soundLabel();
+    });
+    // 沉浸全屏（F 键同效）
+    overlay.querySelector('.er-full').addEventListener('click', () => this._toggleFullscreen());
     this.measureHost = document.createElement('div');
     this.measureHost.className = 'er-measure';
     overlay.appendChild(this.measureHost);
@@ -812,6 +826,8 @@ export class EditionReader {
     overlay.querySelector('.er-cover').addEventListener('click', () => this._doOpen());
     overlay.querySelector('.er-stage').addEventListener('pointerdown', (e) => this._down(e));
     overlay.querySelector('.er-stage').addEventListener('wheel', (e) => this._wheel(e), { passive: true });
+    // 翻页拖拽与文字/图片选择冲突防护：拖拽翻页启动时清除选区，图片禁止原生拖拽
+    overlay.addEventListener('dragstart', (e) => e.preventDefault());
     this._bindRail();
     this._key = (e) => this._keydown(e);
     document.addEventListener('keydown', this._key, true);
@@ -1135,17 +1151,40 @@ export class EditionReader {
     });
   }
 
-  /** 正文图片灯箱：点击放大，点击图片/Esc 关闭（Esc 优先级高于返回版面）。 */
+  /** 正文图片灯箱：画廊式——全篇图片列表内左右切换（循环），计数 + 加载失败提示。 */
   _openLightbox(src) {
     if (!this.overlay) return;
     let lb = this.overlay.querySelector('.er-lightbox');
     if (!lb) {
       lb = document.createElement('div');
       lb.className = 'er-lightbox';
-      lb.innerHTML = '<img alt=""><div class="er-lightbox-err" hidden></div>';
+      lb.innerHTML = `<button class="er-lb-nav prev" title="${escapeHTML(t('上一张'))}">‹</button><img alt="">
+        <button class="er-lb-nav next" title="${escapeHTML(t('下一张'))}">›</button>
+        <div class="er-lb-count"></div><div class="er-lightbox-err" hidden></div>`;
       this.overlay.appendChild(lb);
-      lb.addEventListener('click', () => lb.classList.remove('on'));
+      lb.addEventListener('click', (ev) => {
+        if (ev.target.closest('.er-lb-nav')) return;
+        lb.classList.remove('on');
+        this._lightboxOn = false;
+      });
+      lb.querySelector('.er-lb-nav.prev').addEventListener('click', () => this._lightboxStep(-1));
+      lb.querySelector('.er-lb-nav.next').addEventListener('click', () => this._lightboxStep(1));
     }
+    // 全篇图片列表（跨页）
+    if (!this._lbList || !this._lbList.length) {
+      this._lbList = [...this.overlay.querySelectorAll('.er-article img')]
+        .map((im) => im.getAttribute('src')).filter(Boolean);
+    }
+    this._lbIdx = Math.max(0, this._lbList.indexOf(src));
+    lb.querySelector('.er-lb-count').textContent = `${this._lbIdx + 1} / ${this._lbList.length || 1}`;
+    lb.querySelector('.er-lb-nav').style.display = this._lbList.length > 1 ? '' : 'none';
+    lb.querySelector('.er-lb-nav.next').style.display = this._lbList.length > 1 ? '' : 'none';
+    this._lbShow(lb);
+    lb.classList.add('on');
+    this._lightboxOn = true;
+  }
+
+  _lbShow(lb) {
     const img = lb.querySelector('img');
     const errEl = lb.querySelector('.er-lightbox-err');
     errEl.hidden = true;
@@ -1155,9 +1194,15 @@ export class EditionReader {
       errEl.hidden = false;
       errEl.textContent = t('图片加载失败');
     };
-    img.src = src;
-    lb.classList.add('on');
-    this._lightboxOn = true;
+    img.src = this._lbList[this._lbIdx] || '';
+    lb.querySelector('.er-lb-count').textContent = `${this._lbIdx + 1} / ${this._lbList.length || 1}`;
+  }
+
+  _lightboxStep(dir) {
+    if (!this._lbList?.length) return;
+    this._lbIdx = (this._lbIdx + dir + this._lbList.length) % this._lbList.length;
+    const lb = this.overlay.querySelector('.er-lightbox');
+    if (lb) this._lbShow(lb);
   }
 
   _pageArticleInner(page, index) {
@@ -1368,6 +1413,13 @@ export class EditionReader {
     }
   }
 
+  /** 沉浸全屏切换（F 键/按钮）。 */
+  _toggleFullscreen() {
+    if (!this.overlay) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else this.overlay.requestFullscreen?.().catch(() => {});
+  }
+
   /** 封面期号日期：本期最新文章日期（中文「2026 年 9 月 28 日」/英文长格式）。 */
   _coverDate() {
     const newest = this.items.reduce((acc, it) => ((it.date || 0) > (acc || 0) ? it.date : acc), 0);
@@ -1503,6 +1555,8 @@ export class EditionReader {
     const turn = this.turn;
     if (!turn) return;
     turn.progress = clamp(p, 0, 1);
+    // 拖拽翻页启动时清掉误选的文字选区（正文可选中，与拖拽跟手共用手势）
+    if (!this._selCleared) { window.getSelection?.()?.removeAllRanges(); this._selCleared = true; }
     const book = this.overlay.querySelector('.er-book');
     const leaf = this.overlay.querySelector('.er-leaf');
     const cast = this.overlay.querySelector('.er-cast');
@@ -1570,6 +1624,7 @@ export class EditionReader {
     const turn = this.turn;
     if (!turn) return;
     this.turn = null;
+    this._selCleared = false;
     const book = this.overlay.querySelector('.er-book');
     const leaf = this.overlay.querySelector('.er-leaf');
     const sheetA = this.overlay.querySelector('.er-sheet[data-role="a"]');
@@ -1597,7 +1652,7 @@ export class EditionReader {
   }
 
   _play() {
-    if (!this._sound) return;
+    if (!this._sound || !this.soundOn) return;
     try { this._sound.currentTime = 0; this._sound.play().catch(() => {}); } catch { /* 忽略 */ }
   }
 
@@ -1722,11 +1777,14 @@ export class EditionReader {
   // ────────────────────────────────────────────────
   _keydown(e) {
     if (!this.overlay) return;
-    // 灯箱开启时仅响应 Esc（关灯箱），其余按键忽略防误翻页
+    // 灯箱开启时：Esc 关闭、左右切换画廊图片，其余按键忽略防误翻页
     if (this._lightboxOn && this.overlay.querySelector('.er-lightbox.on')) {
-      if (e.key === 'Escape') { e.preventDefault(); this.overlay.querySelector('.er-lightbox').classList.remove('on'); this._lightboxOn = false; }
+      if (e.key === 'Escape') { e.preventDefault(); this.overlay.querySelector('.er-lightbox').classList.remove('on'); this._lightboxOn = false; return; }
+      if (e.key === 'ArrowRight') { e.preventDefault(); return this._lightboxStep(1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); return this._lightboxStep(-1); }
       return;
     }
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
     if (e.key === 'Escape') {
       // 灯箱最优先 → 文章目录 → 返回版面 → 退出
       const lb = this.overlay.querySelector('.er-lightbox.on');
@@ -2024,6 +2082,7 @@ export class EditionReader {
   }
   _cancelTurn() {
     if (!this.turn) return;
+    this._selCleared = false;
     const book = this.overlay.querySelector('.er-book');
     const leaf = this.overlay.querySelector('.er-leaf');
     const sheetA = this.overlay.querySelector('.er-sheet[data-role="a"]');

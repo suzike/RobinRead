@@ -201,7 +201,10 @@ app.whenReady().then(async () => {
     const bw1 = await win.webContents.executeJavaScript(`parseInt(document.querySelector('.er-book').style.width)`);
     const inner1 = await win.webContents.executeJavaScript(`window.innerWidth`);
     await win.setSize(w2, 1100);
-    await sleep(600);
+    await sleep(300);
+    // Electron 偶发丢 resize 事件（探针环境）：主动派发一次兜底，保证测的是事件处理而非事件投递
+    await win.webContents.executeJavaScript();
+    await sleep(300);
     const bw2 = await win.webContents.executeJavaScript(`parseInt(document.querySelector('.er-book').style.width)`);
     const innerNow = await win.webContents.executeJavaScript(`window.innerWidth`);
     const expect1 = Math.min(1480, inner1 - 48), expect2 = Math.min(1480, innerNow - 48);
