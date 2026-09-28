@@ -849,6 +849,14 @@ function registerIPCHandlers(store, window) {
         await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
         await new Promise((r) => setTimeout(r, 120));
         rect = { w: finalPage.width, h: finalPage.height };
+        // D20 安全网：第二遍 zoom 重排后实测卡高，若仍超画幅（横版双栏列平衡偏差）按比例二次收缩
+        const fitCheck = JSON.parse(await win.webContents.executeJavaScript('(()=>{const s=document.querySelector(".xc-stage");const c=s&&s.querySelector(".xc-card");if(!s||!c)return JSON.stringify({sh:0,ch:0});const sr=s.getBoundingClientRect();const cr=c.getBoundingClientRect();return JSON.stringify({sh:Math.ceil(sr.height),ch:Math.ceil(cr.height)})})()'));
+        if (fitCheck.ch > fitCheck.sh + 2) {
+          const cardEl = await win.webContents.executeJavaScript('parseFloat(getComputedStyle(document.querySelector(".xc-stage > .xc-card")).zoom) || 1');
+          const nz = cardEl * (fitCheck.sh / fitCheck.ch);
+          await win.webContents.executeJavaScript(`document.querySelector('.xc-stage > .xc-card').style.zoom = ${nz.toFixed(4)}`);
+          await new Promise((r) => setTimeout(r, 150));
+        }
       }
       const height = Math.min(rect.h, 16000);
       win.setContentSize(rect.w, height);
