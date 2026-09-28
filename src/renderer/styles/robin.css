@@ -4210,3 +4210,22 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .er-art-body h2, .er-art-body h3 { margin: 1.4em 0 0.5em; }
 .er-art-body p { margin: 0 0 1.1em; }
 .er-art-body a { color: #617357; }
+
+/* ══ 期刊翻页 3D 纸页翻转（复刻上游 Metal 翻页视觉语义） ══ */
+.er-book { position: relative; width: min(860px, 92%); min-height: 100%; perspective: 2400px; transform-style: preserve-3d; }
+.er-sheet { position: absolute; inset: 0; overflow-y: auto; background: #faf7ef; color: #2c2921; border-radius: 10px; padding: 40px 52px 60px; box-sizing: border-box; }
+.er-sheet-current { position: relative; min-height: 100%; }
+.er-leaf {
+  position: absolute; inset: 0; z-index: 20; transform-style: preserve-3d;
+  transform-origin: left center; pointer-events: none;
+}
+.er-leaf-fwd { transform-origin: left center; animation: erTurnFwd var(--er-dur, 0.35s) cubic-bezier(0.28, 0.12, 0.22, 1.0) forwards; }
+.er-leaf-bwd { transform-origin: right center; animation: erTurnBwd var(--er-dur, 0.35s) cubic-bezier(0.28, 0.12, 0.22, 1.0) forwards; }
+.er-leaf-face { position: absolute; inset: 0; backface-visibility: hidden; background: #faf7ef; border-radius: 10px; overflow: hidden; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
+.er-leaf-rear { transform: rotateY(180deg); }
+.er-leaf-rear .er-page { width: 100%; height: 100%; overflow-y: auto; }
+@keyframes erTurnFwd { from { transform: rotateY(0); } to { transform: rotateY(-180deg); } }
+@keyframes erTurnBwd { from { transform: rotateY(0); } to { transform: rotateY(180deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .er-leaf-fwd, .er-leaf-bwd { animation-duration: 0.01s !important; }
+}
