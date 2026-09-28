@@ -509,3 +509,39 @@ body[data-list-density="compact"] .entry-summary { display: none; }
 .modal.digest-modal.is-full .dg-topic { margin-bottom: 0; }
 .modal.digest-modal.is-full .dg-overview { padding: 22px 28px; border-radius: 14px; }
 .modal.digest-modal.is-full .dg-overview p { font-size: 15.5px; line-height: 2; }
+
+/* ══ D23 简报全屏响应式：宽屏双栏报纸 / 中屏单栏沉浸 / 窄屏紧凑 ══ */
+/* 基础（任意宽度）：单栏限宽 860 居中，深读节通栏沉浸 */
+.modal.digest-modal.is-full .digest-visual { max-width: 860px; margin: 0 auto; }
+/* 中宽屏（≥1180px 视口）：弹窗加宽，阅读行宽同步放大 */
+@media (min-width: 1180px) {
+  .modal.digest-modal.is-full { width: min(1080px, 94vw); }
+  .modal.digest-modal.is-full .digest-visual { max-width: 960px; }
+  .modal.digest-modal.is-full .dg-hero-date { font-size: 40px; }
+  .modal.digest-modal.is-full .dg-li { font-size: 15px; }
+  .modal.digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 15.5px; }
+}
+/* 宽屏（≥1420px 视口）：报纸双栏——主题卡并排、报头/总览/深读通栏 */
+@media (min-width: 1420px) {
+  .modal.digest-modal.is-full { width: min(1360px, 95vw); }
+  .modal.digest-modal.is-full .digest-visual {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    max-width: none;
+    align-items: start;
+  }
+  .modal.digest-modal.is-full .dg-hero,
+  .modal.digest-modal.is-full .dg-overview,
+  .modal.digest-modal.is-full .dg-deepread,
+  .modal.digest-modal.is-full .dg-deep-sec { grid-column: 1 / -1; }
+  .modal.digest-modal.is-full .dg-topic:not(.dg-deep-sec) { margin-bottom: 0; }
+  .modal.digest-modal.is-full .dg-topic-title { font-size: 17px; }
+  .modal.digest-modal.is-full .dg-li { font-size: 15px; }
+}
+/* 窄视口（<1000px）：报头与字号降档 */
+@media (max-width: 1000px) {
+  .modal.digest-modal.is-full .dg-hero-date { font-size: 36px; }
+  .modal.digest-modal.is-full .dg-hero-sub { letter-spacing: 0.24em; }
+  .modal.digest-modal.is-full .dg-deep-sec .dg-topic-body p { font-size: 14.5px; }
+}
