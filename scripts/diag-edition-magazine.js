@@ -44,6 +44,8 @@ app.whenReady().then(async () => {
     const run = (js) => win.webContents.executeJavaScript(`(async () => { try { ${js} } catch (e) { return { __err: String(e && e.stack || e) }; } })()`);
     const res = await run(`
       const mod = await import('./views/edition-reader.js');
+      // 正文数据经 fetchArticle 注入（contextBridge 不可覆写，依赖注入是官方通路）
+      const ARTICLE_HTML = Array.from({ length: 48 }, (_, i) => '<h2>第' + (i + 1) + '节</h2><p>这是一段用于正文分页器装箱测试的较长段落，讲述了一年之间阅读介质从纸页到屏幕的四次更替，以及读的人在每一次更替里寻找同一种安静的尝试与反复。段落里混有中文标点、数字 2026 与英文词 reading，用于验证换行与行高。第' + (i + 1) + '段完。</p><p>补充段落：排版引擎按块级装箱推进，两叶一对开，页眉显示标题与页码，叶底自然收口。</p>').join('');
       const mk = (i) => ({
         id: 'fx-' + i,
         title: ['上海ToF工厂停产的三年', 'The Quiet Web: RSS 读者survey', '越王勾践剑的合金配比与铸造工艺', 'OpenClaw 2.0 是一个缩影',
@@ -55,9 +57,11 @@ app.whenReady().then(async () => {
         contentHead: i % 2 === 0 ? '<p><img src="https://example.com/img' + i + '.jpg"></p>' : '<p>无图</p>',
       });
       const items = Array.from({ length: 40 }, (_, i) => mk(i));
-      const er = new mod.EditionReader({ items, startIndex: 0, reduceMotion: false, onOpen: (it) => { window.__erOpened = it.id; } });
+      const er = new mod.EditionReader({ items, startIndex: 0, reduceMotion: false, onOpen: (it) => { window.__erOpened = it.id; }, fetchArticle: async () => ARTICLE_HTML });
       er.present();
       await new Promise(r => setTimeout(r, 120));
+      window.addEventListener('error', (ev) => { window.__errLast = String(ev.message || ev); });
+      window.addEventListener('unhandledrejection', (ev) => { window.__errLast = 'rej:' + String(ev.reason); });
       const ov = document.querySelector('.er-overlay');
       if (!ov) return { __err: 'overlay missing' };
       const pages1 = er.pages.map(p => ({ form: p.form, n: p.placements.length, h: p.height, tpl: p.template }));
@@ -113,10 +117,33 @@ app.whenReady().then(async () => {
       const fadeNoLeaf = ov.querySelector('.er-leaf').hidden;
       const bFadein = ov.querySelector('.er-sheet[data-role="b"]').classList.contains('er-fadein');
       await new Promise(r => setTimeout(r, 700));
+      // 还原宽窗再测文章模式
+      window.resizeTo(1600, 1000);
+      await new Promise(r => setTimeout(r, 600));
+      // P10 文章模式：点击稿件卡 → 正文分页为对开书页
+      const editionIndexBefore = er.index;
+      const firstCard = ov.querySelector('.er-sheet[data-role="a"] .er-place');
+      firstCard.click();
+      await new Promise(r => setTimeout(r, 400));
+      const artMode = er.mode === 'article';
+      const artPages = er.pages.length;
+      const artFirstIsArticle = er.pages[0] && er.pages[0].template === 'article';
+      const artHeadBack = !!ov.querySelector('.er-sheet[data-role="a"] .er-head-back');
+      const artTitleInHead = (ov.querySelector('.er-sheet[data-role="a"] .er-head-title') || {}).textContent || '';
+      const artSpread = er.pages.every(p => p.form === 'spread');
+      // 正文内翻页
+      er._go(1);
+      await new Promise(r => setTimeout(r, 900));
+      const artPage2 = er.index === 1;
+      // Esc 返回版面且恢复落点
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(r => setTimeout(r, 300));
+      const backEdition = er.mode === 'edition' && er.index === editionIndexBefore;
       er.dismiss();
       return { pages1, spreadForms, paperW, inBounds, headTitle, headNo, coverVisible, leafW, stacks, sheetsHidden,
         coverGone, sheetShown, storyCount, leafShown, turningFwd, clipped, settled, clipGone, tickCount, expectTicks,
         onTick, backcover, pageNo, soundOk, countBefore, countAfter, narrowForm, fadeNoLeaf, bFadein,
+        artMode, artPages, artFirstIsArticle, artHeadBack, artTitleInHead, artSpread, artPage2, backEdition,
         forms: pages1.map(p => p.form + ':' + p.tpl + ':' + p.n).join(','),
         stackCount: document.querySelectorAll('.er-cover-face .er-stack').length,
         coverHiddenAttr: ov.querySelector('.er-cover').hidden,
@@ -139,6 +166,11 @@ app.whenReady().then(async () => {
     ok(res.soundOk, 'P8 纸声 data:audio/wav 内联');
     ok(res.countBefore === res.countAfter, `P9 排版确定性：两次 relayout 页数一致（${res.countAfter}）`);
     ok(res.narrowForm && res.fadeNoLeaf && res.bFadein, 'P7 窄窗 600px：非对开 + 淡入翻页（无折页叶）');
+    ok(res.artMode && res.artPages > 1 && res.artFirstIsArticle, `P10 文章模式：点击卡片进入正文翻页（${res.artPages} 页，首页 article 模板）`);
+    ok(res.artHeadBack && res.artTitleInHead, `P10 文章页眉：返回按钮 + 标题「${(res.artTitleInHead || '').slice(0, 18)}」`);
+    ok(res.artSpread, 'P10 正文页全部对开形态');
+    ok(res.artPage2, 'P10 正文内折页翻页正常');
+    ok(res.backEdition, 'P10 Esc 返回版面且落点恢复');
     win.destroy();
     if (failed) { console.error(`${failed} 项失败`); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }

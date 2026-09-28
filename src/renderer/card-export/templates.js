@@ -1684,53 +1684,113 @@ export function seededGradient(title) {
   return palettes[acc % palettes.length];
 }
 
+/** 横版画幅的卡面拉宽与海报化压缩（横竖版固定画幅共用）。 */
+const LAND_CSS = (stageW) => `.xc-card{width:${stageW}px}.xc-card .xc-hero,.xc-card .xc-cover-gen{height:300px !important;aspect-ratio:auto}.xc-card .xc-lead{margin-top:14px !important}.xc-card .xc-sec{margin-top:24px !important}.xc-card .xc-foot{margin-top:26px !important}.xc-card .xc-title{font-size:1.55em !important;margin-bottom:10px !important}.xc-card .xc-meta{margin-bottom:12px !important}.xc-card .xc-cover,.xc-card .xc-cover-gen{margin-top:14px !important}.xc-card .xc-stats,.xc-card .xc-chips{margin-top:14px !important}`;
+
+/** 在卡 HTML 的 .xc-foot 元素前插入弹性补空层（无 foot 则直接追加在卡尾）。 */
+function insertFillSpacer(cardHtml) {
+  const m = cardHtml.match(/<[a-z]+[^>]*class="[^"]*xc-foot[^"]*"[^>]*>/i);
+  if (m) return cardHtml.replace(m[0], `<div class="xc-fill-spacer"></div>${m[0]}`);
+  const close = cardHtml.lastIndexOf('</div>');
+  return close >= 0 ? cardHtml.slice(0, close) + '<div class="xc-fill-spacer"></div>' + cardHtml.slice(close) : cardHtml + '<div class="xc-fill-spacer"></div>';
+}
+
+/**
+ * 画幅铺满卡片段（fit-to-fill 核心参数化，预览与导出共用）。
+ * - fit.fill 缺省 → 自然片段（landCss 已应用，横版卡宽=画幅宽），供实测自然高
+ * - fit.fill = { scale }>1 → 填充注入：垂直间距/行距/头图按缺口放大 + .xc-fill-spacer 弹性吃余量，卡高锁定画幅
+ * - fit.fill = { compact:true } → 紧凑注入：间距/行距/头图收紧，应对内容超出
+ * 返回 { html, css, bg, boxW, boxH }——html 是卡片段（含 spacer），css 含 fitCss。
+ */
+export function renderCardFitted(data, options = {}, fit = {}) {
+  const ratio = fit.ratio;
+  const landscape = ratio < 1;
+  const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
+  const boxH = Math.round(stageW * ratio);
+  const cardOpts = landscape ? { ...options, orientation: 'landscape', slimLevel: fit.slimLevel ?? (ratio < 0.7 ? 3 : 2) } : options;
+  const card = renderCard(data, cardOpts);
+  const landCss = landscape ? LAND_CSS(stageW) : '';
+  let inner = card.html;
+  let fitCss = '';
+  if (fit.fill && fit.fill.scale > 1.001) {
+    const s = Math.min(fit.fill.scale, 1.8);
+    const S1 = 1 + (s - 1) * 0.5;
+    const S2 = Math.min(1 + (s - 1) * 0.28, 1.16);
+    const S3 = 1 + (s - 1) * 0.85;
+    fitCss = `
+      .xc-card{display:flex !important;flex-direction:column;height:${boxH}px !important;}
+      .xc-card > .xc-inner{display:flex !important;flex-direction:column;flex:1 1 auto;min-height:0;}
+      .xc-fill-spacer{flex:1 1 auto;min-height:0;}
+      .xc-card .xc-sec{margin-top:calc(34px * ${S1.toFixed(3)}) !important;}
+      .xc-card .xc-lead{margin-top:calc(28px * ${S1.toFixed(3)}) !important;}
+      .xc-card .xc-foot{margin-top:calc(38px * ${S1.toFixed(3)}) !important;}
+      .xc-card .xc-lead,.xc-card .xc-prose-p,.xc-card .xc-point-d,.xc-card .xc-step-d{line-height:${(1.9 * S2).toFixed(3)} !important;}
+      .xc-card .xc-hero,.xc-card .xc-cover-gen{height:${Math.round(300 * S3)}px !important;aspect-ratio:auto !important;}
+      .xc-card .xc-lead{font-size:calc(16px + ${((s - 1) * 5).toFixed(1)}px) !important;}
+    `;
+    inner = insertFillSpacer(inner);
+  } else if (fit.fill && fit.fill.compact) {
+    fitCss = `
+      .xc-card{display:flex !important;flex-direction:column;height:${boxH}px !important;}
+      .xc-card > .xc-inner{display:flex !important;flex-direction:column;flex:1 1 auto;min-height:0;}
+      .xc-fill-spacer{display:none;}
+      .xc-card .xc-sec{margin-top:22px !important;}
+      .xc-card .xc-lead{margin-top:16px !important;}
+      .xc-card .xc-foot{margin-top:22px !important;}
+      .xc-card .xc-lead,.xc-card .xc-prose-p,.xc-card .xc-point-d,.xc-card .xc-step-d{line-height:1.68 !important;}
+      .xc-card .xc-hero,.xc-card .xc-cover-gen{height:225px !important;aspect-ratio:auto !important;}
+      .xc-card .xc-cover{margin-top:12px !important;}
+    `;
+    inner = insertFillSpacer(inner);
+  }
+  return { html: inner, css: `${card.css}${landCss}${fitCss}`, bg: card.bg, boxW: stageW, boxH };
+}
+
+/**
+ * 画幅铺满管线（fit-to-fill）：画幅是硬约束，内容自适应填满。
+ * - fit.fill 缺省（且 fit.naturalHeight 缺省）→ 自然测量页：竖版=整卡流式；横版=满宽（实测自然高用）
+ * - fit.fill / fit.finalZoom → 固定画幅 stage（内容注入见 renderCardFitted）
+ */
 export function renderStagePage(data, options = {}, fit = {}) {
   const vf = variantFilter(options.variant);
   const vstyle = vf !== 'none' ? `filter:${vf}` : '';
   const zoom = fit.zoom || 2;
-  // 横版满宽长图：卡放大铺满画幅宽（zoom=画幅宽/750），高度随内容（渲染后实测）
-  if (fit.ratio !== null && fit.ratio !== undefined && fit.ratio < 1) {
-    const slimLevel = fit.ratio < 0.7 ? 3 : 2;
-    const cardOpts = { ...options, orientation: 'landscape', slimLevel };
-    const stageW = Math.round(CARD_WIDTH / fit.ratio);
-    const fill = stageW / CARD_WIDTH;
+  const ratio = fit.ratio ?? null;
+  if (!ratio) return renderFullPage(data, options, zoom);
+  const landscape = ratio < 1;
+
+  // 自然测量页（第一遍）：拿真实内容高度
+  if (!fit.fill && fit.naturalHeight == null) {
+    const slimLevel = landscape ? (ratio < 0.7 ? 3 : 2) : options.slimLevel;
+    const cardOpts = landscape ? { ...options, orientation: 'landscape', slimLevel } : options;
     const card = renderCard(data, cardOpts);
-    const w = Math.round(stageW * zoom);
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-      html,body{margin:0;padding:0;background:${card.bg}}
-      .xc-stage{width:${stageW}px}
-      .xc-stage > .xc-card{zoom:${fill}}
-    </style><style>${card.css}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`;
-    return { html, bg: card.bg, width: w, height: null };
-  }
-  const ratio = fit.ratio || null;
-  // 横版画幅（16:9 / 2.35:1 等）：卡片拉宽至画幅宽 + 内容双栏重排 + 海报化精简，
-  // 内容自然高度作为 fit.naturalHeight 传入（两遍渲染），仅当仍超高时才等比缩放。
-  const landscape = ratio !== null && ratio < 1;
-  const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
-  const cardOpts = landscape ? { ...options, orientation: 'landscape' } : options;
-  const landCss = landscape ? `.xc-card{width:${stageW}px}.xc-card .xc-hero,.xc-card .xc-cover-gen{height:300px !important;aspect-ratio:auto}.xc-card .xc-lead{margin-top:14px !important}.xc-card .xc-sec{margin-top:24px !important}.xc-card .xc-foot{margin-top:26px !important}.xc-card .xc-title{font-size:1.55em !important;margin-bottom:10px !important}.xc-card .xc-meta{margin-bottom:12px !important}.xc-card .xc-cover,.xc-card .xc-cover-gen{margin-top:14px !important}.xc-card .xc-stats,.xc-card .xc-chips{margin-top:14px !important}` : '';
-  const card = renderCard(data, cardOpts);
-  if (!ratio || !fit.naturalHeight) {
-    const page = renderFullPage(data, cardOpts, zoom);
     if (landscape) {
-      page.html = page.html.replace('</style><style>', `</style><style>${landCss}</style><style>`);
+      const stageW = Math.round(CARD_WIDTH / ratio);
+      const fill = stageW / CARD_WIDTH;
+      const w = Math.round(stageW * zoom);
+      const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+        html,body{margin:0;padding:0;background:${card.bg}}
+        .xc-stage{width:${stageW}px}
+        .xc-stage > .xc-card{zoom:${fill}}
+      </style><style>${card.css}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`;
+      return { html, bg: card.bg, width: w, height: null };
     }
+    const page = renderFullPage(data, cardOpts, zoom);
     return { ...page, height: null };
   }
-  const boxW = stageW;
-  const boxH = Math.round(stageW * ratio);
-  const f = Math.min(1, boxH / fit.naturalHeight);
+
+  const f = renderCardFitted(data, options, fit);
+  const finalZoom = Math.min(1, fit.finalZoom || 1);
   return {
     html: `<!doctype html><html><head><meta charset="utf-8"><style>
-      html,body{margin:0;padding:0;background:${card.bg}}
+      html,body{margin:0;padding:0;background:${f.bg}}
       .xc-export{zoom:${zoom};${vstyle}}
-      .xc-stage{width:${boxW}px;height:${boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${options.bgGradient || seededGradient(data.title)}}
-      .xc-stage > .xc-card{width:${boxW}px;zoom:${f}}
-    </style><style>${card.css}${landCss}</style></head><body><div class="xc-export"><div class="xc-stage">${card.html}</div></div></body></html>`,
-    bg: card.bg,
-    width: Math.round(boxW * zoom),
-    height: Math.round(boxH * zoom),
+      .xc-stage{width:${f.boxW}px;height:${f.boxH}px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:${f.bg}}
+      .xc-stage > .xc-card{width:${f.boxW}px;flex:none;zoom:${finalZoom}}
+    </style><style>${f.css}</style></head><body><div class="xc-export"><div class="xc-stage">${f.html}</div></div></body></html>`,
+    bg: f.bg,
+    width: Math.round(f.boxW * zoom),
+    height: Math.round(f.boxH * zoom),
   };
 }
 

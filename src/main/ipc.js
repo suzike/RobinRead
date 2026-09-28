@@ -824,66 +824,80 @@ function registerIPCHandlers(store, window) {
     return task;
   });
   async function renderCardPngOnce({ templateId, data, options, zoom, ratio, format = 'png' }) {
-    const { renderStagePage } = await loadTemplatesModule();
+    const { renderStagePage, CARD_WIDTH } = await loadTemplatesModule();
     const win = getCardExportWindow();
-    const opts = { zoom, ratio, naturalHeight: null };
-    const page = renderStagePage(data, options, opts);
-
     const tmpPath = path.join(app.getPath('temp'), `robin-card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.html`);
-    // 横版满宽长图：宽度=画幅宽×zoom，高度随内容（渲染后实测，不再等比缩小）
-    if (ratio && ratio < 1) {
-      const page = renderStagePage(data, options, { zoom, ratio, naturalHeight: null });
+    const settle = async (ms) => {
+      await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
+      await new Promise((r) => setTimeout(r, ms));
+    };
+    const load = async (page) => {
       fs.writeFileSync(tmpPath, page.html, 'utf8');
       await win.loadFile(tmpPath);
-      await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
-      await new Promise((r) => setTimeout(r, 300));
-      const dim = JSON.parse(await win.webContents.executeJavaScript('(()=>{const s=document.querySelector(".xc-stage").getBoundingClientRect();return JSON.stringify({w:Math.ceil(s.width*zoom),h:Math.ceil(s.height*zoom)})})()'));
-      win.setContentSize(dim.w, Math.min(dim.h, 16000));
+      await settle(260);
+    };
+    const probe = async () => JSON.parse(await win.webContents.executeJavaScript(
+      '(()=>{const c=document.querySelector(".xc-card");if(!c)return JSON.stringify({w:0,h:0,sh:0,ch:0,sp:0});const sp=c.querySelector(".xc-fill-spacer");const r=c.getBoundingClientRect();return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height),sh:Math.ceil(c.scrollHeight),ch:Math.ceil(c.clientHeight),sp:sp?Math.ceil(sp.getBoundingClientRect().height):0})})()'
+    ));
+    try {
+      if (!ratio) {
+        const page = renderStagePage(data, options, { zoom });
+        await load(page);
+        const rect = await probe();
+        const height = Math.min(rect.h, 16000);
+        win.setContentSize(rect.w || Math.round(750 * zoom), height);
+        win.setBackgroundColor(page.bg);
+        await new Promise((r) => setTimeout(r, 140));
+        const image = await win.webContents.capturePage();
+        const isJpeg = format === 'jpeg';
+        const png = isJpeg ? image.toJPEG(92) : image.toPNG();
+        if (png.length < 1000) throw new Error('卡片渲染结果为空');
+        return { base64: png.toString('base64'), width: rect.w, height, truncated: rect.h > 16000, format: isJpeg ? 'jpeg' : 'png' };
+      }
+      // ── 固定画幅 fit-to-fill：画幅是硬约束，内容自适应铺满 ──
+      const landscape = ratio < 1;
+      const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
+      const boxH = Math.round(stageW * ratio);
+      // pass1：自然内容高（竖版=流式卡高/zoom；横版=满宽重排后卡高/(stageW/CARD_WIDTH)）
+      let page = renderStagePage(data, options, { zoom, ratio });
+      await load(page);
+      const natRect = await probe();
+      const natH = landscape
+        ? Math.round(natRect.h / (stageW / CARD_WIDTH))
+        : Math.round(natRect.h / zoom);
+      let fill = null;
+      let finalZoom;
+      if (natH > 0 && natH < boxH * 0.965) {
+        // 内容不足 → 填充迭代：间距/行距/头图放大 + spacer 吃余量，至 spacer ≤ 3% 或溢出回退
+        let s = Math.min(1.8, boxH / Math.max(1, natH));
+        for (let i = 0; i < 3; i++) {
+          page = renderStagePage(data, options, { zoom, ratio, fill: { scale: s } });
+          await load(page);
+          const m = await probe();
+          if (m.sh > m.ch + 2) { s = Math.max(1.001, s * (boxH / m.sh)); continue; } // 溢出回退
+          if (m.sp > boxH * 0.03) { s = Math.min(1.8, s * (1 + (m.sp / boxH) * 0.9)); continue; } // 仍不足加大
+          break;
+        }
+        fill = { scale: s };
+      } else if (natH > boxH * 1.02) {
+        // 内容超出 → 紧凑注入；仍超出则 contain 兜底（居中，stage 同底色）
+        page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true } });
+        await load(page);
+        const m = await probe();
+        if (m.sh > boxH + 2) finalZoom = boxH / m.sh;
+        fill = { compact: true };
+      }
+      page = renderStagePage(data, options, { zoom, ratio, fill, finalZoom });
+      await load(page);
+      const W = page.width, H = page.height;
+      win.setContentSize(W, H);
       win.setBackgroundColor(page.bg);
       await new Promise((r) => setTimeout(r, 150));
-      const image = await win.webContents.capturePage();
-      const png = image.toPNG();
-      if (png.length < 1000) throw new Error('卡片渲染结果为空');
-      return { base64: png.toString('base64'), width: dim.w, height: Math.min(dim.h, 16000), truncated: dim.h > 16000 };
-    }
-    fs.writeFileSync(tmpPath, page.html, 'utf8');
-    try {
-      const measure = async () => {
-        await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
-        await win.webContents.executeJavaScript('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
-        return JSON.parse(await win.webContents.executeJavaScript(
-          '(()=>{const r=document.querySelector(".xc-card").getBoundingClientRect();return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height)})})()'
-        ));
-      };
-      // 第一遍：自然高度测量（ratio 适配需要真实内容高度）
-      await win.loadFile(tmpPath);
-      let rect = await measure();
-      let finalPage = page;
-      if (ratio && rect.h > 0) {
-        finalPage = renderStagePage(data, options, { zoom, ratio, naturalHeight: rect.h / zoom });
-        fs.writeFileSync(tmpPath, finalPage.html, 'utf8');
-        await win.loadFile(tmpPath);
-        await win.webContents.executeJavaScript('document.fonts.ready.then(()=>1)');
-        await new Promise((r) => setTimeout(r, 120));
-        rect = { w: finalPage.width, h: finalPage.height };
-        // D20 安全网：第二遍 zoom 重排后实测卡高，若仍超画幅（横版双栏列平衡偏差）按比例二次收缩
-        const fitCheck = JSON.parse(await win.webContents.executeJavaScript('(()=>{const s=document.querySelector(".xc-stage");const c=s&&s.querySelector(".xc-card");if(!s||!c)return JSON.stringify({sh:0,ch:0});const sr=s.getBoundingClientRect();const cr=c.getBoundingClientRect();return JSON.stringify({sh:Math.ceil(sr.height),ch:Math.ceil(cr.height)})})()'));
-        if (fitCheck.ch > fitCheck.sh + 2) {
-          const cardEl = await win.webContents.executeJavaScript('parseFloat(getComputedStyle(document.querySelector(".xc-stage > .xc-card")).zoom) || 1');
-          const nz = cardEl * (fitCheck.sh / fitCheck.ch);
-          await win.webContents.executeJavaScript(`document.querySelector('.xc-stage > .xc-card').style.zoom = ${nz.toFixed(4)}`);
-          await new Promise((r) => setTimeout(r, 150));
-        }
-      }
-      const height = Math.min(rect.h, 16000);
-      win.setContentSize(rect.w, height);
-      win.setBackgroundColor(finalPage.bg);
-      await new Promise((r) => setTimeout(r, 140));
       const image = await win.webContents.capturePage();
       const isJpeg = format === 'jpeg';
       const png = isJpeg ? image.toJPEG(92) : image.toPNG();
       if (png.length < 1000) throw new Error('卡片渲染结果为空');
-      return { base64: png.toString('base64'), width: rect.w, height, truncated: rect.h > 16000, format: isJpeg ? 'jpeg' : 'png' };
+      return { base64: png.toString('base64'), width: W, height: H, truncated: false, format: isJpeg ? 'jpeg' : 'png' };
     } finally {
       try { fs.unlinkSync(tmpPath); } catch (_) { /* 临时文件清理失败可忽略 */ }
     }

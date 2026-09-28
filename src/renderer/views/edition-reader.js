@@ -39,9 +39,9 @@ const TURN_PRESETS = [
   { corner: -0.35, dur: 0.32 }, { corner: 1, dur: 0.35 },
 ];
 
-const pageWidth = (w) => Math.min(1280, Math.max(1, w - (w < 620 ? 40 : 96)));
-const hInset = (w) => Math.min(w < 620 ? 24 : 40, (pageWidth(w) - 1) / 2);
-const turnInset = (h) => Math.min(32, Math.max(0, h - RAIL_H) * 0.10);
+const pageWidth = (w) => Math.min(1480, Math.max(1, w - (w < 620 ? 32 : 48)));
+const hInset = (w) => Math.min(w < 620 ? 20 : 36, (pageWidth(w) - 1) / 2);
+const turnInset = (h) => Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
 
 /** cubic-bezier(0.28,0.12,0.22,1.0) 求解（MagazineTurnGeometry.eased 二分法原样移植）。 */
 function bezierEase(x) {
@@ -68,7 +68,7 @@ export class EditionReader {
    * @param {{items:Array, startIndex?:number, onOpen?:(item:Object)=>void, reduceMotion?:boolean}} opts
    * items 条目字段：id/title/summaryPreview/sourceTitle/contentHead/publishedAt/isRead/isStarred
    */
-  constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false } = {}) {
+  constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false, fetchArticle = null } = {}) {
     this.items = (items || []).filter((it) => it && it.id).map((it) => ({
       id: it.id,
       title: it.title || t('未命名文章'),
@@ -93,6 +93,14 @@ export class EditionReader {
     this.lastSelByPage = new Map();
     this.turn = null;           // {dir,toIdx,progress,phase,...}
     this.scrub = null;          // 滑轨拖拽会话
+    this.mode = 'edition';      // 'edition' 版面模式 | 'article' 正文翻页模式
+    this.article = null;        // { entry, html, spreads }
+    this._editionState = null;  // 进入正文前的版面快照 { pages, index, selected }
+    this._fetchArticle = fetchArticle || (async (id) => {
+      const res = await window.robin.getReader(id);
+      const d = res && res.ok ? res.data : null;
+      return d ? (typeof d.content === 'string' ? d.content : (d.content && d.content.html) || '') : '';
+    });
     this._sound = null;
     this._resizeTimer = 0;
     this._autoTimer = 0;
@@ -674,7 +682,7 @@ export class EditionReader {
   dismiss() {
     clearTimeout(this._autoTimer);
     clearTimeout(this._resizeTimer);
-    cancelAnimationFrame(this._raf);
+    clearTimeout(this._raf); cancelAnimationFrame(this._raf);
     document.removeEventListener('keydown', this._key, true);
     window.removeEventListener('resize', this._onResize);
     this.overlay?.remove();
@@ -747,7 +755,8 @@ export class EditionReader {
   _relayout(initial) {
     if (!this.overlay) return;
     const keep = this.index;
-    this._paginate();
+    if (this.mode === 'article' && this.article) this._paginateArticle(this.article.entry, this.article.html);
+    else this._paginate();
     const m = this._metrics();
     const book = this.overlay.querySelector('.er-book');
     const wrap = this.overlay.querySelector('.er-bookwrap');
@@ -764,7 +773,203 @@ export class EditionReader {
     book.classList.toggle('er-reveal', this.open);
   }
 
+  // ────────────────────────────────────────────────
+  // 正文翻页模式：点击稿件卡 → 正文分页成对开书页，在同界面内翻页阅读
+  // ────────────────────────────────────────────────
+  async _openArticle(entry) {
+    if (!this.overlay || this.turn || this.scrub) return;
+    if (this.mode === 'article') return;
+    this._editionState = { pages: this.pages, index: this.index, selected: this.selected };
+    this.mode = 'article';
+    this.article = { entry, html: '', spreads: [] };
+    this.selected = null;
+    // 过渡：先给当前页一个装载提示
+    const aSheet = this.overlay.querySelector('.er-sheet[data-role="a"]');
+    aSheet.innerHTML = `<div class="er-loading-page">${escapeHTML(t('正在装载正文…'))}</div>`;
+    let html = '';
+    try { html = String(await this._fetchArticle(entry.id) || ''); } catch { html = ''; }
+    if (!this.overlay || this.mode !== 'article') return;
+    this.article.html = html;
+    this._paginateArticle(entry, html);
+    this.index = 0;
+    this._syncSheets(true);
+    this._syncRail();
+    this.overlay.querySelector('.er-book').classList.add('er-reveal');
+    this._play();
+  }
+
+  _closeArticle() {
+    if (this.mode !== 'article' || !this._editionState) { this.mode = 'edition'; return; }
+    const st = this._editionState;
+    this._editionState = null;
+    this.mode = 'edition';
+    this.article = null;
+    this.pages = st.pages;
+    this.index = clamp(st.index, 0, this.pages.length - 1);
+    this.selected = st.selected;
+    this._syncSheets(true);
+    this._syncRail();
+    this._play();
+  }
+
+  /** 正文 → 块序列 → 贪心装箱成半叶 → 两叶一对开。单块超高文本按句切分兜底。 */
+  _paginateArticle(entry, html) {
+    const m = this._metrics();
+    const leafH = Math.max(160, m.bookH - HEADING_H);
+    const colW = Math.min(600, m.leafW);
+    // 解析块
+    const host = document.createElement('div');
+    host.className = 'er-measure';
+    this.overlay.appendChild(host);
+    const body = document.createElement('div');
+    body.className = 'er-article';
+    body.style.cssText = `width:${colW}px;`;
+    body.innerHTML = String(html || '');
+    body.querySelectorAll('script,style,iframe,link,noscript').forEach((el) => el.remove());
+    body.querySelectorAll('img').forEach((im) => { im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; });
+    host.appendChild(body);
+    const blocks = [];
+    // 测量必须与渲染同环境：块要放进 .er-article 容器才有 15.5px/1.92 行距等排版样式；
+    // 占位首块避免「first-child margin-top 清零」造成测量偏小
+    const wrap = document.createElement('div');
+    wrap.className = 'er-article';
+    wrap.style.cssText = `width:${colW}px;`;
+    wrap.innerHTML = '<i style="display:block;height:0"></i>';
+    host.appendChild(wrap);
+    const measure = (el) => {
+      wrap.appendChild(el);
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      el.remove();
+      return h;
+    };
+    // 首叶头部：眉题 + 大标题 + 分隔线
+    const headEl = document.createElement('div');
+    headEl.className = 'er-article-head';
+    headEl.innerHTML = `<div class="er-article-kicker">${escapeHTML(entry.source)} · ${escapeHTML(this._fmtDate(entry.date))}</div>
+      <h1 class="er-article-title">${escapeHTML(entry.title)}</h1><div class="er-article-rule"></div>`;
+    blocks.push({ el: headEl, h: measure(headEl), breakable: false });
+    const IMG_RATIO_CAP = 0.6;
+    for (const node of [...body.childNodes]) {
+      if (node.nodeType === 3) {
+        const txt = String(node.textContent || '').trim();
+        if (!txt) continue;
+        const p = document.createElement('p');
+        p.textContent = txt;
+        blocks.push({ el: p, h: measure(p.cloneNode(true)), breakable: true });
+        continue;
+      }
+      if (node.nodeType !== 1) continue;
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'img') {
+        const ph = document.createElement('div');
+        ph.className = 'er-article-img';
+        ph.appendChild(node.cloneNode());
+        blocks.push({ el: ph, h: Math.round(Math.min(leafH * IMG_RATIO_CAP, colW * 0.62)), breakable: false });
+        continue;
+      }
+      // 块级元素整体装箱；超高块拆子元素或按句切
+      const clone = node.cloneNode(true);
+      clone.removeAttribute('style');
+      const h = measure(clone.cloneNode(true));
+      if (h <= leafH * 0.96) { blocks.push({ el: clone, h, breakable: tag === 'p' }); continue; }
+      if (tag === 'p' || tag === 'li' || tag === 'blockquote') {
+        const sentences = this._splitSentences(clone.textContent || '');
+        if (sentences.length > 1) {
+          const per = Math.ceil(sentences.length / Math.ceil(h / (leafH * 0.9)));
+          for (let i = 0; i < sentences.length; i += per) {
+            const part = document.createElement('p');
+            part.textContent = sentences.slice(i, i + per).join('');
+            blocks.push({ el: part, h: measure(part.cloneNode(true)), breakable: true });
+          }
+          continue;
+        }
+      }
+      for (const child of [...clone.children]) {
+        const ch = measure(child.cloneNode(true));
+        blocks.push({ el: child.cloneNode(true), h: Math.min(ch, leafH), breakable: false });
+      }
+    }
+    host.remove();
+    // 贪心装箱（半叶）；标题块 keep-with-next：叶底放不下「标题+后块」时整组下移，杜绝孤行节标题
+    const isHeadingBlk = (blk) => /^h[1-6]$/i.test(blk?.el?.tagName || '');
+    const leaves = [];
+    let cur = [], used = 0;
+    for (let bi = 0; bi < blocks.length; bi++) {
+      const blk = blocks[bi];
+      const need = used + blk.h + (isHeadingBlk(blk) && blocks[bi + 1] ? 8 + blocks[bi + 1].h : 0);
+      if (used > 0 && need > leafH) { leaves.push(cur); cur = []; used = 0; }
+      cur.push(blk);
+      used += blk.h + 8;
+    }
+    if (cur.length) leaves.push(cur);
+    // 两叶一对开；末尾单叶补「完」页
+    const spreads = [];
+    for (let i = 0; i < leaves.length; i += 2) {
+      spreads.push({ left: leaves[i], right: leaves[i + 1] || null, isEnd: i + 1 >= leaves.length });
+    }
+    this.pages = spreads.map((sp, i) => ({
+      id: `a${i}:${entry.id}`,
+      title: entry.title,
+      entries: [],
+      placements: [],
+      height: leafH,
+      template: 'article',
+      form: 'spread',
+      paperW: m.paperW,
+      isEnd: i === spreads.length - 1,
+      article: sp,
+    }));
+    if (this.article) this.article.spreads = spreads;
+  }
+
+  _splitSentences(text) {
+    const t0 = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!t0) return [];
+    const parts = t0.split(/(?<=[。！？；!?;.])\s*/).filter(Boolean);
+    return parts.length > 1 ? parts : [t0];
+  }
+
+  _pageArticleInner(page, index) {
+    const m = this._metrics();
+    const leafW = m.leafW;
+    const colW = Math.min(600, leafW);
+    const el = document.createElement('div');
+    el.className = 'er-in';
+    el.style.width = `${m.paperW}px`;
+    const head = document.createElement('div');
+    head.className = 'er-head';
+    head.innerHTML = `<button class="er-head-back" title="${escapeHTML(t('返回本期 (Esc)'))}">‹ ${escapeHTML(t('本期'))}</button>
+      <span class="er-head-title">${escapeHTML(page.title)}</span><span class="er-head-no">${String(index + 1).padStart(2, '0')} / ${String(this.pages.length).padStart(2, '0')}</span>`;
+    head.querySelector('.er-head-back').addEventListener('click', (ev) => { ev.stopPropagation(); this._closeArticle(); });
+    el.appendChild(head);
+    const canvas = document.createElement('div');
+    canvas.className = 'er-canvas';
+    canvas.style.height = `${page.height}px`;
+    const mkLeaf = (blocks, x, isEndLeaf) => {
+      const leaf = document.createElement('div');
+      leaf.className = 'er-article-leaf';
+      leaf.style.cssText = `left:${x}px;top:0;width:${leafW}px;height:${page.height}px;`;
+      const col = document.createElement('div');
+      col.className = 'er-article';
+      col.style.cssText = `width:${colW}px;`;
+      if (isEndLeaf || !blocks || !blocks.length) {
+        col.classList.add('er-article-end');
+        col.innerHTML = `<div class="er-article-endmark">${escapeHTML(t('完'))}</div>
+          <div class="er-article-endsub">${escapeHTML(this._fmtDate(this.article?.entry?.date))}</div>`;
+      } else {
+        for (const blk of blocks) col.appendChild(blk.el);
+      }
+      leaf.appendChild(col);
+      canvas.appendChild(leaf);
+    };
+    mkLeaf(page.article.left, 0, false);
+    mkLeaf(page.article.right, leafW + GUTTER, page.isEnd);
+    el.appendChild(canvas);
+    return el;
+  }
+
   _pageInner(page, index) {
+    if (page.template === 'article') return this._pageArticleInner(page, index);
     const m = this._metrics();
     const lay = page;
     const inW = lay.paperW || m.paperW;
@@ -792,7 +997,7 @@ export class EditionReader {
       holder.addEventListener('click', (ev) => {
         ev.stopPropagation();
         this._select(entry.id);
-        if (this.onOpen) { this.dismiss(); this.onOpen(entry.raw); }
+        this._openArticle(entry);
       });
       canvas.appendChild(holder);
     }
@@ -1069,6 +1274,8 @@ export class EditionReader {
     turn.slope = slope;
     turn.animDur = fixedDur ?? Math.max(0.12, turn.preset.dur * Math.abs(to - from) * (this.reduceMotion ? 0.35 : 1));
     if (this.reduceMotion) turn.animDur = Math.min(turn.animDur, 0.12);
+    // 16ms timer 驱动（对标上游 clockTask 的 Task.sleep(16ms) 兜底钟）：
+    // rAF 在 Electron 隐藏窗口会被冻结，timer 稳定；真实窗口下 transform 走合成器，顺滑度无损
     const tick = () => {
       const tn = this.turn;
       if (!tn || tn !== turn || tn.phase !== 'settle') return;
@@ -1076,9 +1283,9 @@ export class EditionReader {
       const eased = turn.slope != null ? settledEase(time, turn.slope) : bezierEase(time);
       this._applyProgress(turn.animFrom + (turn.animTo - turn.animFrom) * eased);
       if (time >= 1) this._finishTurn(turn.animTo >= 0.999);
-      else this._raf = requestAnimationFrame(tick);
+      else this._raf = setTimeout(tick, 16);
     };
-    this._raf = requestAnimationFrame(tick);
+    this._raf = setTimeout(tick, 16);
   }
 
   _finishTurn(committed) {
@@ -1234,9 +1441,17 @@ export class EditionReader {
   // ────────────────────────────────────────────────
   _keydown(e) {
     if (!this.overlay) return;
-    if (e.key === 'Escape') return this.dismiss();
+    if (e.key === 'Escape') {
+      if (this.mode === 'article') { e.preventDefault(); return this._closeArticle(); }
+      return this.dismiss();
+    }
     if (!this.open) {
       if (['ArrowRight', 'Enter', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); this._doOpen(); }
+      return;
+    }
+    if (this.mode === 'article') {
+      if (e.key === 'PageUp' || e.key === 'ArrowLeft') { e.preventDefault(); return this._go(this.index - 1); }
+      if (e.key === 'PageDown' || e.key === 'ArrowRight') { e.preventDefault(); return this._go(this.index + 1); }
       return;
     }
     if (e.key === 'PageUp') { e.preventDefault(); return this._go(this.index - 1); }
@@ -1245,7 +1460,7 @@ export class EditionReader {
       if ((e.key === 'Enter' || e.key === ' ') && this.selected) {
         e.preventDefault();
         const entry = this.pages[this.index].entries.find((x) => x.id === this.selected);
-        if (entry && this.onOpen) { this.dismiss(); this.onOpen(entry.raw); }
+        if (entry) this._openArticle(entry);
       }
       return;
     }
@@ -1324,8 +1539,11 @@ export class EditionReader {
       if (this.turn.phase === 'drag') return;
       this._cancelTurn();
     }
-    if (index < 0) return this._closeBook();
-    if (index >= this.pages.length) return this._notice(t('已经是最后一页'));
+    if (this.mode === 'article') {
+      // 正文模式：首页左翻/末页右翻 → 回到本期版面
+      if (index < 0 || index >= this.pages.length) return this._closeArticle();
+    } else if (index < 0) return this._closeBook();
+    else if (index >= this.pages.length) return this._notice(t('已经是最后一页'));
     if (index === this.index) return;
     this._beginTurn(index, index > this.index ? 1 : -1, interactive);
   }

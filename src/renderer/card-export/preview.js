@@ -5,7 +5,7 @@
    ========================================================================== */
 import { t } from '../i18n.js';
 const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, renderFullPage, variantFilter, renderCard } from './templates.js';
+import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, renderFullPage, variantFilter, renderCard, renderCardFitted } from './templates.js';
 
 const PREF_KEY = 'robinread.cardExport';
 const CARD_FAV_KEY = 'robinread.cardExport.favs';
@@ -231,23 +231,16 @@ export async function openCardExportModal({ data, link = '' }) {
     qr: state.qr ? qrSvg : null,
   });
 
+  let previewSeq = 0;
   function renderPreview() {
+    const seq = ++previewSeq;
+    const ratio = RATIOS.find((x) => x.id === state.ratio)?.ratio ?? null;
+    if (ratio != null) return renderFittedPreview(ratio, seq);
     const card = renderCard(data, cardOptions());
-    const isLandscape = (() => { const r = RATIOS.find((x) => x.id === state.ratio)?.ratio; return r !== null && r !== undefined && r < 1; })();
-    let p;
-    if (isLandscape) {
-      // 横版满宽预览：卡按画幅宽渲染，host 等比适配
-      const ratio = RATIOS.find((x) => x.id === state.ratio)?.ratio;
-      const stageW = Math.round(CARD_WIDTH / ratio);
-      const fill = stageW / CARD_WIDTH;
-      p = host.clientWidth ? host.clientWidth / (stageW * fill) : 0.34;
-    } else {
-      p = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.456;
-    }
+    const p = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.456;
     shadow.innerHTML = `<style>${card.css}
       .cardx-scale { zoom: ${p}; }</style>
       <div class="cardx-scale">${card.html}</div>`;
-    // 画幅适配：卡片高于目标比例时整体等比缩小完整放入（与导出逻辑一致，不裁切）
     const cardEl = shadow.querySelector('.xc-card');
     // 取色（C4）：有封面时提取主色做卡片底部色带
     if (data.cover && data.cover.startsWith('data:image') && !state.accentColor) {
@@ -293,22 +286,66 @@ export async function openCardExportModal({ data, link = '' }) {
     capEl.classList.add('cardx-editable-hint');
     const rectH = cardEl.getBoundingClientRect().height;
     const naturalH = rectH / p;
-    const ratio = RATIOS.find((r) => r.id === state.ratio)?.ratio || null;
-    const scaleEl = shadow.querySelector('.cardx-scale');
     const longHint = naturalH > 9000 ? ` · ${t('内容较长，已排为超长图')}` : '';
-    if (ratio) {
-      const targetH = Math.round(CARD_WIDTH * ratio);
-      const f = Math.min(1, targetH / naturalH);
-      scaleEl.style.zoom = String(p * f);
-      const fit = document.createElement('div');
-      fit.style.cssText = `height:${Math.round(targetH * p)}px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:${card.bg}`;
-      scaleEl.style.filter = variantFilter(state.variant);
-        scaleEl.parentNode.insertBefore(fit, scaleEl);
-      fit.appendChild(scaleEl);
-      capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${targetH * state.zoom}px${f < 1 ? ` · ${t('长内容已等比缩放完整放入')}` : ''}${longHint}`;
-    } else {
-      capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${Math.round(naturalH) * state.zoom}px · ${t('高清输出')}${state.zoom}x${longHint}`;
-    }
+    capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${Math.round(naturalH) * state.zoom}px · ${t('高清输出')}${state.zoom}x${longHint}`;
+  }
+
+  /** 固定画幅预览（与导出 fit-to-fill 同一渲染参数）：实测内容高 → 填充/紧凑注入 → 弹性铺满画幅。 */
+  function renderFittedPreview(ratio, seq) {
+    const measure = (html, css) => {
+      shadow.innerHTML = `<style>${css}</style><div style="position:absolute;left:-99999px;top:0;width:${Math.round(CARD_WIDTH / (ratio < 1 ? ratio : 1))}px;">${html}</div>`;
+      const el = shadow.querySelector('.xc-card');
+      return el ? Math.ceil(el.getBoundingClientRect().height) : 0;
+    };
+    const paint = (fitted, finalZoom = 1) => {
+      const p = host.clientWidth ? host.clientWidth / fitted.boxW : 0.4;
+      const vf = variantFilter(state.variant);
+      shadow.innerHTML = `<style>${fitted.css}
+        .cardx-scale { zoom: ${p}; }
+        .cardx-stage { width:${fitted.boxW}px; height:${fitted.boxH}px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:${fitted.bg}; ${vf !== 'none' ? `filter:${vf}` : ''} }
+        .cardx-stage > .xc-card { width:${fitted.boxW}px; flex:none; zoom:${finalZoom}; }
+        .cardx-stage { border-radius: 8px; }</style>
+        <div class="cardx-scale"><div class="cardx-stage">${fitted.html}</div></div>`;
+      capEl.classList.add('cardx-editable-hint');
+      capEl.textContent = `${t('导出尺寸')} ${fitted.boxW * state.zoom}×${fitted.boxH * state.zoom}px · ${t('画幅铺满')}`;
+    };
+    // pass1：自然内容高
+    const nat = renderCardFitted(data, cardOptions(), { ratio });
+    requestAnimationFrame(() => {
+      if (seq !== previewSeq) return;
+      const natH = measure(nat.html, nat.css);
+      if (natH > 0 && natH < nat.boxH * 0.965) {
+        // 内容不足 → 填充迭代（与导出同公式）
+        let s = Math.min(1.8, nat.boxH / natH);
+        const apply = (sc) => {
+          const f2 = renderCardFitted(data, cardOptions(), { ratio, fill: { scale: sc } });
+          paint(f2);
+          return f2;
+        };
+        let fitted = apply(s);
+        requestAnimationFrame(() => {
+          if (seq !== previewSeq) return;
+          const cardEl = shadow.querySelector('.xc-card');
+          const sp = shadow.querySelector('.xc-fill-spacer');
+          if (!cardEl) return;
+          const over = cardEl.scrollHeight > cardEl.clientHeight + 2;
+          const spH = sp ? Math.ceil(sp.getBoundingClientRect().height) : 0;
+          if (over) { s = Math.max(1.001, s * (nat.boxH / cardEl.scrollHeight)); fitted = apply(s); }
+          else if (spH > nat.boxH * 0.03) { s = Math.min(1.8, s * (1 + (spH / nat.boxH) * 0.9)); fitted = apply(s); }
+          void fitted;
+        });
+      } else if (natH > nat.boxH * 1.02) {
+        const f2 = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true } });
+        paint(f2);
+        requestAnimationFrame(() => {
+          if (seq !== previewSeq) return;
+          const cardEl = shadow.querySelector('.xc-card');
+          if (cardEl && cardEl.scrollHeight > nat.boxH + 2) paint(f2, nat.boxH / cardEl.scrollHeight);
+        });
+      } else {
+        paint(nat);
+      }
+    });
   }
 
   function renderSidebar() {
