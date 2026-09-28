@@ -806,6 +806,20 @@ export class EditionReader {
   }
 
   dismiss() {
+    // 会话小结（R15）：本期有阅读行为时，退出后在页面级浮出 toast
+    const pages = this._sessionPages || 0;
+    const entries = this._sessionEntries ? this._sessionEntries.size : 0;
+    if (pages > 0 || entries > 0) {
+      const toast = document.createElement('div');
+      toast.className = 'er-session-toast';
+      toast.textContent = `${t('本次阅读')} · ${t('翻页')} ${pages} · ${t('读')} ${entries} ${t('篇')}`;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('on'));
+      setTimeout(() => {
+        toast.classList.remove('on');
+        setTimeout(() => toast.remove(), 400);
+      }, 3200);
+    }
     clearTimeout(this._autoTimer);
     clearTimeout(this._resizeTimer);
     clearTimeout(this._fontT);
@@ -945,6 +959,8 @@ export class EditionReader {
     this.mode = 'article';
     this.article = { entry, html: '', spreads: [] };
     this._articleMinutes = null;
+    this._sessionEntries = this._sessionEntries || new Set();
+    this._sessionEntries.add(entry.id);
     this.selected = null;
     // 过渡：先给当前页一个装载提示
     const aSheet = this.overlay.querySelector('.er-sheet[data-role="a"]');
@@ -1846,7 +1862,8 @@ export class EditionReader {
     panel = document.createElement('div');
     panel.className = 'er-keys-panel';
     panel.innerHTML = `<div class="er-keys-head">${escapeHTML(t('键盘快捷键'))}</div>
-      <div class="er-keys-grid">${KEYS.map(([k, d]) => `<div class="er-keys-row"><kbd>${escapeHTML(k)}</kbd><span>${escapeHTML(d)}</span></div>`).join('')}</div>`;
+      <div class="er-keys-grid">${KEYS.map(([k, d]) => `<div class="er-keys-row"><kbd>${escapeHTML(k)}</kbd><span>${escapeHTML(d)}</span></div>`).join('')}</div>
+      ${this._sessionPages || (this._sessionEntries && this._sessionEntries.size) ? `<div class="er-keys-session">${escapeHTML(t('本次会话'))} · ${escapeHTML(t('翻页'))} <b>${this._sessionPages || 0}</b> · ${escapeHTML(t('读'))} <b>${(this._sessionEntries || new Set()).size}</b> ${escapeHTML(t('篇'))}</div>` : ''}`;
     panel.addEventListener('click', (ev) => { if (!ev.target.closest('kbd')) panel.remove(); });
     this.overlay.appendChild(panel);
     requestAnimationFrame(() => panel.classList.add('on'));
@@ -2239,6 +2256,7 @@ export class EditionReader {
     sheetA.classList.remove('clip-left', 'clip-right');
     leaf.hidden = true;
     if (committed) {
+      this._sessionPages = (this._sessionPages || 0) + 1; // 会话阅读统计（R15）
       this.index = turn.toIdx;
       this._savePos(this.index); // 阅读位置记忆（版面模式）
       const landed = this.pages[this.index];

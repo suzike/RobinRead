@@ -4281,6 +4281,20 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
   border-bottom-width: 1.5px; border-radius: 5px; padding: 5px 8px; box-sizing: border-box;
 }
 .er-keys-row span { font-family: var(--font-serif); font-size: 12.5px; line-height: 1.5; color: var(--erp-muted); padding-top: 3px; min-width: 0; }
+/* 会话阅读统计（R15）：帮助面板底部一行 + 退出期刊小结 toast */
+.er-keys-session {
+  margin-top: 14px; padding-top: 10px; border-top: 0.5px solid rgba(139, 133, 116, 0.32);
+  font-family: var(--font-serif); font-size: 11.5px; letter-spacing: 0.08em; color: var(--accent, #617357);
+}
+.er-keys-session b { font-weight: 700; color: var(--erp-ink); font-variant-numeric: tabular-nums; }
+.er-session-toast {
+  position: fixed; bottom: 26px; left: 50%; transform: translate(-50%, 10px); z-index: 980;
+  background: rgba(38, 34, 28, 0.92); color: #F3EEE2; font-family: var(--font-serif);
+  font-size: 12.5px; letter-spacing: 0.08em; padding: 9px 18px; border-radius: var(--radius-full);
+  box-shadow: 0 12px 32px rgba(20, 17, 12, 0.3); opacity: 0; transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+  pointer-events: none;
+}
+.er-session-toast.on { opacity: 1; transform: translate(-50%, 0); }
 
 /* 纸张纤维噪点（feTurbulence 生成一次平铺，接近上游 MagazineBookGrain） */
 .er-overlay {
