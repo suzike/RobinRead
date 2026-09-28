@@ -4436,6 +4436,17 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 /* 封面期号日期（品牌与刊名之下） */
 /* 期号（品牌/刊名/分隔线之下，日期之上） */
 .er-cover-vol { font-family: var(--font-serif); font-size: 13px; letter-spacing: 0.32em; text-indent: 0.32em; color: var(--erp-ink); opacity: 0.62; }
+/* 期号大字（R7）：巨大衬线数字为封面主视觉 */
+.er-cover-volbig { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; color: var(--erp-ink); }
+.er-cover-volbig .er-vol-num { font-family: var(--font-serif); font-weight: 700; font-size: 64px; line-height: 0.9; letter-spacing: 0.02em; }
+.er-cover-volbig .er-vol-label { font-family: var(--font-serif); font-size: 13px; letter-spacing: 0.3em; opacity: 0.62; }
+/* 头条大图（R7）：封面下半主图区（高度按封面钳制，不与文字区争空间） */
+.er-cover-lead {
+  width: 82%; height: clamp(180px, 38%, 460px); overflow: hidden; border-radius: var(--radius-sm);
+  border: 0.5px solid rgba(43, 39, 33, 0.14); box-shadow: 0 10px 28px rgba(30, 26, 20, 0.16);
+  background: rgba(139, 133, 116, 0.08); flex: 0 1 auto; min-height: 0;
+}
+.er-cover-lead img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* 封面期号日期（对比度门槛：不低于墨色 78%） */
 .er-cover-date { font-family: var(--font-sans); font-weight: 500; font-size: 13.5px; letter-spacing: 0.22em; color: color-mix(in srgb, var(--erp-ink) 78%, transparent); }
 
