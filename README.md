@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.12.9 — 全屏沉浸排版](https://github.com/suzike/RobinRead/releases/tag/v2.12.9)**（2026-09-28）：简报全屏单栏限宽沉浸+报头仪式感、导出侧栏重构、横版满宽长图、历史配置移除
 - **[v2.12.8 — 简报响应式与期刊阅读](https://github.com/suzike/RobinRead/releases/tag/v2.12.8)**（2026-09-28）：简报全屏三档响应式、期刊翻页阅读 MVP、历史配置移除
 - **[v2.12.7 — 侧栏重构与真实频谱](https://github.com/suzike/RobinRead/releases/tag/v2.12.7)**（2026-09-28）：导出弹窗侧栏重构（常用平铺+更多设置折叠）、标题自动译中文、真实频谱音浪、翻页过渡打磨
 - **[v2.12.6 — 借鉴上游 v1.4.4/v1.4.5](https://github.com/suzike/RobinRead/releases/tag/v2.12.6)**（2026-09-27）：正文图片失败自动重试、杂志纸张质感三选、AI 摘要一键复制、TTS 播放音浪
