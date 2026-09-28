@@ -132,6 +132,7 @@ app.whenReady().then(async () => {
       const artFirstIsArticle = er.pages[0] && er.pages[0].template === 'article';
       const artHeadBack = !!ov.querySelector('.er-sheet[data-role="a"] .er-head-back');
       const artTitleInHead = (ov.querySelector('.er-sheet[data-role="a"] .er-head-title') || {}).textContent || '';
+      const artHeadHTML = (ov.querySelector('.er-sheet[data-role="a"] .er-head') || {}).outerHTML?.slice(0, 240) || 'NO-HEAD';
       const artSpread = er.pages.every(p => p.form === 'spread');
       // 正文内翻页
       er._go(1);
@@ -144,7 +145,7 @@ app.whenReady().then(async () => {
       // P11 多显示器/窗口尺寸动态自适应：书页宽随窗口重排（page 端 resizeTo 间歇失效，改由主进程 setSize）
       const bookW1 = parseInt(ov.querySelector('.er-book').style.width);
       // P12 文章图片：递归展平后 2:1 图片占位高 = colW×0.5（clamp 后 110–400 区间）；块数据断言不依赖在屏
-      er._openArticle(er.items[1] || er.items[0]);
+      er._openArticle(er.items[1] || er.items[0]).catch(() => {});
       await new Promise(r => setTimeout(r, 2600));
       const artImgH = (() => {
         for (const p of er.pages) {

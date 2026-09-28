@@ -78,6 +78,7 @@ export class EditionReader {
       date: it.publishedAt || 0,
       isRead: !!it.isRead,
       isStarred: !!it.isStarred,
+      readMinutes: Number(it.readMinutes) || 0,
       raw: it,
     }));
     this.startIndex = Math.max(0, startIndex);
@@ -921,24 +922,25 @@ export class EditionReader {
     host.appendChild(body);
     const blocks = [];
     // 测量必须与渲染同环境：块要放进 .er-article 容器才有 15.5px/1.92 行距等排版样式；
-    // 占位首块避免「first-child margin-top 清零」造成测量偏小
+    // 占位首块避免「first-child margin-top 清零」造成测量偏小。
+    // 批量测量：全部块一次性 append，仅 1-2 次 reflow（逐块 append/remove 是 O(n) 次强制布局，长文会卡装载秒级）
     const wrap = document.createElement('div');
     wrap.className = 'er-article';
     wrap.style.cssText = `width:${colW}px;`;
     wrap.innerHTML = '<i style="display:block;height:0"></i>';
     host.appendChild(wrap);
-    const measure = (el) => {
-      wrap.appendChild(el);
-      const h = Math.ceil(el.getBoundingClientRect().height);
-      el.remove();
-      return h;
+    const measureBatch = (els) => {
+      for (const el of els) wrap.appendChild(el);
+      const heights = els.map((el) => Math.ceil(el.getBoundingClientRect().height));
+      for (const el of els) el.remove();
+      return heights;
     };
     // 首叶头部：眉题 + 大标题 + 分隔线
     const headEl = document.createElement('div');
     headEl.className = 'er-article-head';
     headEl.innerHTML = `<div class="er-article-kicker">${escapeHTML(entry.source)} · ${escapeHTML(this._fmtDate(entry.date))}</div>
       <h1 class="er-article-title">${escapeHTML(entry.title)}</h1><div class="er-article-rule"></div>`;
-    blocks.push({ el: headEl, h: measure(headEl), breakable: false });
+    blocks.push({ el: headEl, h: measureBatch([headEl])[0], breakable: false });
     // 递归展平：div/section 等布局容器不作为整体块（否则单容器包裹的正文会被 clamp 截断），
     // 一路展开到内容块（p/h*/ul/ol/table/blockquote/pre/figure/hr/img）；容器自身的直接文本也收集
     const CONTAINER_TAGS = new Set(['div', 'section', 'article', 'main', 'aside', 'span', 'font', 'center', 'small', 'header', 'footer']);
@@ -973,6 +975,8 @@ export class EditionReader {
     // 图片真实比例预取（同时 warm 缓存）：占位=原图比例，杜绝 cover 裁切；极端长图 cap 后允许横向裁
     const ratios = await this._preloadImageRatios(raw);
     const IMG_CAP = 0.72;
+    // 先构造全部块（h=0 占位），再一次性批量测量——单次 reflow，长文装载从秒级降到百毫秒级
+    const pending = [];
     for (const node of raw) {
       const tag = node.tagName.toLowerCase();
       if (tag === 'img') {
@@ -987,26 +991,43 @@ export class EditionReader {
         blocks.push({ el: ph, h, breakable: false });
         continue;
       }
-      // 块级元素整体装箱；超高块拆子元素或按句切
       const clone = node.cloneNode(true);
       clone.removeAttribute('style');
-      const h = measure(clone.cloneNode(true));
-      if (h <= leafH * 0.96) { blocks.push({ el: clone, h, breakable: tag === 'p' }); continue; }
+      blocks.push({ el: clone, h: 0, breakable: tag === 'p' });
+      pending.push(clone);
+    }
+    const heights = measureBatch(pending);
+    for (let i = 0; i < pending.length; i++) {
+      const blk = blocks.find((b) => b.el === pending[i]);
+      blk.h = heights[i];
+    }
+    // 超高块二次处理（拆子元素或按句切），新块补测量
+    const overflowBlocks = blocks.filter((b) => b.h > leafH * 0.96);
+    for (const ob of overflowBlocks) {
+      const idx = blocks.indexOf(ob);
+      const tag = ob.el.tagName.toLowerCase();
+      const replacements = [];
       if (tag === 'p' || tag === 'li' || tag === 'blockquote') {
-        const sentences = this._splitSentences(clone.textContent || '');
+        const sentences = this._splitSentences(ob.el.textContent || '');
         if (sentences.length > 1) {
-          const per = Math.ceil(sentences.length / Math.ceil(h / (leafH * 0.9)));
+          const per = Math.max(1, Math.ceil(sentences.length / Math.ceil(ob.h / (leafH * 0.9))));
           for (let i = 0; i < sentences.length; i += per) {
             const part = document.createElement('p');
             part.textContent = sentences.slice(i, i + per).join('');
-            blocks.push({ el: part, h: measure(part.cloneNode(true)), breakable: true });
+            replacements.push({ el: part, h: 0, breakable: true });
           }
-          continue;
         }
       }
-      for (const child of [...clone.children]) {
-        const ch = measure(child.cloneNode(true));
-        blocks.push({ el: child.cloneNode(true), h: Math.min(ch, leafH), breakable: false });
+      if (!replacements.length) {
+        for (const child of [...ob.el.children]) {
+          const c2 = child.cloneNode(true);
+          replacements.push({ el: c2, h: 0, breakable: false });
+        }
+      }
+      if (replacements.length) {
+        const hs = measureBatch(replacements.map((r) => r.el));
+        replacements.forEach((r, i) => { r.h = Math.min(hs[i] || leafH, leafH); });
+        blocks.splice(idx, 1, ...replacements);
       }
     }
     host.remove();
@@ -1056,11 +1077,20 @@ export class EditionReader {
     if (!lb) {
       lb = document.createElement('div');
       lb.className = 'er-lightbox';
-      lb.innerHTML = '<img alt="">';
+      lb.innerHTML = '<img alt=""><div class="er-lightbox-err" hidden></div>';
       this.overlay.appendChild(lb);
       lb.addEventListener('click', () => lb.classList.remove('on'));
     }
-    lb.querySelector('img').src = src;
+    const img = lb.querySelector('img');
+    const errEl = lb.querySelector('.er-lightbox-err');
+    errEl.hidden = true;
+    img.style.display = '';
+    img.onerror = () => {
+      img.style.display = 'none';
+      errEl.hidden = false;
+      errEl.textContent = t('图片加载失败');
+    };
+    img.src = src;
     lb.classList.add('on');
     this._lightboxOn = true;
   }
@@ -1078,6 +1108,11 @@ export class EditionReader {
       <span class="er-head-title">${escapeHTML(page.title)}</span><span class="er-head-no">${String(index + 1).padStart(2, '0')} / ${String(this.pages.length).padStart(2, '0')}</span>`;
     head.querySelector('.er-head-back').addEventListener('click', (ev) => { ev.stopPropagation(); this._closeArticle(); });
     el.appendChild(head);
+    // 阅读进度线：页眉下的细线随页位推进
+    const progress = document.createElement('div');
+    progress.className = 'er-article-progress';
+    progress.innerHTML = `<i style="width:${Math.round(((index + 1) / Math.max(1, this.pages.length)) * 100)}%"></i>`;
+    el.appendChild(progress);
     const canvas = document.createElement('div');
     canvas.className = 'er-canvas';
     canvas.style.height = `${page.height}px`;
@@ -1211,7 +1246,8 @@ export class EditionReader {
     meta.style.fontSize = `${13 * sc}px`;
     const dot = !entry.isRead ? '<i class="er-dot"></i>' : '';
     const star = entry.isStarred ? `<span class="er-star">${icon('starFilled')}</span>` : '';
-    meta.innerHTML = `${dot}<span class="er-src">${escapeHTML(entry.source)}</span>${star}<span class="er-sp"></span><span class="er-date">${escapeHTML(this._fmtDate(entry.date))}</span>`;
+    const minutes = entry.readMinutes > 0 ? `<span class="er-min" title="${escapeHTML(t('预计阅读时长'))}">${Math.min(999, entry.readMinutes)} ${escapeHTML(t('分钟'))}</span>` : '';
+    meta.innerHTML = `${dot}<span class="er-src">${escapeHTML(entry.source)}</span>${star}${minutes}<span class="er-sp"></span><span class="er-date">${escapeHTML(this._fmtDate(entry.date))}</span>`;
     tx.appendChild(meta);
     story.appendChild(tx);
     return story;
@@ -1577,6 +1613,8 @@ export class EditionReader {
 
   _wheel(e) {
     if (!this.open || this.turn) return;
+    // 灯箱开启时滚轮不翻页
+    if (this._lightboxOn && this.overlay.querySelector('.er-lightbox.on')) return;
     const now = performance.now();
     if (!this._wheelT || now - this._wheelT > 320) this._wheelAcc = 0;
     this._wheelT = now;
