@@ -16,6 +16,7 @@ import { alertBox, confirmBox } from '../ui-prompt.js';
 import { CATALOG_EXTRA } from './feed-store-extra.js';
 import { CATALOG_EXTRA2 } from './feed-store-extra2.js';
 import { CATALOG_CN } from './feed-store-cn.js';
+import { CATALOG_TIDINGS, TIDINGS_TOPICS } from './feed-store-tidings.js';
 import { WECHAT_ACCOUNTS } from './wechat-accounts.js';
 
 // MARK: - 目录（按 rank 排序，合并后 URL 唯一）
@@ -101,7 +102,10 @@ const CATALOG_BASE = [
 ];
 
 // 合并中文新批次（scripts/gen-cn-catalog.js 从候选池生成，rank 320 起）→ 合并后 URL 唯一
-export const CATALOG = [...CATALOG_BASE, ...CATALOG_EXTRA, ...CATALOG_EXTRA2, ...CATALOG_CN];
+// Tidings 专题为增量目录：与既有目录重复的源（知名源双向收录）以现有条目优先
+const _existingUrls = new Set([...CATALOG_BASE, ...CATALOG_EXTRA, ...CATALOG_EXTRA2, ...CATALOG_CN].map((e) => e.url));
+const CATALOG_TIDINGS_INCREMENT = CATALOG_TIDINGS.filter((e) => !_existingUrls.has(e.url));
+export const CATALOG = [...CATALOG_BASE, ...CATALOG_EXTRA, ...CATALOG_EXTRA2, ...CATALOG_CN, ...CATALOG_TIDINGS_INCREMENT];
 
 const CATEGORIES = [
   { id: 'ai', label: 'AI 前沿', hue: 210 },
@@ -116,6 +120,8 @@ const CATEGORIES = [
   { id: 'matlab', label: 'MATLAB & Simulink', hue: 60 },
   { id: 'cn', label: '中文技术', hue: 170 },
   { id: 'wechat', label: '微信公众号', hue: 115 },
+  // Tidings 专题（github.com/fuxiaoai/tidings-rss，CC0；三轮解析验证的精选目录）
+  ...TIDINGS_TOPICS,
 ];
 
 /** 编辑精选（跨类一键订阅）。 */
