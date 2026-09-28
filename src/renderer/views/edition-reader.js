@@ -716,6 +716,7 @@ export class EditionReader {
         <button class="er-type" title="${escapeHTML(t('阅读排版'))}">Aa</button>
         <button class="er-find" title="${escapeHTML(t('搜索 (Ctrl+F)'))}">${icon('search')}</button>
         <button class="er-export" title="${escapeHTML(t('导出当前页图片'))}">${icon('export')}</button>
+        <button class="er-keys" title="${escapeHTML(t('快捷键 (Shift+/)'))}">${icon('keyboard')}</button>
         <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
         <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
       </div>
@@ -752,6 +753,8 @@ export class EditionReader {
     overlay.querySelector('.er-find').addEventListener('click', () => this._findOpen());
     // 当前页导出图片（R13）：截取书页矩形 → 复制剪贴板
     overlay.querySelector('.er-export').addEventListener('click', () => this._exportPage());
+    // 快捷键速查（R14）
+    overlay.querySelector('.er-keys').addEventListener('click', () => this._toggleKeysPanel());
     // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化；R9 增栏宽档
     this.typo = { density: 'standard', margin: 'standard', firstCap: false, col: 'standard', ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
     overlay.querySelector('.er-type').addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleTypePanel(ev.currentTarget); });
@@ -1824,6 +1827,32 @@ export class EditionReader {
   }
 
   // ────────────────────────────────────────────────
+  // 快捷键速查面板（R14）：? 呼出，纸张卡片两列
+  // ────────────────────────────────────────────────
+  _toggleKeysPanel() {
+    if (!this.overlay) return;
+    let panel = this.overlay.querySelector('.er-keys-panel');
+    if (panel) { panel.remove(); return; }
+    const KEYS = [
+      ['← →', t('翻页（PgUp / PgDn 同）')],
+      ['Enter', t('开书 · 打开选中文章')],
+      ['Ctrl + F', t('搜索本期 / 本文')],
+      ['S', t('收藏 / 取消收藏')],
+      ['L', t('稍后读 / 移出')],
+      ['Aa', t('行距 · 页边距 · 栏宽 · 首字下沉')],
+      ['F', t('沉浸全屏')],
+      ['Esc', t('逐层关闭 / 退出版面')],
+    ];
+    panel = document.createElement('div');
+    panel.className = 'er-keys-panel';
+    panel.innerHTML = `<div class="er-keys-head">${escapeHTML(t('键盘快捷键'))}</div>
+      <div class="er-keys-grid">${KEYS.map(([k, d]) => `<div class="er-keys-row"><kbd>${escapeHTML(k)}</kbd><span>${escapeHTML(d)}</span></div>`).join('')}</div>`;
+    panel.addEventListener('click', (ev) => { if (!ev.target.closest('kbd')) panel.remove(); });
+    this.overlay.appendChild(panel);
+    requestAnimationFrame(() => panel.classList.add('on'));
+  }
+
+  // ────────────────────────────────────────────────
   // 当前页导出（R13）：截书页矩形 → 剪贴板
   // ────────────────────────────────────────────────
   async _exportPage() {
@@ -2366,12 +2395,16 @@ export class EditionReader {
     }
     if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); return this._findOpen(); }
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
+    // 快捷键速查（R14）：Shift+/ 即 ?
+    if (e.key === '?' || (e.shiftKey && e.key === '/')) { e.preventDefault(); return this._toggleKeysPanel(); }
     // 收藏 / 稍后读（R12）：S/L 作用于选中卡（版面）或当前文章
     if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._quickToggle('star'); }
     if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._quickToggle('later'); }
     if (e.key === 'Escape') {
-      // 搜索条 → 灯箱 → 划词弹层 → 排版面板 → 文章目录 → 返回版面 → 退出
+      // 搜索条 → 灯箱 → 划词弹层 → 排版面板 → 快捷键面板 → 文章目录 → 返回版面 → 退出
       if (this.overlay.querySelector('.er-findbar')) { e.preventDefault(); return this._findClose(); }
+      const keysPanel = this.overlay.querySelector('.er-keys-panel');
+      if (keysPanel) { e.preventDefault(); keysPanel.remove(); return; }
       const lb = this.overlay.querySelector('.er-lightbox.on');
       if (lb) {
         e.preventDefault();
