@@ -1,7 +1,7 @@
 {
-  "tag_name": "v2.12.9",
-  "name": "知更 RobinRead v2.12.9",
+  "tag_name": "v2.12.10",
+  "name": "知更 RobinRead v2.12.10",
   "html_url": "https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/#download",
   "published_at": "2026-09-28T00:00:00Z",
-  "body": "知更 RobinRead v2.12.9 —— 简报全屏沉浸排版（单栏限宽+报头仪式感+深读通栏）、历史配置移除、导出侧栏重构、横版满宽长图。"
+  "body": "知更 RobinRead v2.12.10 —— 修复期刊阅读正文显示 [object Object]、修复横版画幅预览白屏（预览与导出管线一致化）。"
 }
