@@ -226,6 +226,7 @@ website/                    # 官网源码（CloudBase 静态托管）
 
 版本以 GitHub Release 标签管理，与应用版本号保持一致，发布页附带安装包与更新说明：
 
+- **[v2.12.12 — 期刊翻页 2.0 全面对标上游](https://github.com/suzike/RobinRead/releases/tag/v2.12.12)**（2026-09-28）：逐细节移植 PaperRss v1.4.5 杂志模式——双页对开版面引擎（版心/中缝/字号分级/组合规则/叶尾收口/背封页）、拖拽跟手折页翻页（corner 随机+呼吸缓动+书脊光影+纸声）、封面书脊开合+自动开页、页码滑轨（波浪悬停+拖拽跳页+目录预览）、三分区点击+滚轮+方向键遥控导航
 - **[v2.12.11 — 期刊翻页重做](https://github.com/suzike/RobinRead/releases/tag/v2.12.11)**（2026-09-28）：复刻上游翻页视觉语义（CSS 3D 纸页翻转+四档随机预设+呼吸缓动）
 - **[v2.12.10 — 实机修复](https://github.com/suzike/RobinRead/releases/tag/v2.12.10)**（2026-09-28）：修复期刊阅读正文 [object Object]、修复横版预览白屏
 - **[v2.12.9 — 全屏沉浸排版](https://github.com/suzike/RobinRead/releases/tag/v2.12.9)**（2026-09-28）：简报全屏单栏限宽沉浸+报头仪式感、导出侧栏重构、横版满宽长图、历史配置移除

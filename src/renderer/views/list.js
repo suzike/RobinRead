@@ -383,7 +383,11 @@ export class ListView {
     readBtn.title = t('翻页阅读本期文章');
     readBtn.textContent = '翻页阅读';
     readBtn.addEventListener('click', () => {
-      const er = new EditionReader({ items, startIndex: 0 });
+      const er = new EditionReader({
+        items,
+        startIndex: 0,
+        onOpen: (item) => this.handlers.onSelect(item.id, item),
+      });
       er.present();
     });
     mastLine.appendChild(readBtn);

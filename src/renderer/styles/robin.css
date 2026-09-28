@@ -4187,45 +4187,196 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 /* D18：真实频谱模式下禁用 CSS 律动（柱高由 AnalyserNode 逐帧驱动） */
 .nj-tts-player.is-spectrum .nj-tts-wave i { animation: none !important; }
 
-/* ── 期刊翻页阅读（借鉴上游杂志浏览模式） ── */
-.er-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(24, 20, 14, 0.88); display: flex; flex-direction: column; }
-.er-chrome { display: flex; align-items: center; gap: 14px; padding: 12px 22px; color: rgba(246, 240, 226, 0.8); }
-.er-mast { font-family: var(--font-serif); font-size: 14px; letter-spacing: 0.2em; }
-.er-pageno { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: 0.15em; }
-.er-actions { display: flex; gap: 8px; }
-.er-btn { appearance: none; border: 1px solid rgba(246, 240, 226, 0.35); background: transparent; color: rgba(246, 240, 226, 0.9);
-  width: 32px; height: 32px; border-radius: 8px; font-size: 16px; cursor: pointer; line-height: 1; }
-.er-btn:hover { background: rgba(246, 240, 226, 0.14); }
-.er-stage { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: 0 24px 40px; }
-.er-page { width: min(860px, 92%); min-height: 100%; background: #faf7ef; color: #2c2921;
-  border-radius: 10px 10px 0 0; padding: 40px 52px 60px; box-sizing: border-box;
-  font-family: "Source Han Serif SC", "Noto Serif SC", Georgia, serif; }
-.er-loading { text-align: center; padding: 80px 0; color: #8b8574; font-size: 14px; }
-.er-art-head { display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.14em; color: #8b8574; }
-.er-art-feed { color: #617357; font-weight: 700; }
-.er-art-title { font-size: 30px; line-height: 1.32; font-weight: 700; margin: 14px 0 10px; color: #292620; text-wrap: balance; }
-.er-rule { height: 3px; border-top: 1px solid #b9b39a; border-bottom: 1px solid #b9b39a; margin: 16px 0 26px; }
-.er-art-body { font-size: 16px; line-height: 2; color: #3a362c; }
-.er-art-body img { max-width: 100%; border-radius: 8px; margin: 14px auto; display: block; }
-.er-art-body h2, .er-art-body h3 { margin: 1.4em 0 0.5em; }
-.er-art-body p { margin: 0 0 1.1em; }
-.er-art-body a { color: #617357; }
+/* ═══ 期刊翻页阅读 2.0（逐细节对标上游 PaperRss v1.4.5 杂志模式） ═══
+   纸张三态 paper/white/book 与列表「纸张质感」共用 robinread.magPaper；
+   版面常量见 edition-reader.js（版心1280/页边40/中缝40/页眉76/滑轨52）。 */
+.er-overlay {
+  --erp-paper: #F6F2E7; --erp-ink: #2B2721; --erp-muted: #8B8574; --erp-stage: #EBE5D8;
+  position: fixed; inset: 0; z-index: 900; background: var(--erp-stage); overflow: hidden;
+  font-family: var(--font-sans); user-select: none;
+}
+.er-overlay.er-dark { --erp-paper: #211F1A; --erp-ink: #E6E0D2; --erp-muted: #98917F; --erp-stage: #262421; }
+.er-overlay[data-paper="white"] { --erp-paper: #FFFFFF; }
+.er-overlay[data-paper="book"] { --erp-paper: #EFE2C8; }
+.er-overlay.er-dark[data-paper="white"] { --erp-paper: #1C1C1C; }
+.er-overlay.er-dark[data-paper="book"] { --erp-paper: #2D281F; }
 
-/* ══ 期刊翻页 3D 纸页翻转（复刻上游 Metal 翻页视觉语义） ══ */
-.er-book { position: relative; width: min(860px, 92%); min-height: 100%; perspective: 2400px; transform-style: preserve-3d; }
-.er-sheet { position: absolute; inset: 0; overflow-y: auto; background: #faf7ef; color: #2c2921; border-radius: 10px; padding: 40px 52px 60px; box-sizing: border-box; }
-.er-sheet-current { position: relative; min-height: 100%; }
-.er-leaf {
-  position: absolute; inset: 0; z-index: 20; transform-style: preserve-3d;
-  transform-origin: left center; pointer-events: none;
+.er-stage { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; }
+.er-bookwrap { position: relative; }
+/* 正交折页：上游 Metal 着色器为无透视 2D 投影（bendPoint 正弦压缩），折页不加 perspective */
+.er-book { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+/* 纸页（当前页 a 压目标页 b；对开折页时 a 只露不动半） */
+.er-sheet {
+  position: absolute; inset: 0; background: var(--erp-paper); overflow: hidden;
+  border: 0.5px solid rgba(43, 39, 33, 0.14); border-radius: var(--radius-sm);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08); backface-visibility: hidden;
 }
-.er-leaf-fwd { transform-origin: left center; animation: erTurnFwd var(--er-dur, 0.35s) cubic-bezier(0.28, 0.12, 0.22, 1.0) forwards; }
-.er-leaf-bwd { transform-origin: right center; animation: erTurnBwd var(--er-dur, 0.35s) cubic-bezier(0.28, 0.12, 0.22, 1.0) forwards; }
-.er-leaf-face { position: absolute; inset: 0; backface-visibility: hidden; background: #faf7ef; border-radius: 10px; overflow: hidden; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
-.er-leaf-rear { transform: rotateY(180deg); }
-.er-leaf-rear .er-page { width: 100%; height: 100%; overflow-y: auto; }
-@keyframes erTurnFwd { from { transform: rotateY(0); } to { transform: rotateY(-180deg); } }
-@keyframes erTurnBwd { from { transform: rotateY(0); } to { transform: rotateY(180deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .er-leaf-fwd, .er-leaf-bwd { animation-duration: 0.01s !important; }
+.er-overlay.er-dark .er-sheet { border-color: rgba(230, 224, 210, 0.12); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.16); }
+.er-sheet[data-role="b"] { z-index: 1; }
+.er-sheet[data-role="a"] { z-index: 2; }
+.er-book:not(.er-reveal) .er-sheet { opacity: 0; }
+.er-sheet.clip-left { clip-path: inset(0 50% 0 0); }
+.er-sheet.clip-right { clip-path: inset(0 0 0 50%); }
+/* 中缝：12px 对称渐变 + 0.5px 书脊线（foldSheetBackground） */
+.er-sheet.is-spread::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 12px; transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(43, 39, 33, 0.045), transparent);
+  pointer-events: none;
 }
+.er-sheet.is-spread::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 0.5px; transform: translateX(-50%);
+  background: rgba(43, 39, 33, 0.045); pointer-events: none; z-index: 1;
+}
+
+/* 页内：页边 40 / 页眉 76（标题行 20 + 间距 16 + 上下 20×2） */
+.er-in { position: relative; height: 100%; padding: 20px 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+.er-head { flex: 0 0 auto; display: flex; align-items: baseline; height: 20px; position: relative; }
+.er-head-title { font-family: var(--font-serif); font-weight: 600; font-size: 15px; color: var(--erp-ink); letter-spacing: 0.02em; }
+.er-head-no { margin-left: auto; font-size: 11px; color: var(--erp-muted); font-variant-numeric: tabular-nums; }
+.er-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -8px; height: 0.5px; background: rgba(139, 133, 116, 0.32); }
+.er-canvas { position: relative; width: 100%; margin-top: 16px; flex: 1 1 auto; min-height: 0; }
+
+.er-place { position: absolute; }
+.er-place[data-hl]::before { content: ''; position: absolute; top: -12px; left: 0; right: 0; height: 0.5px; background: rgba(139, 133, 116, 0.2); }
+
+/* 稿件卡（MagazineStoryView）：悬停底色外扩 8px、选中左条、已读淡化 */
+.er-story { position: relative; width: 100%; height: 100%; cursor: pointer; border-radius: var(--radius-sm); display: flex; min-width: 0; }
+.er-story::before { content: ''; position: absolute; inset: -8px; border-radius: var(--radius-sm); background: transparent; z-index: 0; transition: background var(--dur-fast) var(--ease-out); }
+.er-story:hover::before { background: rgba(43, 39, 33, 0.04); }
+.er-story.sel::before { background: rgba(97, 115, 87, 0.09); }
+.er-story.sel::after { content: ''; position: absolute; left: -8px; top: 4px; bottom: 4px; width: 2px; background: var(--accent, #617357); }
+.er-overlay.er-dark .er-story:hover::before { background: rgba(230, 224, 210, 0.05); }
+.er-story > * { position: relative; z-index: 1; }
+.er-story.stacks { flex-direction: column; }
+.er-story.row { flex-direction: row; align-items: flex-start; }
+.er-img { overflow: hidden; background: rgba(139, 133, 116, 0.06); flex: 0 0 auto; }
+.er-img img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.15s ease-out; }
+.er-img img.ok { opacity: 1; }
+.er-tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.er-tx-top { min-width: 0; }
+.er-title { font-family: var(--font-serif); font-weight: 700; color: var(--erp-ink); margin: 0; }
+.er-story.read .er-title { opacity: 0.88; }
+.er-sum { font-family: var(--font-sans); color: var(--erp-muted); margin: 0; }
+.er-meta { margin-top: auto; display: flex; align-items: center; gap: 6px; color: var(--erp-muted); font-family: var(--font-sans); min-width: 0; line-height: 1.4; }
+.er-dot { flex: 0 0 auto; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--accent, #617357); }
+.er-src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.er-star { display: inline-flex; color: var(--accent, #617357); }
+.er-star svg { width: 10px; height: 10px; }
+.er-sp { flex: 1 1 auto; }
+.er-date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+/* 背封页（整叶排完后的右半叶） */
+.er-backcover { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; }
+.er-brand { font-family: var(--font-serif); font-weight: 700; font-size: 26px; letter-spacing: 0.3em; text-indent: 0.3em; color: var(--erp-ink); opacity: 0.8; }
+.er-cover-title { font-family: var(--font-serif); font-weight: 500; font-size: 20px; color: var(--erp-ink); opacity: 0.72; padding: 0 24px; line-height: 1.5; }
+.er-rule { width: 32px; height: 1px; background: rgba(139, 133, 116, 0.35); }
+.er-endnote { font-family: var(--font-serif); font-size: 13px; color: var(--erp-muted); }
+.er-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--erp-muted); font-size: 14px; }
+
+/* ── 对开折页（MagazinePageTurnView + Metal shader 语义）：不动半露底页，移动半绕书脊翻转 ── */
+.er-leaf { position: absolute; top: 0; z-index: 30; transform-style: preserve-3d; pointer-events: none; will-change: transform; }
+.er-leaf.fwd { left: 50%; transform-origin: 0% 50%; }
+.er-leaf.bwd { left: 0; transform-origin: 100% 50%; }
+.er-face { position: absolute; inset: 0; backface-visibility: hidden; overflow: hidden; background: var(--erp-paper); box-shadow: 0 10px 32px rgba(0, 0, 0, 0.24); }
+.er-face-back { transform: rotateY(180deg); }
+.er-face-in { position: absolute; top: 0; height: 100%; padding: 20px 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+.er-face-shade { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.er-leaf.fwd .er-face-front .er-face-shade { background: linear-gradient(90deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.18) 34%, rgba(255, 255, 255, 0.10) 58%, rgba(0, 0, 0, 0) 82%); }
+.er-leaf.fwd .er-face-back .er-face-shade { background: linear-gradient(270deg, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.16) 34%, rgba(255, 255, 255, 0.10) 58%, rgba(0, 0, 0, 0) 82%); }
+.er-leaf.bwd .er-face-front .er-face-shade { background: linear-gradient(270deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.18) 34%, rgba(255, 255, 255, 0.10) 58%, rgba(0, 0, 0, 0) 82%); }
+.er-leaf.bwd .er-face-back .er-face-shade { background: linear-gradient(90deg, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.16) 34%, rgba(255, 255, 255, 0.10) 58%, rgba(0, 0, 0, 0) 82%); }
+/* 投影：折带扫过处落在底页上的阴影（castShadow 0.075·sin(πp)） */
+.er-cast { position: absolute; top: 0; bottom: 0; width: 110px; z-index: 25; pointer-events: none; opacity: 0; }
+.er-turning-fwd .er-cast { left: calc(50% - 110px); background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5)); }
+.er-turning-bwd .er-cast { left: 50%; background: linear-gradient(270deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5)); }
+/* 淡入形态（窄窗 / 单页）：b 页整体淡入 */
+.er-sheet[data-role="b"].er-fadein { z-index: 3; }
+
+/* ── 封面（MagazineCoverLeaf / AnimationSurface）：书脊 rotateY −180°，三层纸叠 ── */
+/* 封面开合：上游 m34 = -1/(书脊宽×7) → perspective ≈ 7×半纸宽 */
+.er-cover { position: absolute; top: 0; left: 0; z-index: 40; perspective: 4500px; perspective-origin: 50% 42%; }
+.er-cover[hidden] { display: none; }
+.er-cover-right {
+  position: absolute; top: 0; left: 50%; width: 50%; height: 100%; overflow: hidden;
+  transform: translateX(-50%); box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+}
+.er-cover-leaf {
+  position: absolute; top: 0; left: 25%; width: 50%; height: 100%;
+  transform-style: preserve-3d; transform-origin: 0% 50%; transform: translateX(0) rotateY(0deg);
+}
+.er-cover-animating .er-cover-right,
+.er-cover-animating .er-cover-leaf { transition-property: transform; transition-timing-function: cubic-bezier(0.77, 0, 0.175, 1); transition-duration: 0.65s; }
+.er-cover-open .er-cover-right { transform: translateX(0); }
+.er-cover-open .er-cover-leaf { transform: translateX(50%) rotateY(-180deg); }
+.er-cover-right .er-in { position: absolute; top: 0; left: -100%; }
+.er-cover-back .er-in { position: absolute; top: 0; left: 100%; }
+.er-cover-front, .er-cover-back { box-shadow: none; }
+.er-cover-face {
+  position: absolute; inset: 0; background: var(--erp-paper); border-radius: var(--radius-sm);
+  border: 0.5px solid rgba(43, 39, 33, 0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; padding: 32px; overflow: hidden;
+}
+.er-overlay.er-dark .er-cover-face { border-color: rgba(230, 224, 210, 0.06); }
+.er-cover-face::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 12px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.035), transparent); pointer-events: none;
+}
+/* 文字在纸叠之上（纸叠为定位元素，普通流内容需抬升） */
+.er-cover-face > :not(.er-stack) { position: relative; z-index: 1; }
+.er-cover-face .er-brand { font-size: 34px; }
+.er-cover-face .er-cover-title { font-size: 26px; opacity: 0.72; }
+/* 纸叠：页纸从封皮后露出，右/下缘薄层次 */
+.er-stack { position: absolute; inset: 0; background: var(--erp-paper); border-radius: var(--radius-sm); border: 0.5px solid rgba(43, 39, 33, 0.09); }
+.er-stack.s1 { transform: translate(2.5px, 3px); }
+.er-stack.s2 { transform: translate(5px, 6px); }
+.er-stack.s3 { transform: translate(7.5px, 9px); box-shadow: 3px 8px 18px rgba(0, 0, 0, 0.09); }
+
+/* ── 边缘 chevron / 关闭 / 通知 ── */
+.er-edge {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 64px; z-index: 50;
+  appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55;
+  font-size: 21px; line-height: 1; cursor: pointer; transition: opacity 0.18s ease-out;
+}
+.er-edge[hidden] { display: none; }
+.er-edge:hover { opacity: 0.9; }
+.er-edge[data-dir="-1"] { left: -46px; }
+.er-edge[data-dir="1"] { right: -46px; }
+.er-close {
+  position: absolute; top: 14px; right: 16px; z-index: 80; width: 32px; height: 32px;
+  appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.45;
+  font-size: 15px; cursor: pointer; border-radius: var(--radius-sm);
+}
+.er-close:hover { opacity: 0.85; background: rgba(43, 39, 33, 0.07); }
+.er-notice {
+  position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); z-index: 85;
+  background: rgba(30, 28, 24, 0.78); color: #F3EEE2; font-size: 13px; padding: 10px 18px;
+  border-radius: var(--radius-full); pointer-events: none; white-space: nowrap;
+}
+.er-notice[hidden] { display: none; }
+
+/* ── 页码滑轨（MagazinePageRail）：3×8 刻度、当前 12、悬停波浪、目录预览、scrub ── */
+.er-rail { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; z-index: 60; }
+.er-rail[hidden] { display: none; }
+.er-ticks { display: flex; align-items: stretch; height: 28px; padding: 0 10px; cursor: pointer; }
+.er-tick { appearance: none; border: none; background: transparent; padding: 0; margin: 0; flex: 1 0 auto; min-width: 7px; position: relative; display: flex; align-items: center; justify-content: center; }
+.er-tick::before { content: ''; width: 3px; height: calc(8px + var(--wave, 0px)); max-height: 24px; border-radius: 1.5px; background: rgba(139, 133, 116, 0.28); transition: height 0.12s ease-out, background 0.12s ease-out; }
+.er-overlay.er-dark .er-tick::before { background: rgba(230, 224, 210, 0.24); }
+.er-tick.on::before { height: 12px; background: rgba(43, 39, 33, 0.88); }
+.er-overlay.er-dark .er-tick.on::before { background: rgba(230, 224, 210, 0.88); }
+.er-count { position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); font: 600 11px/1 ui-monospace, monospace; color: var(--erp-muted); }
+.er-count[hidden] { display: none; }
+.er-preview {
+  position: absolute; bottom: 46px; left: 50%; transform: translateX(-50%);
+  width: min(340px, calc(100vw - 32px)); max-height: min(400px, calc(100vh - 100px)); overflow: auto;
+  background: var(--erp-paper); border-radius: var(--radius-lg); border: 0.5px solid rgba(139, 133, 116, 0.28);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14); padding: 12px 14px; z-index: 70; text-align: left;
+}
+.er-preview[hidden] { display: none; }
+.er-pv-row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 10px; }
+.er-pv-row:last-child { margin-bottom: 0; }
+.er-pv-no { flex: 0 0 22px; text-align: right; font: 500 11px/1.5 ui-monospace, monospace; color: var(--erp-muted); }
+.er-pv-title { font-size: 12px; font-weight: 500; color: var(--erp-ink); line-height: 1.5; }
+
+/* 测量宿主（分页器隐藏实测） */
+.er-measure { position: absolute; left: -99999px; top: 0; visibility: hidden; pointer-events: none; }
+
