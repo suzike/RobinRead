@@ -391,6 +391,8 @@ export class ListView {
         startIndex: 0,
         onOpen: (item) => this.handlers.onSelect(item.id, item),
         onContext: (ev, item) => this.handlers.onContext(ev, item),
+        onToggleStar: (id, starred) => window.robin.toggleStar(id).then(() => this.handlers.onStarred?.(id, starred)),
+        onToggleLater: (id, later) => window.robin.toggleLater(id, later).then(() => this.handlers.onLater?.(id, later)),
         feedKey: [this.scope?.kind || 'all', this.scope?.id || this.scope?.name || ''].join(':'),
       });
       er.present();

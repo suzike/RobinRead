@@ -71,9 +71,9 @@ const settledEase = (time, slope) => {
 export class EditionReader {
   /**
    * @param {{items:Array, startIndex?:number, onOpen?:(item:Object)=>void, reduceMotion?:boolean}} opts
-   * items 条目字段：id/title/summaryPreview/sourceTitle/contentHead/publishedAt/isRead/isStarred
+   * items 条目字段：id/title/summaryPreview/sourceTitle/contentHead/publishedAt/isRead/isStarred/isLater
    */
-  constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false, fetchArticle = null, feedKey = '', onContext = null } = {}) {
+  constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false, fetchArticle = null, feedKey = '', onContext = null, onToggleStar = null, onToggleLater = null } = {}) {
     this.items = (items || []).filter((it) => it && it.id).map((it) => ({
       id: it.id,
       title: this._stripHTML(it.title) || t('未命名文章'),
@@ -83,11 +83,14 @@ export class EditionReader {
       date: it.publishedAt || 0,
       isRead: !!it.isRead,
       isStarred: !!it.isStarred,
+      isLater: !!it.isLater,
       readMinutes: Number(it.readMinutes) || 0,
       raw: it,
     }));
     this.startIndex = Math.max(0, startIndex);
     this.onOpen = onOpen;
+    this.onToggleStar = onToggleStar || null;
+    this.onToggleLater = onToggleLater || null;
     this.reduceMotion = reduceMotion || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.soundSrc = PAGE_TURN_SOUND_SRC;
     this.title = this.items[0]?.source || t('本期选读');
@@ -1545,8 +1548,9 @@ export class EditionReader {
     meta.style.fontSize = `${13 * sc}px`;
     const dot = '<i class="er-dot"></i>';
     const star = entry.isStarred ? `<span class="er-star">${icon('starFilled')}</span>` : '';
+    const later = entry.isLater ? `<span class="er-later" title="${escapeHTML(t('稍后读'))}">${icon('clock')}</span>` : '';
     const minutes = entry.readMinutes > 0 ? `<span class="er-min" title="${escapeHTML(t('预计阅读时长'))}">${Math.min(999, entry.readMinutes)} ${escapeHTML(t('分钟'))}</span>` : '';
-    meta.innerHTML = `${dot}<span class="er-src">${escapeHTML(entry.source)}</span>${star}${minutes}<span class="er-sp"></span><span class="er-date">${escapeHTML(this._fmtDate(entry.date))}</span>`;
+    meta.innerHTML = `${dot}<span class="er-src">${escapeHTML(entry.source)}</span>${star}${later}${minutes}<span class="er-sp"></span><span class="er-date">${escapeHTML(this._fmtDate(entry.date))}</span>`;
     tx.appendChild(meta);
     story.appendChild(tx);
     return story;
@@ -1906,6 +1910,31 @@ export class EditionReader {
       this._select(m.id);
       count.textContent = `${this._findIdx + 1} / ${this._findMatches.length} ${t('条')}`;
     }
+  }
+
+  // ────────────────────────────────────────────────
+  // 快捷收藏/稍后读（R12）：S/L 键，版面=选中卡、文章=当前文章
+  // ────────────────────────────────────────────────
+  _quickToggle(kind) {
+    if (!this.open) return;
+    let entry = null;
+    if (this.mode === 'article') entry = this.article?.entry || null;
+    else if (this.selected) entry = this.items.find((x) => x.id === this.selected) || null;
+    if (!entry) { this._notice(t('先用方向键选中一张卡片')); return; }
+    const isStar = kind === 'star';
+    const cur = isStar ? entry.isStarred : entry.isLater;
+    const next = !cur;
+    if (isStar) entry.isStarred = next;
+    else entry.isLater = next;
+    const cb = isStar ? this.onToggleStar : this.onToggleLater;
+    if (typeof cb === 'function') {
+      Promise.resolve(cb(entry.id, next)).catch(() => {});
+    }
+    this._notice(next
+      ? (isStar ? t('已收藏') : t('已加入稍后读'))
+      : (isStar ? t('已取消收藏') : t('已移出稍后读')));
+    // 版面当前页重绘以刷新星标/稍后读标记；文章态仅 notice（页眉无标记位）
+    if (this.mode === 'edition') this._syncSheets(true);
   }
 
   /** 封面期号：最新文章所在年的周序号（「总第 N 期」/ Vol.N）。 */  _coverVol() {
@@ -2300,6 +2329,9 @@ export class EditionReader {
     }
     if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); return this._findOpen(); }
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
+    // 收藏 / 稍后读（R12）：S/L 作用于选中卡（版面）或当前文章
+    if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._quickToggle('star'); }
+    if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._quickToggle('later'); }
     if (e.key === 'Escape') {
       // 搜索条 → 灯箱 → 划词弹层 → 排版面板 → 文章目录 → 返回版面 → 退出
       if (this.overlay.querySelector('.er-findbar')) { e.preventDefault(); return this._findClose(); }
