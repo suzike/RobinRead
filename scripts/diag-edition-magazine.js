@@ -24,6 +24,7 @@ app.setPath('userData', userData);
 setTimeout(() => { console.error('WATCHDOG'); app.exit(3); }, 120 * 1000).unref();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const waitFor = async (fn, timeout = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < timeout) { const v = await fn(); if (v) return v; await sleep(150); } return null; };
 let failed = 0;
 function ok(cond, label) {
   if (cond) console.log(`PASS ${label}`);
@@ -146,7 +147,7 @@ app.whenReady().then(async () => {
       const bookW1 = parseInt(ov.querySelector('.er-book').style.width);
       // P12 文章图片：递归展平后 2:1 图片占位高 = colW×0.5（clamp 后 110–400 区间）；块数据断言不依赖在屏
       er._openArticle(er.items[1] || er.items[0]).catch(() => {});
-      await new Promise(r => setTimeout(r, 2600));
+      await win.webContents.executeJavaScript(`(async () => { const t0 = Date.now(); while (Date.now() - t0 < 8000) { if (window.__er.mode === 'article' && window.__er.pages[0]?.template === 'article') return 1; await new Promise(r => setTimeout(r, 150)); } return 0; })()`);
       const artImgH = (() => {
         for (const p of er.pages) {
           if (!p.article) continue;

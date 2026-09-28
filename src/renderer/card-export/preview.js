@@ -300,10 +300,11 @@ export async function openCardExportModal({ data, link = '' }) {
     const paint = (fitted, finalZoom = 1) => {
       const p = host.clientWidth ? host.clientWidth / fitted.boxW : 0.4;
       const vf = variantFilter(state.variant);
+      // contain 用 transform:scale（不与 density 内联 zoom / 外层 zoom 合成链相互干扰）
       shadow.innerHTML = `<style>${fitted.css}
         .cardx-scale { zoom: ${p}; }
-        .cardx-stage { width:${fitted.boxW}px; height:${fitted.boxH}px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:${fitted.bg}; ${vf !== 'none' ? `filter:${vf}` : ''} }
-        .cardx-stage > .xc-card { width:${fitted.boxW}px; flex:none; zoom:${finalZoom}; }
+        .cardx-stage { width:${fitted.boxW}px; height:${fitted.boxH}px; display:flex; align-items:flex-start; justify-content:center; overflow:hidden; background:${fitted.bg}; ${vf !== 'none' ? `filter:${vf}` : ''} }
+        .cardx-stage > .xc-card { width:${fitted.boxW}px; flex:none; transform: scale(${finalZoom}); transform-origin: top center; }
         .cardx-stage { border-radius: 8px; }</style>
         <div class="cardx-scale"><div class="cardx-stage">${fitted.html}</div></div>`;
       capEl.classList.add('cardx-editable-hint');
@@ -315,33 +316,33 @@ export async function openCardExportModal({ data, link = '' }) {
       if (seq !== previewSeq) return;
       const natH = measure(nat.html, nat.css);
       if (natH > 0 && natH < nat.boxH * 0.965) {
-        // 内容不足 → 填充迭代（与导出同公式）
+        // 内容不足 → 填充：s 直达 boxH/natH，两轮 refine 收敛（溢出回退 / spacer 补足）
         let s = Math.min(1.8, nat.boxH / natH);
+        let round = 0;
         const apply = (sc) => {
           const f2 = renderCardFitted(data, cardOptions(), { ratio, fill: { scale: sc } });
           paint(f2);
           return f2;
         };
         let fitted = apply(s);
-        requestAnimationFrame(() => {
-          if (seq !== previewSeq) return;
+        const refine = () => {
+          if (seq !== previewSeq || round >= 2) return;
           const cardEl = shadow.querySelector('.xc-card');
           const sp = shadow.querySelector('.xc-fill-spacer');
           if (!cardEl) return;
           const over = cardEl.scrollHeight > cardEl.clientHeight + 2;
           const spH = sp ? Math.ceil(sp.getBoundingClientRect().height) : 0;
-          if (over) { s = Math.max(1.001, s * (nat.boxH / cardEl.scrollHeight)); fitted = apply(s); }
-          else if (spH > nat.boxH * 0.03) { s = Math.min(1.8, s * (1 + (spH / nat.boxH) * 0.9)); fitted = apply(s); }
+          if (over) { round += 1; s = Math.max(1.001, s * (nat.boxH / cardEl.scrollHeight)); fitted = apply(s); requestAnimationFrame(refine); }
+          else if (spH > nat.boxH * 0.03) { round += 1; s = Math.min(1.8, s * (1 + (spH / nat.boxH) * 0.9)); fitted = apply(s); requestAnimationFrame(refine); }
           void fitted;
-        });
+        };
+        requestAnimationFrame(refine);
       } else if (natH > nat.boxH * 1.02) {
-        const f2 = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true } });
-        paint(f2);
-        requestAnimationFrame(() => {
-          if (seq !== previewSeq) return;
-          const cardEl = shadow.querySelector('.xc-card');
-          if (cardEl && cardEl.scrollHeight > nat.boxH + 2) paint(f2, nat.boxH / cardEl.scrollHeight);
-        });
+        // 内容超出 → 紧凑注入；真实内容高用 auto 布局测量（multicol/锁高均不可靠）→ contain 缩放进画幅
+        const fa = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, auto: true } });
+        const H2 = measure(fa.html, fa.css);
+        const finalZoom = H2 > nat.boxH ? nat.boxH / H2 : 1;
+        paint(renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true } }), finalZoom);
       } else {
         paint(nat);
       }
