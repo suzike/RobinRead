@@ -1409,6 +1409,7 @@ export class EditionReader {
     }
     const byId = new Map(page.entries.map((e) => [e.id, e]));
     const onlyLeft = lay.placements.length && lay.placements.every((p) => p.x + p.w <= leafW + 1);
+    let placeIdx = 0;
     for (const pl of lay.placements) {
       const entry = byId.get(pl.entryID);
       if (!entry) continue;
@@ -1416,6 +1417,12 @@ export class EditionReader {
       holder.className = 'er-place';
       holder.style.cssText = `left:${pl.x}px;top:${pl.y}px;width:${pl.w}px;height:${pl.h}px;`;
       if (pl.y > 0) holder.dataset.hl = '1';
+      // 落页错落淡入（R6）：翻页/换页重建 DOM 时自然触发；reduceMotion 关闭
+      if (!this.reduceMotion) {
+        holder.classList.add('er-place-in');
+        holder.style.setProperty('--stagger', `${Math.min(placeIdx * 45, 360)}ms`);
+      }
+      placeIdx += 1;
       holder.appendChild(this._buildStory(entry, pl.st, pl.w));
       holder.addEventListener('click', (ev) => {
         ev.stopPropagation();

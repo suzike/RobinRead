@@ -4393,6 +4393,14 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
 
 .er-place { position: absolute; }
 .er-place[data-hl]::before { content: ''; position: absolute; top: -12px; left: 0; right: 0; height: 0.5px; background: rgba(139, 133, 116, 0.2); }
+/* 落页错落淡入（R6） */
+@keyframes erPlaceIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.er-place.er-place-in { animation: erPlaceIn 0.42s var(--ease-out) both; animation-delay: var(--stagger, 0ms); }
+/* 卡片 hover 微交互（R6）：标题强调、图片微缩放 */
+.er-story .er-title { transition: color var(--dur-fast) var(--ease-out); }
+.er-story:hover .er-title { color: var(--accent, #617357); }
+.er-img img { transition: opacity 0.15s ease-out, transform 0.25s var(--ease-out); }
+.er-story:hover .er-img img { transform: scale(1.03); }
 
 /* 稿件卡（MagazineStoryView）：悬停底色外扩 8px、选中左条、已读淡化 */
 .er-story { position: relative; width: 100%; height: 100%; cursor: pointer; border-radius: var(--radius-sm); display: flex; min-width: 0; }
