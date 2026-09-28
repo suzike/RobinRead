@@ -4262,6 +4262,26 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 /* 文章模式阅读进度线：页眉分隔线上的强调色细线 */
 .er-article-progress { position: relative; height: 0.5px; margin: 8px -36px 0; background: rgba(139, 133, 116, 0.14); }
 .er-article-progress i { position: absolute; left: 0; top: -0.25px; height: 1.5px; background: var(--accent, #617357); opacity: 0.85; transition: width 0.3s var(--ease-out); }
+/* 文章目录面板：右侧滑出 */
+.er-head-toc {
+  appearance: none; border: none; background: transparent; cursor: pointer; padding: 0 8px;
+  font-family: var(--font-serif); font-size: 12px; color: var(--accent, #617357); letter-spacing: 0.1em;
+  margin-left: auto; flex: 0 0 auto; border-radius: var(--radius-xs); margin-right: 10px;
+}
+.er-head-toc:hover { opacity: 0.75; }
+.er-toc {
+  position: absolute; top: 0; right: 0; bottom: 52px; width: min(320px, 40vw); z-index: 110;
+  background: var(--erp-paper) var(--erp-grain); border-left: 0.5px solid rgba(43, 39, 33, 0.16);
+  box-shadow: -12px 0 32px rgba(30, 26, 20, 0.14); transform: translateX(100%);
+  transition: transform 0.22s var(--ease-out); display: flex; flex-direction: column;
+}
+.er-toc.on { transform: translateX(0); }
+.er-toc-head { flex: 0 0 auto; padding: 16px 20px 12px; font-family: var(--font-serif); font-weight: 700; font-size: 14px; color: var(--erp-ink); letter-spacing: 0.1em; border-bottom: 0.5px solid rgba(139, 133, 116, 0.32); }
+.er-toc-list { flex: 1 1 auto; overflow-y: auto; padding: 8px 0 16px; }
+.er-toc-row { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 8px 20px; appearance: none; border: none; background: transparent; cursor: pointer; text-align: left; }
+.er-toc-row:hover { background: rgba(43, 39, 33, 0.05); }
+.er-toc-page { flex: 0 0 auto; font: 600 10.5px/1.6 ui-monospace, monospace; color: var(--erp-muted); min-width: 18px; }
+.er-toc-text { font-family: var(--font-serif); font-size: 13px; line-height: 1.5; color: var(--erp-ink); }
 .er-canvas { position: relative; width: 100%; margin-top: 16px; flex: 1 1 auto; min-height: 0; }
 
 .er-place { position: absolute; }

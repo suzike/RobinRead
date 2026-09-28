@@ -389,6 +389,8 @@ export class ListView {
         items,
         startIndex: 0,
         onOpen: (item) => this.handlers.onSelect(item.id, item),
+        onContext: (ev, item) => this.handlers.onContext(ev, item),
+        feedKey: [this.scope?.kind || 'all', this.scope?.id || this.scope?.name || ''].join(':'),
       });
       er.present();
     });

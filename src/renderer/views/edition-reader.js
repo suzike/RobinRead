@@ -68,7 +68,7 @@ export class EditionReader {
    * @param {{items:Array, startIndex?:number, onOpen?:(item:Object)=>void, reduceMotion?:boolean}} opts
    * items 条目字段：id/title/summaryPreview/sourceTitle/contentHead/publishedAt/isRead/isStarred
    */
-  constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false, fetchArticle = null } = {}) {
+  constructor({ items = [], startIndex = 0, onOpen = null, reduceMotion = false, fetchArticle = null, feedKey = '', onContext = null } = {}) {
     this.items = (items || []).filter((it) => it && it.id).map((it) => ({
       id: it.id,
       title: it.title || t('未命名文章'),
@@ -98,6 +98,8 @@ export class EditionReader {
     this.article = null;        // { entry, html, spreads }
     this._editionState = null;  // 进入正文前的版面快照 { pages, index, selected }
     this._fetchArticle = fetchArticle || (async (id) => this._fetchArticleGoverned(id));
+    this.feedKey = feedKey;
+    this.onContext = onContext;
     this._sound = null;
     this._resizeTimer = 0;
     this._autoTimer = 0;
@@ -709,10 +711,33 @@ export class EditionReader {
     this._sound.volume = 0.72;
     this._bind();
     this._relayout(true);
+    // 阅读位置记忆：同一视野（feedKey）重开时落到上次离开的页
+    const savedPos = this._loadPos();
+    if (savedPos > 0 && savedPos < this.pages.length) {
+      this.startIndex = savedPos;
+      this.index = savedPos;
+      this._syncSheets(true);
+    }
     if (this.reduceMotion) this._doOpen();
     else {
       this._autoTimer = setTimeout(() => this._doOpen(), 700);
     }
+  }
+
+  /** 阅读位置记忆（per feedKey）：robinread.editionPos JSON map。 */
+  _loadPos() {
+    try {
+      const map = JSON.parse(localStorage.getItem('robinread.editionPos') || '{}');
+      return Number(map[this.feedKey]) || 0;
+    } catch { return 0; }
+  }
+  _savePos(index) {
+    if (!this.feedKey) return;
+    try {
+      const map = JSON.parse(localStorage.getItem('robinread.editionPos') || '{}');
+      map[this.feedKey] = index;
+      localStorage.setItem('robinread.editionPos', JSON.stringify(map));
+    } catch { /* 存储满等异常忽略 */ }
   }
 
   dismiss() {
@@ -1048,6 +1073,16 @@ export class EditionReader {
     for (let i = 0; i < leaves.length; i += 2) {
       spreads.push({ left: leaves[i], right: leaves[i + 1] || null, isEnd: i + 1 >= leaves.length });
     }
+    // 文章目录：标题块 → 所属对开页序号（目录面板跳转用）
+    const headings = [];
+    leaves.forEach((leaf, li) => {
+      for (const blk of leaf) {
+        if (/^h[1-6]$/i.test(blk.el.tagName || '')) {
+          headings.push({ text: blk.el.textContent.trim().slice(0, 60), spread: Math.floor(li / 2) });
+        }
+      }
+    });
+    this.article.headings = headings;
     this.pages = spreads.map((sp, i) => ({
       id: `a${i}:${entry.id}`,
       title: entry.title,
@@ -1068,6 +1103,25 @@ export class EditionReader {
     if (!t0) return [];
     const parts = t0.split(/(?<=[。！？；!?;.])\s*/).filter(Boolean);
     return parts.length > 1 ? parts : [t0];
+  }
+
+  /** 文章目录面板：右侧滑出，点击节标题跳转所在对开页。 */
+  _toggleToc(fromIndex) {
+    if (!this.overlay) return;
+    let toc = this.overlay.querySelector('.er-toc');
+    if (toc) { toc.remove(); return; }
+    toc = document.createElement('div');
+    toc.className = 'er-toc';
+    const rows = (this.article?.headings || []).map((h) =>
+      `<button class="er-toc-row" data-spread="${h.spread}"><span class="er-toc-page">${h.spread + 1}</span><span class="er-toc-text">${escapeHTML(h.text)}</span></button>`).join('');
+    toc.innerHTML = `<div class="er-toc-head">${escapeHTML(t('文章目录'))}</div><div class="er-toc-list">${rows || `<div class="er-toc-empty">${escapeHTML(t('本文暂无小节标题'))}</div>`}</div>`;
+    toc.addEventListener('click', (ev) => {
+      const row = ev.target.closest('.er-toc-row');
+      if (row) { toc.remove(); this._go(Number(row.dataset.spread)); }
+      else if (!ev.target.closest('.er-toc-list')) toc.remove();
+    });
+    this.overlay.appendChild(toc);
+    requestAnimationFrame(() => toc.classList.add('on'));
   }
 
   /** 正文图片灯箱：点击放大，点击图片/Esc 关闭（Esc 优先级高于返回版面）。 */
@@ -1107,6 +1161,15 @@ export class EditionReader {
     head.innerHTML = `<button class="er-head-back" title="${escapeHTML(t('返回本期 (Esc)'))}">‹ ${escapeHTML(t('本期'))}</button>
       <span class="er-head-title">${escapeHTML(page.title)}</span><span class="er-head-no">${String(index + 1).padStart(2, '0')} / ${String(this.pages.length).padStart(2, '0')}</span>`;
     head.querySelector('.er-head-back').addEventListener('click', (ev) => { ev.stopPropagation(); this._closeArticle(); });
+    // 长文目录：页数 ≥3 时出现「目录」按钮，弹出节标题面板点击跳页
+    if (this.pages.length >= 3 && (this.article?.headings?.length || 0) > 1) {
+      const tocBtn = document.createElement('button');
+      tocBtn.className = 'er-head-toc';
+      tocBtn.textContent = t('目录');
+      tocBtn.title = t('文章目录');
+      tocBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleToc(index); });
+      head.insertBefore(tocBtn, head.querySelector('.er-head-no'));
+    }
     el.appendChild(head);
     // 阅读进度线：页眉下的细线随页位推进
     const progress = document.createElement('div');
@@ -1175,6 +1238,11 @@ export class EditionReader {
         ev.stopPropagation();
         this._select(entry.id);
         this._openArticle(entry);
+      });
+      holder.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.onContext?.(ev, entry.raw);
       });
       canvas.appendChild(holder);
     }
@@ -1492,6 +1560,7 @@ export class EditionReader {
     leaf.hidden = true;
     if (committed) {
       this.index = turn.toIdx;
+      this._savePos(this.index); // 阅读位置记忆（版面模式）
       const landed = this.pages[this.index];
       const remembered = landed && this.lastSelByPage.get(landed.id);
       this._select(remembered && landed.placements.some((p) => p.entryID === remembered) ? remembered : null);
@@ -1638,9 +1707,11 @@ export class EditionReader {
       return;
     }
     if (e.key === 'Escape') {
-      // 灯箱最优先：关灯箱不动阅读器状态
+      // 灯箱最优先 → 文章目录 → 返回版面 → 退出
       const lb = this.overlay.querySelector('.er-lightbox.on');
       if (lb) { e.preventDefault(); lb.classList.remove('on'); this._lightboxOn = false; return; }
+      const toc = this.overlay.querySelector('.er-toc');
+      if (toc) { e.preventDefault(); toc.remove(); return; }
       if (this.mode === 'article') { e.preventDefault(); return this._closeArticle(); }
       return this.dismiss();
     }
