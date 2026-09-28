@@ -274,7 +274,7 @@ export class EditionReader {
     const gapY = DENSITY[this.typo?.density]?.gapY ?? 24;
     this.pages = [];
     if (!entries.length) return;
-    const useH = Math.max(120, pageH);
+    const useH = Math.max(120, pageH - 18); // 底部预留 folio 页码带，避免末行 meta 与页码相贴
 
     const place = (entry, x, y, w, h, st) => ({ entryID: entry.id, x, y, w, h, st });
     const measure = (e, st, w) => this._measure(e, st, w);
@@ -759,6 +759,10 @@ export class EditionReader {
     this._sound = new Audio(this.soundSrc);
     this._sound.volume = 0.85;
     this._bind();
+    // 划词工具条（R3）：复制/解释/翻译/提问（AI 流式经 ai:selection-delta）
+    this._selChangeHandler = () => this._onSelectionChange();
+    document.addEventListener('selectionchange', this._selChangeHandler);
+    window.robin?.onSelectionDelta?.((p) => this._selDelta(p));
     this._relayout(true);
     // 阅读位置记忆：同一视野（feedKey）重开时落到上次离开的页
     const savedPos = this._loadPos();
@@ -793,10 +797,14 @@ export class EditionReader {
     clearTimeout(this._autoTimer);
     clearTimeout(this._resizeTimer);
     clearTimeout(this._fontT);
+    clearTimeout(this._selTimer);
     this._fontMo?.disconnect();
     clearTimeout(this._raf); cancelAnimationFrame(this._raf);
     clearInterval(this._vpTimer);
     document.removeEventListener('keydown', this._key, true);
+    document.removeEventListener('selectionchange', this._selChangeHandler);
+    this._dismissSelBar();
+    this._dismissSelPopover();
     window.removeEventListener('resize', this._onResize);
     this.overlay?.remove();
     this.overlay = null;
@@ -1345,6 +1353,8 @@ export class EditionReader {
       holder.appendChild(this._buildStory(entry, pl.st, pl.w));
       holder.addEventListener('click', (ev) => {
         ev.stopPropagation();
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed) return; // 划词中：不触发开文（R3）
         this._select(entry.id);
         this._openArticle(entry);
       });
@@ -1539,8 +1549,169 @@ export class EditionReader {
     requestAnimationFrame(() => panel.classList.add('on'));
   }
 
-  /** 封面期号：最新文章所在年的周序号（「总第 N 期」/ Vol.N）。 */
-  _coverVol() {
+  // ────────────────────────────────────────────────
+  // 划词工具条（R3）：胶囊（复制/解释/翻译/提问）+ 弹层，复用 reader 的 ai:* 通道
+  // ────────────────────────────────────────────────
+  _onSelectionChange() {
+    if (!this.overlay) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) { if (!this.selPopover) this._dismissSelBar(); return; }
+    if (this.selPopover && Date.now() - (this._selPopoverAt || 0) < 600) return;
+    if (this.selPopover || this.selBar) return;
+    const text = String(selection);
+    if (!text || text.length < 2 || text.length > 4000) return;
+    const node = selection.anchorNode;
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    if (!element || !this.overlay.contains(element)) return;
+    if (element.closest('.er-type-panel, .er-toc, .er-sel-popover, .er-selbar, .er-tools, .er-rail')) return;
+    clearTimeout(this._selTimer);
+    this._selTimer = setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (!rect.width && !rect.height) return;
+      const block = element.closest('.er-sum, .er-article p, .er-title, h1, h2, h3, li, blockquote');
+      const context = String((block?.parentElement || block)?.textContent || '').slice(0, 500);
+      this._presentSelBar({ text, rect, context });
+    }, 260);
+  }
+
+  _presentSelBar(payload) {
+    this._dismissSelBar();
+    const bar = document.createElement('div');
+    bar.className = 'er-selbar';
+    const copy = document.createElement('button');
+    copy.className = 'er-sel-btn';
+    copy.title = t('复制所选文字');
+    copy.textContent = t('复制');
+    copy.addEventListener('mousedown', (e) => e.preventDefault());
+    copy.addEventListener('click', async () => {
+      try {
+        // 后台/失焦窗 navigator.clipboard 会被拒：优先走主进程兜底通道
+        if (window.robin?.copyText) await window.robin.copyText(payload.text);
+        else await navigator.clipboard.writeText(payload.text);
+        this._notice(t('已复制所选文字'));
+      } catch { this._notice(t('复制失败')); }
+      this._dismissSelBar();
+    });
+    bar.appendChild(copy);
+    const llm = window.__robinLLM || {};
+    const aiBtns = [
+      ['explanation', llm.showsSelectionExplanation !== false, t('解释'), t('解释所选文字')],
+      ['translation', llm.showsSelectionTranslation !== false, t('翻译'), t('翻译所选文字')],
+      ['ask', llm.showsSelectionAsk !== false, t('提问'), t('问 AI 所选文字')],
+    ];
+    for (const [kind, show, label, title] of aiBtns) {
+      if (!show) continue;
+      const b = document.createElement('button');
+      b.className = 'er-sel-btn ai';
+      b.textContent = label;
+      b.title = title;
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => this._openSelPopover(kind, payload));
+      bar.appendChild(b);
+    }
+    // 挂 overlay 而非 body：随阅读器层级合成（body 直挂 fixed 层在离屏合成中不绘制）、随 dismiss 清理
+    this.overlay.appendChild(bar);
+    this.selBar = bar;
+    const bw = bar.getBoundingClientRect().width;
+    let x = payload.rect.x + payload.rect.width / 2 - bw / 2;
+    x = Math.max(10, Math.min(window.innerWidth - bw - 10, x));
+    let y = payload.rect.y - 42;
+    if (y < 60) y = payload.rect.y + payload.rect.height + 8;
+    bar.style.left = `${x}px`;
+    bar.style.top = `${y}px`;
+    setTimeout(() => {
+      this._selBarDismiss = (ev) => { if (!bar.contains(ev.target) && !this.selPopover?.contains(ev.target)) this._dismissSelBar(); };
+      document.addEventListener('mousedown', this._selBarDismiss);
+    }, 0);
+  }
+
+  _dismissSelBar() {
+    if (this._selBarDismiss) { document.removeEventListener('mousedown', this._selBarDismiss); this._selBarDismiss = null; }
+    this.selBar?.remove();
+    this.selBar = null;
+  }
+
+  _openSelPopover(kind, payload) {
+    this._dismissSelBar();
+    if (!window.robin?.explainSelection) { this._notice(t('AI 划词在当前环境不可用')); return; }
+    this._dismissSelPopover();
+    const titles = { explanation: t('AI 解释'), translation: t('翻译'), ask: t('问 AI') };
+    const pop = document.createElement('div');
+    pop.className = 'er-sel-popover';
+    pop.innerHTML = `<div class="er-sel-head"><span class="er-sel-title"></span><button class="er-sel-close">✕</button></div>
+      ${kind === 'ask' ? `<div class="er-sel-askrow"><input class="er-sel-input" placeholder="${escapeHTML(t('针对划选文字提问…'))}"/><button class="er-sel-send">${escapeHTML(t('发送'))}</button></div>` : ''}
+      <div class="er-sel-body loading"></div>`;
+    pop.querySelector('.er-sel-title').textContent = titles[kind];
+    pop.querySelector('.er-sel-close').addEventListener('click', () => this._dismissSelPopover());
+    this.overlay.appendChild(pop);
+    this.selPopover = pop;
+    this._selPopoverAt = Date.now();
+    const body = pop.querySelector('.er-sel-body');
+    const position = () => {
+      const rect = pop.getBoundingClientRect();
+      let x = payload.rect.x + payload.rect.width / 2 - rect.width / 2;
+      x = Math.max(12, Math.min(window.innerWidth - rect.width - 12, x));
+      let y = payload.rect.y - rect.height - 12;
+      if (y < 56) y = Math.min(window.innerHeight - rect.height - 12, payload.rect.y + payload.rect.height + 12);
+      pop.style.left = `${x}px`;
+      pop.style.top = `${y}px`;
+    };
+    position();
+    const requestID = `ersel-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    this._selRequestID = requestID;
+    const entryID = this.mode === 'article' ? (this.article?.entry?.id || null) : (this.selected || null);
+    const run = (question = null) => {
+      body.className = 'er-sel-body loading';
+      body.textContent = kind === 'translation' ? t('正在翻译…') : t('正在生成…');
+      const call = kind === 'translation'
+        ? window.robin.translateSelection({ requestID, entryID, selection: payload.text })
+        : question
+          ? window.robin.askSelection({ requestID, entryID, selection: payload.text, question, localContext: payload.context })
+          : window.robin.explainSelection({ requestID, entryID, selection: payload.text, localContext: payload.context });
+      Promise.resolve(call).then((res) => {
+        if (this.selPopover !== pop) return;
+        body.className = `er-sel-body ${res && res.ok ? 'rendered' : 'error'}`;
+        body.textContent = res && res.ok ? String(res.data || '') : ((res && res.error) || t('AI 未连接：请在 设置 → AI 服务商与连接 配置后使用'));
+        position();
+      }).catch(() => {
+        if (this.selPopover !== pop) return;
+        body.className = 'er-sel-body error';
+        body.textContent = t('AI 未连接：请在 设置 → AI 服务商与连接 配置后使用');
+        position();
+      });
+    };
+    if (kind === 'ask') {
+      const input = pop.querySelector('.er-sel-input');
+      pop.querySelector('.er-sel-send').addEventListener('click', () => { const q = input.value.trim(); if (q) run(q); });
+      input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { const q = input.value.trim(); if (q) run(q); } });
+      setTimeout(() => input.focus(), 40);
+    } else run();
+    setTimeout(() => {
+      this._selPopDismiss = (ev) => { if (!pop.contains(ev.target)) this._dismissSelPopover(); };
+      document.addEventListener('mousedown', this._selPopDismiss);
+    }, 0);
+  }
+
+  _selDelta(p) {
+    if (!p || p.requestID !== this._selRequestID) return;
+    const body = this.selPopover?.querySelector('.er-sel-body');
+    if (!body) return;
+    if (body.classList.contains('loading')) { body.className = 'er-sel-body rendered'; body.textContent = ''; }
+    body.textContent += p.delta || '';
+    body.scrollTop = body.scrollHeight;
+  }
+
+  _dismissSelPopover() {
+    if (this._selPopDismiss) { document.removeEventListener('mousedown', this._selPopDismiss); this._selPopDismiss = null; }
+    this.selPopover?.remove();
+    this.selPopover = null;
+    this._selRequestID = null;
+  }
+
+  /** 封面期号：最新文章所在年的周序号（「总第 N 期」/ Vol.N）。 */  _coverVol() {
     const newest = this.items.reduce((acc, it) => ((it.date || 0) > (acc || 0) ? it.date : acc), 0);
     if (!newest) return '';
     const d = new Date(newest * 1000);
@@ -1915,9 +2086,11 @@ export class EditionReader {
     }
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
     if (e.key === 'Escape') {
-      // 灯箱最优先 → 排版面板 → 文章目录 → 返回版面 → 退出
+      // 灯箱最优先 → 划词弹层 → 排版面板 → 文章目录 → 返回版面 → 退出
       const lb = this.overlay.querySelector('.er-lightbox.on');
       if (lb) { e.preventDefault(); lb.classList.remove('on'); this._lightboxOn = false; return; }
+      if (this.selPopover) { e.preventDefault(); this._dismissSelPopover(); return; }
+      if (this.selBar) { e.preventDefault(); this._dismissSelBar(); return; }
       const typePanel = this.overlay.querySelector('.er-type-panel');
       if (typePanel) { e.preventDefault(); typePanel.remove(); return; }
       const toc = this.overlay.querySelector('.er-toc');

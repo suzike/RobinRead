@@ -4321,6 +4321,43 @@ body.dark .list-scroll.nj-mag-kraft { background: linear-gradient(180deg, #352b1
   border: 0.5px solid rgba(43, 39, 33, 0.4); margin-right: 6px; vertical-align: -1px;
 }
 .er-overlay.er-dark .er-paper-chip { border-color: rgba(230, 224, 210, 0.45); }
+/* 版面卡片文本可选（划词），点击仍开文（有选区时由 click 守卫拦截） */
+.er-story .er-title, .er-story .er-sum { user-select: text; -webkit-user-select: text; }
+/* 划词工具条（R3）：胶囊 + 弹层（absolute 于 overlay——离屏合成不绘制 fixed 子层，见 er-type-panel 同款） */
+.er-selbar {
+  position: absolute; z-index: 950; display: flex; gap: 2px; padding: 4px;
+  background: color-mix(in srgb, var(--erp-paper) 86%, #2B2721) var(--erp-grain);
+  border: 1px solid rgba(43, 39, 33, 0.18); border-radius: var(--radius-md);
+  box-shadow: 0 12px 34px rgba(30, 26, 20, 0.24);
+}
+.er-sel-btn {
+  appearance: none; border: none; background: transparent; color: var(--erp-ink);
+  font-family: var(--font-serif); font-size: 12.5px; letter-spacing: 0.04em;
+  padding: 5px 10px; cursor: pointer; border-radius: var(--radius-sm); opacity: 0.85;
+}
+.er-sel-btn:hover { opacity: 1; background: rgba(43, 39, 33, 0.08); }
+.er-sel-btn.ai { color: var(--accent, #617357); font-weight: 600; }
+.er-sel-popover {
+  position: absolute; z-index: 950; width: min(420px, 86vw); max-height: min(420px, 60vh);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: color-mix(in srgb, var(--erp-paper) 92%, #2B2721) var(--erp-grain);
+  border: 1px solid rgba(43, 39, 33, 0.18); border-radius: var(--radius-md);
+  box-shadow: 0 20px 54px rgba(30, 26, 20, 0.3);
+}
+/* 选区高亮：暖纸/深纸底上保持可辨的强调 tint */
+.er-overlay ::selection { background: rgba(97, 115, 87, 0.34); }
+.er-sel-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid rgba(139, 133, 116, 0.3); }
+.er-sel-title { font-family: var(--font-serif); font-weight: 700; font-size: 15px; letter-spacing: 0.08em; color: var(--erp-ink); }
+.er-sel-close { appearance: none; border: none; background: transparent; color: var(--erp-muted); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: var(--radius-xs); }
+.er-sel-close:hover { color: var(--erp-ink); background: rgba(43, 39, 33, 0.08); }
+.er-sel-askrow { display: flex; gap: 6px; padding: 10px 14px 0; }
+.er-sel-input { flex: 1; border: 0.5px solid rgba(43, 39, 33, 0.25); background: transparent; color: var(--erp-ink); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 12.5px; font-family: var(--font-sans); outline: none; }
+.er-sel-input:focus { border-color: var(--accent, #617357); }
+.er-sel-send { appearance: none; border: none; background: var(--accent, #617357); color: #F6F2E7; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.er-sel-body { padding: 12px 14px 14px; overflow-y: auto; font-family: var(--font-serif); font-size: 13.5px; line-height: 1.75; color: var(--erp-ink); white-space: pre-wrap; user-select: text; }
+.er-sel-body.loading { color: var(--erp-muted); font-size: 12.5px; }
+.er-sel-body.error { color: #A05A3C; font-size: 12.5px; }
+.er-overlay.er-dark .er-sel-body.error { color: #D08B64; }
 /* 版面头条首字下沉（-webkit-box 不支持 ::first-letter，JS 显式包裹 .er-cap） */
 .er-sum .er-cap {
   float: left; font-family: var(--font-serif); font-weight: 700;
