@@ -4415,27 +4415,22 @@ body[data-bilingual-style="card"] .reader-article .nj-t {
 .er-edge:hover { opacity: 0.9; }
 .er-edge[data-dir="-1"] { left: -46px; }
 .er-edge[data-dir="1"] { right: -46px; }
+/* 右上工具条：flex 布局，按钮永不重叠 */
+.er-tools { position: absolute; top: 14px; right: 16px; z-index: 80; display: flex; align-items: center; gap: 6px; }
 .er-close {
-  position: absolute; top: 14px; right: 16px; z-index: 80; width: 32px; height: 32px;
+  width: 32px; height: 32px;
   appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.45;
   font-size: 15px; cursor: pointer; border-radius: var(--radius-sm);
 }
 .er-close:hover { opacity: 0.85; background: rgba(43, 39, 33, 0.07); }
-.er-paper {
-  position: absolute; top: 14px; right: 56px; z-index: 80; height: 32px; padding: 0 12px;
-  appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55;
-  font-family: var(--font-serif); font-size: 12.5px; letter-spacing: 0.12em; cursor: pointer; border-radius: var(--radius-sm);
-}
-.er-paper:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
-.er-sound, .er-full {
-  position: absolute; top: 14px; z-index: 80; height: 32px; padding: 0 10px;
+.er-paper, .er-sound, .er-full {
+  height: 32px; padding: 0 12px;
   appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55;
   font-family: var(--font-serif); font-size: 12.5px; letter-spacing: 0.1em; cursor: pointer; border-radius: var(--radius-sm);
-  display: inline-flex; align-items: center;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.er-sound { right: 148px; }
-.er-full { right: 96px; }
-.er-sound:hover, .er-full:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
+.er-paper:hover, .er-sound:hover, .er-full:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
+.er-full { padding: 0 10px; }
 .er-full svg { width: 13px; height: 13px; }
 .er-notice {
   position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); z-index: 85;

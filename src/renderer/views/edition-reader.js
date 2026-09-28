@@ -39,7 +39,7 @@ const TURN_PRESETS = [
   { corner: -0.35, dur: 0.32 }, { corner: 1, dur: 0.35 },
 ];
 
-const pageWidth = (w) => Math.min(1480, Math.max(1, w - (w < 620 ? 32 : 48)));
+const pageWidth = (w) => Math.min(1680, Math.max(1, w - (w < 620 ? 32 : 40)));
 const hInset = (w) => Math.min(w < 620 ? 20 : 36, (pageWidth(w) - 1) / 2);
 const turnInset = (h) => Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
 
@@ -687,10 +687,12 @@ export class EditionReader {
         </div>
         <div class="er-rail" hidden><div class="er-ticks"></div><div class="er-preview" hidden></div><div class="er-count" hidden></div></div>
       </div>
-      <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
-      <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
-      <button class="er-sound" title="${escapeHTML(t('翻页音效'))}"></button>
-      <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
+      <div class="er-tools">
+        <button class="er-sound" title="${escapeHTML(t('翻页音效'))}"></button>
+        <button class="er-paper" title="${escapeHTML(t('切换纸张质感'))}"></button>
+        <button class="er-full" title="${escapeHTML(t('沉浸全屏 (F)'))}">${icon('expand')}</button>
+        <button class="er-close" title="${escapeHTML(t('退出 (Esc)'))}">✕</button>
+      </div>
       <div class="er-notice" hidden></div>`;
     document.body.appendChild(overlay);
     this.overlay = overlay;
@@ -766,6 +768,7 @@ export class EditionReader {
     clearTimeout(this._fontT);
     this._fontMo?.disconnect();
     clearTimeout(this._raf); cancelAnimationFrame(this._raf);
+    clearInterval(this._vpTimer);
     document.removeEventListener('keydown', this._key, true);
     window.removeEventListener('resize', this._onResize);
     this.overlay?.remove();
@@ -836,6 +839,17 @@ export class EditionReader {
       this._resizeTimer = setTimeout(() => this._relayout(false), 160);
     };
     window.addEventListener('resize', this._onResize);
+    // 尺寸轮询守卫：跨显示器拖动/切换时 Electron 偶发丢 resize 事件（实测存在），
+    // 每 800ms 比对视口与 DPR，变化即重排——彻底保证书籍组件跟随显示器尺寸
+    this._lastViewport = { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio };
+    this._vpTimer = setInterval(() => {
+      if (!this.overlay) return;
+      const vp = { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio };
+      if (vp.w !== this._lastViewport.w || vp.h !== this._lastViewport.h || vp.dpr !== this._lastViewport.dpr) {
+        this._lastViewport = vp;
+        this._onResize();
+      }
+    }, 800);
     overlay.addEventListener('pointermove', (e) => this._edgeHover(e));
     overlay.addEventListener('pointerleave', () => this._edgeHover(null));
   }
