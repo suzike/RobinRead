@@ -64,11 +64,24 @@ app.whenReady().then(async () => {
       const scaleVar = document.querySelector('.er-overlay').style.getPropertyValue('--er-font-scale');
       opt('fontScale', 'standard').click();
       await new Promise(r => setTimeout(r, 300));
+      // R27 Ctrl+滚轮步进：上滚放大 → large；再上滚钳位；下滚回 standard
+      const stage = document.querySelector('.er-stage');
+      const wheel = (dy) => stage.dispatchEvent(new WheelEvent('wheel', { deltaY: dy, ctrlKey: true, bubbles: true, cancelable: true }));
+      wheel(-120);
+      await new Promise(r => setTimeout(r, 400));
+      const wScaleUp = document.querySelector('.er-overlay').style.getPropertyValue('--er-font-scale');
+      wheel(-120);
+      await new Promise(r => setTimeout(r, 300));
+      const wScaleClamp = document.querySelector('.er-overlay').style.getPropertyValue('--er-font-scale');
+      wheel(120);
+      await new Promise(r => setTimeout(r, 300));
+      const wScaleBack = document.querySelector('.er-overlay').style.getPropertyValue('--er-font-scale');
+      const wPersisted = JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}').fontScale;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await new Promise(r => setTimeout(r, 150));
       const panelClosed = !document.querySelector('.er-type-panel');
       const stored = JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}');
-      return { panelOn, density, leading, margin, insetX, firstcap, firstLetterFont, panelClosed, stored, fsBefore, fsAfter, scaleVar };
+      return { panelOn, density, leading, margin, insetX, firstcap, firstLetterFont, panelClosed, stored, fsBefore, fsAfter, scaleVar, wScaleUp, wScaleClamp, wScaleBack, wPersisted };
     `);
     if (a.__err) throw new Error('phase1: ' + a.__err);
     // 阶段二：回版面 → 行距实差 / 页边对称 / 头条首字下沉
@@ -114,6 +127,8 @@ app.whenReady().then(async () => {
     ok(out.hasCap && out.capFs >= out.sumFs * 2.4, '版面头条首字下沉渲染（首字 ' + out.capFs + 'px / 摘要 ' + out.sumFs + 'px）');
     ok(out.scaleVar === '1.14' && out.fsAfter > out.fsBefore * 1.08, 'R24 字号切大档生效（scale ' + out.scaleVar + '，' + out.fsBefore + '→' + out.fsAfter + 'px）');
     ok(out.stored.fontScale === 'standard', 'R24 字号档持久化回标准');
+    ok(out.wScaleUp === '1.14' && out.wScaleClamp === '1.14' && out.wScaleBack === '1', 'R27 Ctrl+滚轮步进+钳位+回落（' + out.wScaleUp + '/' + out.wScaleClamp + '/' + out.wScaleBack + '）');
+    ok(out.wPersisted === 'standard', 'R27 滚轮步进持久化（' + out.wPersisted + '）');
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {

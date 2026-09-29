@@ -897,7 +897,7 @@ export class EditionReader {
     });
     overlay.querySelector('.er-cover').addEventListener('click', () => this._doOpen());
     overlay.querySelector('.er-stage').addEventListener('pointerdown', (e) => this._down(e));
-    overlay.querySelector('.er-stage').addEventListener('wheel', (e) => this._wheel(e), { passive: true });
+    overlay.querySelector('.er-stage').addEventListener('wheel', (e) => this._wheel(e), { passive: false });
     // 翻页拖拽与文字/图片选择冲突防护：拖拽翻页启动时清除选区，图片禁止原生拖拽
     overlay.addEventListener('dragstart', (e) => e.preventDefault());
     this._bindRail();
@@ -1888,7 +1888,8 @@ export class EditionReader {
       ['Ctrl + F', t('搜索本期 / 本文')],
       ['S', t('收藏 / 取消收藏')],
       ['L', t('稍后读 / 移出')],
-      ['Aa', t('行距 · 页边距 · 栏宽 · 首字下沉')],
+      ['Aa', t('行距 · 字号 · 页边距 · 栏宽 · 首字下沉')],
+      ['Ctrl + 滚轮', t('字号三档步进')],
       ['F', t('沉浸全屏')],
       ['Esc', t('逐层关闭 / 退出版面')],
     ];
@@ -2492,6 +2493,17 @@ export class EditionReader {
   }
 
   _wheel(e) {
+    // Ctrl+滚轮（R27）：字号三档步进（复用 R24 fontScale），不翻页、不触发缩放
+    if (e.ctrlKey) {
+      e.preventDefault();
+      this._fontAcc = (this._fontAcc || 0) + e.deltaY;
+      if (Math.abs(this._fontAcc) >= 30) {
+        const dir = this._fontAcc > 0 ? -1 : 1; // 上滚放大
+        this._fontAcc = 0;
+        this._stepFontScale(dir);
+      }
+      return;
+    }
     if (!this.open || this.turn) return;
     // 灯箱开启时滚轮不翻页
     if (this._lightboxOn && this.overlay.querySelector('.er-lightbox.on')) return;
@@ -2505,6 +2517,21 @@ export class EditionReader {
       this._wheelAcc = 0;
       this._go(this.index + dir);
     }
+  }
+
+  /** 字号档步进（R27）：small→standard→large 钳位不回绕；同步面板选中态与持久化。 */
+  _stepFontScale(dir) {
+    const keys = Object.keys(FONTSCALE);
+    const cur = keys.indexOf(this.typo.fontScale);
+    const next = keys[Math.min(keys.length - 1, Math.max(0, (cur < 0 ? 1 : cur) + dir))];
+    if (next === this.typo.fontScale) return;
+    this.typo.fontScale = next;
+    try { localStorage.setItem('robinread.editionTypography', JSON.stringify(this.typo)); } catch (_) { /* 忽略 */ }
+    this._applyTypography();
+    const panel = this.overlay?.querySelector('.er-type-panel');
+    if (panel) panel.querySelectorAll('.er-type-opts button').forEach((x) => {
+      x.classList.toggle('on', String(this.typo[x.dataset.key]) === x.dataset.val || (x.dataset.key === 'firstCap' && String(this.typo.firstCap) === x.dataset.val));
+    });
   }
 
   // ────────────────────────────────────────────────

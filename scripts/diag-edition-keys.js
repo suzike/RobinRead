@@ -1,7 +1,7 @@
 'use strict';
 /**
  * diag-edition-keys.js — R14 快捷键速查面板探针（run-all OFFLINE 集）
- * 验证：? 呼出面板（8 行两列）/ kbd 帽渲染 / Esc 关闭 / 再次 ? 往复开合
+ * 验证：? 呼出面板（9 行两列，R27 起）/ kbd 帽渲染 / Esc 关闭 / 再次 ? 往复开合
  */
 const path = require('node:path');
 const fs = require('node:fs');
@@ -55,7 +55,7 @@ app.whenReady().then(async () => {
       return { rows, kbdSample, hasSearch, closedByEsc, reopened, closedByClick };
     `);
     if (a.__err) throw new Error('keys: ' + a.__err);
-    ok(a.rows === 8, '面板 8 行快捷键（' + a.rows + '）');
+    ok(a.rows === 9, '面板 9 行快捷键（' + a.rows + '，R27 增 Ctrl+滚轮行）');
     ok(a.kbdSample.length > 0, 'kbd 键帽渲染（' + a.kbdSample + '）');
     ok(a.hasSearch, '含搜索条目');
     ok(a.closedByEsc, 'Esc 关闭');

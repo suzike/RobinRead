@@ -1337,6 +1337,8 @@ const STRINGS = {
   "把选中的文章移出收藏": { zh: "把选中的文章移出收藏", en: "Remove selected articles from stars" },
   "把选中的文章移出稍后读": { zh: "把选中的文章移出稍后读", en: "Remove selected articles from Read Later" },
   "清除搜索历史": { zh: "清除搜索历史", en: "Clear search history" },
+  "字号三档步进": { zh: "字号三档步进", en: "Step font size" },
+  "行距 · 字号 · 页边距 · 栏宽 · 首字下沉": { zh: "行距 · 字号 · 页边距 · 栏宽 · 首字下沉", en: "Leading · Size · Margin · Column · Cap" },
 };
 
 module.exports = { STRINGS };
