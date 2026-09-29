@@ -1334,6 +1334,8 @@ const STRINGS = {
   "切换禅模式": { zh: "切换禅模式", en: "Toggle zen mode" },
   "知识库": { zh: "知识库", en: "Knowledge" },
   "排版面板（行距/字号/页边/栏宽/首字下沉）": { zh: "排版面板（行距/字号/页边/栏宽/首字下沉）", en: "Typography (leading/size/margin/column/cap)" },
+  "把选中的文章移出收藏": { zh: "把选中的文章移出收藏", en: "Remove selected articles from stars" },
+  "把选中的文章移出稍后读": { zh: "把选中的文章移出稍后读", en: "Remove selected articles from Read Later" },
 };
 
 module.exports = { STRINGS };

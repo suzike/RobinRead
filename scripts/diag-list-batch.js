@@ -15,7 +15,7 @@ let failed = 0;
 const ok = (c, l) => { if (c) console.log('PASS ' + l); else { failed += 1; console.error('FAIL ' + l); } };
 const ipcCalls = { markMany: [], starMany: [], laterMany: [] };
 ipcMain.handle('read:markMany', (_e, ids, read) => { ipcCalls.markMany.push([ids, read]); return { ok: true }; });
-ipcMain.handle('read:starMany', (_e, ids) => { ipcCalls.starMany.push(ids); return { ok: true }; });
+ipcMain.handle('read:starMany', (_e, ids, starred) => { ipcCalls.starMany.push([ids, starred]); return { ok: true }; });
 ipcMain.handle('read:laterMany', (_e, ids, later) => { ipcCalls.laterMany.push([ids, later]); return { ok: true }; });
 
 app.whenReady().then(async () => {
@@ -109,8 +109,45 @@ app.whenReady().then(async () => {
     ok(a.afterEsc.picked === 0 && a.afterEsc.barGone, 'Esc 取消选择');
     ok(a.afterRender.picked === 0 && a.afterRender.barGone, '重渲染清选');
     ok(ipcCalls.markMany.length === 1 && ipcCalls.markMany[0][0].length === 3 && ipcCalls.markMany[0][1] === true, 'read:markMany 参数正确（' + JSON.stringify(ipcCalls.markMany[0]) + '）');
-    ok(ipcCalls.starMany.length === 1 && ipcCalls.starMany[0].length === 1, 'read:starMany 通道命中（' + ipcCalls.starMany.length + ' 次）');
+    ok(ipcCalls.starMany.length === 1, 'read:starMany 通道命中（' + ipcCalls.starMany.length + ' 次）');
     ok(ipcCalls.laterMany.length === 1 && ipcCalls.laterMany[0][1] === true, 'read:laterMany 通道命中');
+    // R25：Ctrl+A 全选 / 视野智能（收藏视野→取消收藏 starMany(false)；稍后读视野→移出 laterMany(false)）
+    const b = await run('r25', `
+      const lv = window.__lv;
+      const bar2 = () => document.querySelector('.list-batch-bar');
+      document.body.focus();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true, cancelable: true }));
+      await new Promise(r => setTimeout(r, 80));
+      const allPicked = document.querySelectorAll('.entry-row.nj-picked').length;
+      const countAll = bar2()?.querySelector('.list-batch-count')?.textContent;
+      bar2()?.querySelector('.b-cancel')?.click();
+      await new Promise(r => setTimeout(r, 60));
+      // 收藏视野：批量条第二键应为「取消收藏」→ starMany(ids,false)
+      lv.render([{ id: 's-0', title: '量子计算商用化进展观察', summaryPreview: '摘要', sourceTitle: '潮流周刊', publishedAt: 1758902400, contentHead: '' }, { id: 's-1', title: '深海火山口的生态系统', summaryPreview: '摘要', sourceTitle: '潮流周刊', publishedAt: 1758902000, contentHead: '' }], { kind: 'starred' }, null, true);
+      await new Promise(r => setTimeout(r, 150));
+      document.querySelectorAll('.entry-row')[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
+      document.querySelectorAll('.entry-row')[1].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
+      await new Promise(r => setTimeout(r, 60));
+      const starLabel = bar2()?.querySelector('.b-star')?.textContent;
+      bar2()?.querySelector('.b-star')?.click();
+      await new Promise(r => setTimeout(r, 80));
+      const starBarGone = !bar2();
+      // 稍后读视野：第二键应为「移出稍后读」→ laterMany(ids,false)
+      lv.render([{ id: 'l-0', title: '城市地铁新线通车运营', summaryPreview: '摘要', sourceTitle: '潮流周刊', publishedAt: 1758902400, contentHead: '' }], { kind: 'later' }, null, true);
+      await new Promise(r => setTimeout(r, 150));
+      document.querySelectorAll('.entry-row')[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
+      await new Promise(r => setTimeout(r, 60));
+      const laterLabel = bar2()?.querySelector('.b-later')?.textContent;
+      bar2()?.querySelector('.b-later')?.click();
+      await new Promise(r => setTimeout(r, 80));
+      return { allPicked, countAll, starLabel, starBarGone, laterLabel };
+    `);
+    if (b.__err) throw new Error('r25: ' + b.__err);
+    ok(b.allPicked === 5 && (b.countAll || '').includes('5'), 'R25 Ctrl+A 全选当前视野（' + b.countAll + '）');
+    ok(b.starLabel === '取消收藏', 'R25 收藏视野批量条出「取消收藏」（' + b.starLabel + '）');
+    ok(b.starBarGone && ipcCalls.starMany.some(([ids, v]) => v === false && ids.length === 2), 'R25 starMany(ids,false) 通道命中（取消收藏）');
+    ok(b.laterLabel === '移出稍后读', 'R25 稍后读视野批量条出「移出稍后读」（' + b.laterLabel + '）');
+    ok(ipcCalls.laterMany.some(([ids, v]) => v === false), 'R25 laterMany(ids,false) 通道命中（移出）');
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {

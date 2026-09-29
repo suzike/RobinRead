@@ -4875,5 +4875,7 @@ body.dark .row-quick-btn:hover { background: rgba(255, 255, 255, 0.08); color: r
 .list-batch-btn.b-read:hover { color: #9fc48f; }
 .list-batch-btn.b-star:hover { color: #e0a380; }
 .list-batch-btn.b-later:hover { color: #a8bd9c; }
-.list-batch-btn.b-cancel { color: rgba(235, 231, 222, 0.5); }
-.list-batch-btn.b-cancel:hover { color: rgba(235, 231, 222, 0.9); }
+.list-batch-btn.b-cancel { color: rgba(235, 231, 222, 0.64); }
+.list-batch-btn.b-cancel:hover { color: rgba(240, 237, 229, 0.95); }
+/* R25：批量条改主题橄榄深调（挑剔官备忘），与应用色系呼应 */
+.list-batch-bar { background: rgba(40, 46, 35, 0.94); border-color: rgba(190, 205, 170, 0.14); }

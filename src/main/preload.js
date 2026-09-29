@@ -58,7 +58,7 @@ contextBridge.exposeInMainWorld('robin', {
   toggleLater: (entryID, later) => invoke('read:toggleLater', entryID, later),
   markAllRead: (scope) => invoke('read:markAll', scope),
   markMany: (entryIDs, read) => invoke('read:markMany', entryIDs, read),
-  starMany: (entryIDs) => invoke('read:starMany', entryIDs),
+  starMany: (entryIDs, starred) => invoke('read:starMany', entryIDs, starred),
   laterMany: (entryIDs, later) => invoke('read:laterMany', entryIDs, later),
 
   // 正文提取

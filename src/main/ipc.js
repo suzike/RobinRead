@@ -494,7 +494,7 @@ function registerIPCHandlers(store, window) {
   handle('read:toggleLater', (entryID, later) => store.toggleLater(entryID, later));
   handle('read:markAll', (scope) => store.markAllRead(scope));
   handle('read:markMany', (entryIDs, read) => store.markMany(entryIDs, read));
-  handle('read:starMany', (entryIDs) => store.starMany(entryIDs));
+  handle('read:starMany', (entryIDs, starred) => store.starMany(entryIDs, starred));
   handle('read:laterMany', (entryIDs, later) => store.laterMany(entryIDs, later));
 
   // MARK: 正文提取

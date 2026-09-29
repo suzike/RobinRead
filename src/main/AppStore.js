@@ -1046,22 +1046,23 @@ class AppStore extends EventEmitter {
     return ids.length;
   }
 
-  /** 批量收藏（单向置 true；批量语义不做 toggle，取消收藏仍走单条右键/快捷键）。 */
-  starMany(entryIDs) {
+  /** 批量收藏（R25 起支持双向：starred=false 供收藏视野批量移出；默认单向置 true）。 */
+  starMany(entryIDs, starred = true) {
     const ids = (entryIDs || []).filter(Boolean);
+    const want = Boolean(starred);
     const byAccount = new Map();
     for (const entryID of ids) {
-      this.statesRepo.setStarred(entryID, true);
-      this._retainedStarredIDs.add(entryID);
+      this.statesRepo.setStarred(entryID, want);
+      if (want) this._retainedStarredIDs.add(entryID);
       const entry = this.articlesRepo.entry(entryID);
       if (entry && entry.accountID !== LOCAL_ACCOUNT_ID) {
         if (!byAccount.has(entry.accountID)) byAccount.set(entry.accountID, []);
         byAccount.get(entry.accountID).push(entryID);
-        this.statesRepo.enqueueOutbox(entry.accountID, entryID, 'starred', true);
+        this.statesRepo.enqueueOutbox(entry.accountID, entryID, 'starred', want);
       }
     }
     if (ids.length) {
-      this._noteEntryChange(null, false, true);
+      this._noteEntryChange(null, false, want);
       this._scheduleOutboxDrain(1500);
       this._emitState();
     }

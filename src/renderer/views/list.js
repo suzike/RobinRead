@@ -26,7 +26,20 @@ export class ListView {
     // R23 批量多选：选中集合 + 区间锚点（视图层状态，随重渲染清空）
     this.picked = new Set();
     this.pickAnchor = -1;
-    this._escPick = (event) => { if (event.key === 'Escape') this._clearPick(); };
+    // Esc 清选；Ctrl/Cmd+A 全选当前视野（R25：输入框聚焦与期刊打开时不劫持）
+    this._escPick = (event) => {
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {
+        const el = event.target;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+        if (document.querySelector('.er-overlay')) return;
+        if (!this.items.length) return;
+        event.preventDefault();
+        for (const it of this.items) this.picked.add(it.id);
+        this._syncPickUI();
+        return;
+      }
+      if (event.key === 'Escape') this._clearPick();
+    };
     document.addEventListener('keydown', this._escPick);
 
     // 顶部 inset（毛玻璃 + 标题，对应 safeAreaInset header）
@@ -304,8 +317,17 @@ export class ListView {
       };
       bar.appendChild(count);
       bar.appendChild(mk('b-read', t('标为已读'), t('把选中的文章标记为已读'), (ids2) => window.robin.markMany(ids2, true)));
-      bar.appendChild(mk('b-star', t('收藏'), t('把选中的文章加入收藏'), (ids2) => window.robin.starMany(ids2)));
-      bar.appendChild(mk('b-later', t('稍后读'), t('把选中的文章加入稍后读'), (ids2) => window.robin.laterMany(ids2, true)));
+      // 视野智能（R25）：收藏视野主推「取消收藏」、稍后读视野主推「移出稍后读」，其余视野为加入
+      if (this.scope?.kind === 'starred') {
+        bar.appendChild(mk('b-star', t('取消收藏'), t('把选中的文章移出收藏'), (ids2) => window.robin.starMany(ids2, false)));
+      } else {
+        bar.appendChild(mk('b-star', t('收藏'), t('把选中的文章加入收藏'), (ids2) => window.robin.starMany(ids2, true)));
+      }
+      if (this.scope?.kind === 'later') {
+        bar.appendChild(mk('b-later', t('移出稍后读'), t('把选中的文章移出稍后读'), (ids2) => window.robin.laterMany(ids2, false)));
+      } else {
+        bar.appendChild(mk('b-later', t('稍后读'), t('把选中的文章加入稍后读'), (ids2) => window.robin.laterMany(ids2, true)));
+      }
       const cancel = document.createElement('button');
       cancel.type = 'button';
       cancel.className = 'list-batch-btn b-cancel';
