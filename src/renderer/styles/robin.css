@@ -4976,3 +4976,8 @@ body.dark .search-history-item:hover { background: rgba(255, 255, 255, 0.07); }
 .list-keys-row span { color: var(--text-secondary); }
 body.dark .list-keys-panel { background: rgba(30, 28, 25, 0.97); border-color: rgba(255, 255, 255, 0.09); }
 body.dark .list-keys-row kbd { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
+
+/* ===== R30 长列表性能：跳屏渲染（视口外行/卡跳过布局与绘制）===== */
+.entry-row { content-visibility: auto; contain-intrinsic-size: auto 88px; }
+.list-scroll { overflow-anchor: none; }
+.nj-mag-card { contain-intrinsic-size: auto 250px; }
