@@ -726,6 +726,11 @@ export class EditionReader {
     document.body.appendChild(overlay);
     this.overlay = overlay;
     overlay.__editionReader = this;
+    // R35：工具条与舞台手势隔离——pointer/mouse 系不再外泄（拖拽翻页/划词永不误触）；click 仍冒泡供 overlay 委托
+    const toolsIsolate = overlay.querySelector('.er-tools');
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart', 'dblclick']) {
+      toolsIsolate.addEventListener(type, (e) => e.stopPropagation());
+    }
     // 纸张质感四态（与列表刊头共用偏好；夜间独立记忆见 paper-pref.js）；按钮带当前纸色样本
     const paperBtn = overlay.querySelector('.er-paper');
     const paperBtnSync = () => {

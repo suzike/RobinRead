@@ -30,7 +30,7 @@ app.whenReady().then(async () => {
       const ARTICLE = Array.from({ length: 12 }, (_, i) => '<h2>第' + (i + 1) + '节 · 重排缓存</h2><p>这段正文在缓存命中后重开，版面必须与首次装箱逐块一致：标题层级、段距、页码、目录锚点全部保持。</p>').join('');
       const IMG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'><rect width='800' height='450' fill='#B9C2B0'/></svg>");
       const mk = (i) => ({ id: 'fx-' + i, title: '条目 ' + i + '：重排缓存验收', summaryPreview: '摘要布景。', sourceTitle: '潮流周刊', publishedAt: 1758902400 - i * 86400, contentHead: i === 0 ? '<p><img src="' + IMG + '"></p>' : '' });
-      const er = new mod.EditionReader({ items: Array.from({ length: 6 }, (_, i) => mk(i)), startIndex: 0, reduceMotion: false, onOpen: () => {}, fetchArticle: async () => ARTICLE });
+      const er = new mod.EditionReader({ items: Array.from({ length: 24 }, (_, i) => mk(i)), startIndex: 0, reduceMotion: false, onOpen: () => {}, fetchArticle: async () => ARTICLE });
       window.__er = er;
       er.present();
       clearTimeout(er._autoTimer);
@@ -49,6 +49,13 @@ app.whenReady().then(async () => {
     console.log('cache:', JSON.stringify(info));
     await sleep(250);
     await shot('r34-1-cache-hit.png');
+    await win.webContents.executeJavaScript(`(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()`);
+    await sleep(900);
+    // 真实右方向键翻页：触发 _syncRail 让「本期约剩 N 分钟 1/N」自然出现（R35 打回补拍）
+    win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Right', windowsVirtualKeyCode: 39 });
+    win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Right', windowsVirtualKeyCode: 39 });
+    await sleep(1100);
+    await shot('r35-1-tools-bottom.png');
     console.log('DONE');
     app.exit(0);
   } catch (e) {

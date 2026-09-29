@@ -4673,8 +4673,22 @@ body.dark .list-scroll.nj-mag-kraft .nj-mag-card { background: rgba(255, 255, 25
 .er-edge:hover { opacity: 0.9; }
 .er-edge[data-dir="-1"] { left: -46px; }
 .er-edge[data-dir="1"] { right: -46px; }
-/* 右上工具条：flex 布局，按钮永不重叠 */
-.er-tools { position: absolute; top: 14px; right: 16px; z-index: 80; display: flex; align-items: center; gap: 6px; }
+/* 工具条 → 底部饰带右角（R35 用户反馈：原 top:14 悬浮压在右页标题上且点击区虚）。
+   实体毛玻璃胶囊 + 28px 命中区，与页码滑轨同区零内容干涉 */
+.er-tools {
+  position: absolute; top: auto; right: 18px; bottom: 11px; z-index: 120;
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px;
+  background: rgba(250, 248, 242, 0.9);
+  border: 1px solid rgba(60, 50, 36, 0.14);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 14px rgba(40, 36, 28, 0.12);
+  backdrop-filter: blur(10px);
+  user-select: none;
+  pointer-events: auto;
+}
+.er-overlay.er-dark .er-tools { background: rgba(34, 32, 28, 0.88); border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
+.er-tools button { -webkit-app-region: no-drag; pointer-events: auto; flex: 0 0 auto; }
 .er-close {
   width: 32px; height: 32px;
   appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.45;
@@ -5110,3 +5124,7 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 .er-book.er-turning .er-leaf,
 .er-book.er-turning .er-face-front,
 .er-book.er-turning .er-face-back { will-change: transform; }
+.er-tools button { min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; }
+/* R35 打回：关闭键与同排按钮墨色一致（原 opacity 0.45 偏浅） */
+.er-tools .er-close { opacity: 0.55; }
+.er-tools .er-close:hover { opacity: 0.9; }
