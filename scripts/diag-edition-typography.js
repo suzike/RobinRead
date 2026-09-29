@@ -56,11 +56,19 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, 200));
       const firstcap = document.querySelector('.er-overlay').classList.contains('er-firstcap');
       const firstLetterFont = getComputedStyle(document.querySelector('.er-article > p:first-of-type, .er-article-leaf .er-article p'), null).fontSize;
+      // R24 字号三档：切「大」→ --er-font-scale 系数 + 正文实差
+      const fsBefore = parseFloat(getComputedStyle(document.querySelector('.er-article')).fontSize);
+      opt('fontScale', 'large').click();
+      await new Promise(r => setTimeout(r, 500));
+      const fsAfter = parseFloat(getComputedStyle(document.querySelector('.er-article')).fontSize);
+      const scaleVar = document.querySelector('.er-overlay').style.getPropertyValue('--er-font-scale');
+      opt('fontScale', 'standard').click();
+      await new Promise(r => setTimeout(r, 300));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await new Promise(r => setTimeout(r, 150));
       const panelClosed = !document.querySelector('.er-type-panel');
       const stored = JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}');
-      return { panelOn, density, leading, margin, insetX, firstcap, firstLetterFont, panelClosed, stored };
+      return { panelOn, density, leading, margin, insetX, firstcap, firstLetterFont, panelClosed, stored, fsBefore, fsAfter, scaleVar };
     `);
     if (a.__err) throw new Error('phase1: ' + a.__err);
     // 阶段二：回版面 → 行距实差 / 页边对称 / 头条首字下沉
@@ -104,6 +112,8 @@ app.whenReady().then(async () => {
     ok(out.sumLhAiry - out.sumLhStd >= 2, '版面行距档位可辨（标准 ' + out.sumLhStd + 'px → 舒朗 ' + out.sumLhAiry + 'px）');
     ok(out.padL === '52px' && out.padR === '52px', '版面页边对称内缩（左 ' + out.padL + ' / 右 ' + out.padR + '）');
     ok(out.hasCap && out.capFs >= out.sumFs * 2.4, '版面头条首字下沉渲染（首字 ' + out.capFs + 'px / 摘要 ' + out.sumFs + 'px）');
+    ok(out.scaleVar === '1.14' && out.fsAfter > out.fsBefore * 1.08, 'R24 字号切大档生效（scale ' + out.scaleVar + '，' + out.fsBefore + '→' + out.fsAfter + 'px）');
+    ok(out.stored.fontScale === 'standard', 'R24 字号档持久化回标准');
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {

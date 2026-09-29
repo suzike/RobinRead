@@ -877,6 +877,8 @@ body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: o
 }
 .cmd-item.active { background: var(--row-selected); }
 .cmd-item .cmd-icon { color: var(--text-secondary); display: inline-flex; flex-shrink: 0; }
+/* 图标网格统一（R24 验收）：newspaper 等大尺寸图标（封面回退用 34px）钳到命令行 15px 线框 */
+.cmd-item .cmd-icon svg { width: 15px; height: 15px; }
 .cmd-item .cmd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95em; }
 .cmd-item .cmd-hint { font-size: 0.75em; color: var(--text-secondary); flex-shrink: 0; }
 .cmd-empty { padding: 22px; text-align: center; color: var(--text-secondary); font-size: 0.9em; }
@@ -4730,7 +4732,7 @@ body.dark .list-scroll.nj-mag-kraft .nj-mag-card { background: rgba(255, 255, 25
 }
 .er-head-back:hover { opacity: 0.75; }
 .er-article-leaf { position: absolute; }
-.er-article { margin: 0 auto; font-family: var(--font-serif); color: var(--erp-ink); user-select: text; font-size: var(--article-font-size, 15.5px); }
+.er-article { margin: 0 auto; font-family: var(--font-serif); color: var(--erp-ink); user-select: text; font-size: calc(var(--article-font-size, 15.5px) * var(--er-font-scale, 1)); }
 .er-article > *:first-child { margin-top: 0 !important; }
 .er-article p, .er-article ul, .er-article ol, .er-article blockquote,
 .er-article pre, .er-article table, .er-article figure { margin: 0 0 var(--er-para, 1.15em); line-height: var(--er-leading, 1.92); }

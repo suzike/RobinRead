@@ -45,6 +45,8 @@ const pageWidth = (w) => Math.min(2100, Math.max(1, Math.round(w * 0.92)));
 /* 阅读排版三档（R1）：页边距与密度的唯一真源（JS 版心测量与 CSS 共用） */
 const MARGIN_X = { narrow: 24, standard: 36, wide: 52 };
 const DENSITY = { compact: { gapY: 18, lh: 0.86 }, standard: { gapY: 24, lh: 1 }, airy: { gapY: 36, lh: 1.26 } };
+/* 字号三档（R24）：乘在全局 --article-font-size 上的系数，分页器实测计算样式自动跟随 */
+const FONTSCALE = { small: 0.9, standard: 1, large: 1.14 };
 const hInset = (w, margin = 'standard') => Math.min(w < 620 ? 20 : (MARGIN_X[margin] || 36), (pageWidth(w) - 1) / 2);
 const turnInset = (h) => Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
 
@@ -756,7 +758,7 @@ export class EditionReader {
     // 快捷键速查（R14）
     overlay.querySelector('.er-keys').addEventListener('click', () => this._toggleKeysPanel());
     // 阅读排版（R1）：三档密度 / 页边距 / 首字下沉，即时生效 + 持久化；R9 增栏宽档
-    this.typo = { density: 'standard', margin: 'standard', firstCap: false, col: 'standard', ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
+    this.typo = { density: 'standard', margin: 'standard', firstCap: false, col: 'standard', fontScale: 'standard', ...JSON.parse(localStorage.getItem('robinread.editionTypography') || '{}') };
     overlay.querySelector('.er-type').addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleTypePanel(ev.currentTarget); });
     this._applyTypography(true);
     this.measureHost = document.createElement('div');
@@ -1647,6 +1649,7 @@ export class EditionReader {
     ov.dataset.density = this.typo.density;
     ov.dataset.margin = this.typo.margin;
     ov.classList.toggle('er-firstcap', !!this.typo.firstCap);
+    ov.style.setProperty('--er-font-scale', String(FONTSCALE[this.typo.fontScale] || 1));
     // 版心内缩由 _relayout 统一下发（含窄窗钳制），此处只更新 dataset 供文章模式 CSS 消费
     if (!skipRelayout) this._onResize();
   }
@@ -1666,6 +1669,7 @@ export class EditionReader {
     panel.innerHTML = `
       <div class="er-type-head">${escapeHTML(t('阅读排版'))}</div>
       ${row(t('行距密度'), 'density', [{ v: 'compact', n: t('紧凑') }, { v: 'standard', n: t('标准') }, { v: 'airy', n: t('舒朗') }])}
+      ${row(t('字号'), 'fontScale', [{ v: 'small', n: t('小') }, { v: 'standard', n: t('标准') }, { v: 'large', n: t('大') }])}
       ${row(t('页边距'), 'margin', [{ v: 'narrow', n: t('窄') }, { v: 'standard', n: t('标准') }, { v: 'wide', n: t('宽') }])}
       ${row(t('栏宽'), 'col', [{ v: 'narrow', n: t('窄') }, { v: 'standard', n: t('标准') }, { v: 'wide', n: t('宽') }])}
       <div class="er-type-row"><span class="er-type-label">${escapeHTML(t('首字下沉'))}</span><span class="er-type-opts">
@@ -1862,7 +1866,7 @@ export class EditionReader {
       { group: t('期刊'), label: t('下一页'), keywords: 'page next 期刊 下一页 翻页', icon: 'chevronRight', action: () => this._go(this.index + 1) },
       { group: t('期刊'), label: t('上一页'), keywords: 'page prev 期刊 上一页', icon: 'chevronLeft', action: () => this._go(this.index - 1) },
       { group: t('期刊'), label: t('搜索本期 / 本文'), keywords: 'find search 期刊 搜索 查找', icon: 'search', action: () => this._findOpen() },
-      { group: t('期刊'), label: t('排版面板（行距/页边/栏宽/首字下沉）'), keywords: 'typography aa 排版 行距 页边 栏宽 首字', icon: 'textLarger', action: () => this._toggleTypePanel(this.overlay.querySelector('.er-type')) },
+      { group: t('期刊'), label: t('排版面板（行距/字号/页边/栏宽/首字下沉）'), keywords: 'typography aa 排版 行距 字号 页边 栏宽 首字 font size', icon: 'textLarger', action: () => this._toggleTypePanel(this.overlay.querySelector('.er-type')) },
       { group: t('期刊'), label: t('切换纸张质感'), keywords: 'paper 纸张 质感 牛皮 书卷', icon: 'bookOpen', action: paperBtn },
       { group: t('期刊'), label: t('段落聚焦开关'), keywords: 'focus 段落 聚焦', icon: 'eye', action: () => this._toggleFocusMode() },
       { group: t('期刊'), label: t('导出当前页图片'), keywords: 'export 导出 当前页 图片 截图', icon: 'export', action: () => this._exportPage() },

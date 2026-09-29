@@ -1325,6 +1325,15 @@ const STRINGS = {
   "把选中的文章标记为已读": { zh: "把选中的文章标记为已读", en: "Mark selected articles as read" },
   "把选中的文章加入收藏": { zh: "把选中的文章加入收藏", en: "Star selected articles" },
   "把选中的文章加入稍后读": { zh: "把选中的文章加入稍后读", en: "Add selected articles to Read Later" },
+  "字号": { zh: "字号", en: "Font Size" },
+  "小": { zh: "小", en: "Small" },
+  "大": { zh: "大", en: "Large" },
+  "切换杂志 / 列表视图": { zh: "切换杂志 / 列表视图", en: "Toggle magazine / list view" },
+  "切换浅色 / 深色主题": { zh: "切换浅色 / 深色主题", en: "Toggle light / dark theme" },
+  "切换聚焦模式": { zh: "切换聚焦模式", en: "Toggle focus mode" },
+  "切换禅模式": { zh: "切换禅模式", en: "Toggle zen mode" },
+  "知识库": { zh: "知识库", en: "Knowledge" },
+  "排版面板（行距/字号/页边/栏宽/首字下沉）": { zh: "排版面板（行距/字号/页边/栏宽/首字下沉）", en: "Typography (leading/size/margin/column/cap)" },
 };
 
 module.exports = { STRINGS };

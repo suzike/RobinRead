@@ -602,30 +602,32 @@ let commandPalette = null;
 
 function buildPaletteCommands() {
   const commands = [
-    { label: t('打开：今天'), keywords: 'today 今日', icon: 'sun', hint: '1', action: () => handleScopeSelect({ kind: 'today' }) },
-    { label: t('打开：未读'), keywords: 'unread 未读', icon: 'envelopeClosed', hint: '2', action: () => handleScopeSelect({ kind: 'unread' }) },
-    { label: t('打开：收藏'), keywords: 'starred 收藏 star', icon: 'star', action: () => handleScopeSelect({ kind: 'starred' }) },
-    { label: t('打开：稍后读'), keywords: 'later 稍后读 read later', icon: 'clock', action: () => handleScopeSelect({ kind: 'later' }) },
-    { label: t('切换：杂志视图 / 列表视图'), keywords: 'magazine list view 杂志 列表 视图', icon: 'newspaper', action: () => window.robin.setReaderLayout({ listViewMode: window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine' }) },
-    { label: t('切换：浅色 / 深色主题'), keywords: 'theme dark light 主题 深色 浅色', icon: 'appearance', action: () => window.robin.setTheme(document.body.classList.contains('dark') ? 'light' : 'dark') },
-    { label: t('版式预设：知更纸刊（默认）'), keywords: 'preset 版式 预设 纸刊 默认', icon: 'bookOpen', action: () => applyPreset('default') },
-    { label: t('版式预设：新闻晚报'), keywords: 'preset 版式 报纸 晚报 紧凑', icon: 'newspaper', action: () => applyPreset('evening') },
-    { label: t('版式预设：极简留白'), keywords: 'preset 版式 极简 留白', icon: 'circle', action: () => applyPreset('minimal') },
-    { label: t('版式预设：墨水屏'), keywords: 'preset 版式 墨水屏 高对比', icon: 'info', action: () => applyPreset('eink') },
+    { label: t('今天'), keywords: 'today 今日 open', icon: 'sun', hint: '1', action: () => handleScopeSelect({ kind: 'today' }) },
+    { label: t('未读'), keywords: 'unread 未读 open', icon: 'envelopeClosed', hint: '2', action: () => handleScopeSelect({ kind: 'unread' }) },
+    { label: t('收藏'), keywords: 'starred 收藏 star open', icon: 'star', action: () => handleScopeSelect({ kind: 'starred' }) },
+    { label: t('稍后读'), keywords: 'later 稍后读 read later open', icon: 'clock', action: () => handleScopeSelect({ kind: 'later' }) },
+    { label: t('切换杂志 / 列表视图'), keywords: 'magazine list view 杂志 列表 视图', icon: 'newspaper', action: () => window.robin.setReaderLayout({ listViewMode: window.__robinReaderLayout?.listViewMode === 'magazine' ? 'list' : 'magazine' }) },
+    { label: t('切换浅色 / 深色主题'), keywords: 'theme dark light 主题 深色 浅色', icon: 'appearance', action: () => window.robin.setTheme(document.body.classList.contains('dark') ? 'light' : 'dark') },
+    { label: t('知更纸刊（默认）'), keywords: 'preset 版式 预设 纸刊 默认', icon: 'bookOpen', action: () => applyPreset('default') },
+    { label: t('新闻晚报'), keywords: 'preset 版式 报纸 晚报 紧凑', icon: 'newspaper', action: () => applyPreset('evening') },
+    { label: t('极简留白'), keywords: 'preset 版式 极简 留白', icon: 'circle', action: () => applyPreset('minimal') },
+    { label: t('墨水屏'), keywords: 'preset 版式 墨水屏 高对比', icon: 'info', action: () => applyPreset('eink') },
     { label: t('阅读控制中心'), keywords: 'reading controls 控制中心 阅读面板 aa', icon: 'textLarger', action: () => openReadingControls() },
     { label: t('自动滚动阅读'), keywords: 'auto scroll 自动滚动 悦读', icon: 'chevronDown', action: () => views.reader?.toggleAutoScroll?.() },
-    { label: t('切换：聚焦模式'), keywords: 'focus 聚焦 渐暗', icon: 'eye', hint: 'F', action: toggleFocusMode },
-    { label: t('切换：禅模式'), keywords: 'zen 禅 全屏', icon: 'expand', action: toggleZenMode },
-    { label: t('打开：今日简报'), keywords: 'digest 简报 日报 ai', icon: 'spark', action: () => showTodayDigest() },
-    { label: t('打开：AI 热点'), keywords: 'aihot 热点 趋势', icon: 'flame', action: openAihotView },
-    { label: t('打开：知识库'), keywords: 'knowledge 知识 高亮 复习', icon: 'bookOpen', hint: 'Ctrl+K', action: openKnowledgeCenter },
+    { label: t('切换聚焦模式'), keywords: 'focus 聚焦 渐暗', icon: 'eye', hint: 'F', action: toggleFocusMode },
+    { label: t('切换禅模式'), keywords: 'zen 禅 全屏', icon: 'expand', action: toggleZenMode },
+    { label: t('今日简报'), keywords: 'digest 简报 日报 ai open', icon: 'spark', action: () => showTodayDigest() },
+    { label: t('AI 热点'), keywords: 'aihot 热点 趋势 open', icon: 'flame', action: openAihotView },
+    { label: t('知识库'), keywords: 'knowledge 知识 高亮 复习 open', icon: 'bookOpen', hint: 'Ctrl+K', action: openKnowledgeCenter },
     { label: t('搜索正文'), keywords: 'find search 搜索 正文 查找', icon: 'search', hint: 'Ctrl+F', action: () => { if (!state.selectedEntryID) { showToast(t('先打开一篇文章')); return; } views.reader?.articleSearch?.open(); } },
-    { label: t('打开：设置'), keywords: 'settings 设置 preference', icon: 'gear', action: () => showSettings('appearance') },
+    { label: t('设置'), keywords: 'settings 设置 preference open', icon: 'gear', action: () => showSettings('appearance') },
     { label: t('刷新全部订阅'), keywords: 'refresh 刷新 订阅', icon: 'refresh', action: () => window.robin.refresh() },
     { label: t('增大字号'), keywords: 'font size larger 字号 增大', icon: 'textLarger', action: () => adjustFontSize(1) },
     { label: t('减小字号'), keywords: 'font size smaller 字号 减小', icon: 'textSmaller', action: () => adjustFontSize(-1) },
   ];
-  // 订阅源直达：侧栏账号树展开为「来源：源名」命令（上限 40，防面板过长）
+  // 全局组头（R24 补齐 R21 分组语义）：命令去冒号前缀后，归属信息由组头承担
+  for (const c of commands) c.group = t('全局');
+  // 订阅源直达：侧栏账号树展开为「来源」组命令（上限 40，防面板过长）
   const accounts = window.__robinSidebar || [];
   let added = 0;
   for (const account of accounts) {
@@ -633,8 +635,9 @@ function buildPaletteCommands() {
       if (added >= 40) break;
       if (!feed?.id) continue;
       commands.push({
-        label: `${t('来源')}：${feed.title || feed.id}`,
-        keywords: `feed ${feed.title || ''}`,
+        group: t('来源'),
+        label: feed.title || feed.id,
+        keywords: `feed 来源 ${feed.title || ''}`,
         icon: 'globe',
         action: () => handleScopeSelect({ kind: 'feed', feedID: feed.id }),
       });
@@ -642,9 +645,9 @@ function buildPaletteCommands() {
     }
     if (added >= 40) break;
   }
-  // 期刊打开时：合并期刊专属命令（R20）
+  // 期刊打开时：合并期刊专属命令置顶（R20；分组视觉 = 期刊 → 全局 → 来源，R24）
   const editionCommands = document.querySelector('.er-overlay')?.__editionReader?.paletteCommands?.();
-  if (Array.isArray(editionCommands) && editionCommands.length) commands.push(...editionCommands);
+  if (Array.isArray(editionCommands) && editionCommands.length) commands.unshift(...editionCommands);
   return commands;
 }
 
