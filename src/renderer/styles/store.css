@@ -222,7 +222,7 @@
 .list-search input::placeholder { color: var(--text-tertiary); }
 .list-search .clear {
   border: none; background: transparent; color: var(--text-tertiary);
-  width: 16px; height: 16px; border-radius: 4px;
+  width: 24px; height: 24px; margin: 0 -4px; border-radius: 6px;
   display: none; align-items: center; justify-content: center; cursor: default; padding: 0;
 }
 .list-search.has-value .clear { display: inline-flex; }

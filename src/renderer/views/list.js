@@ -305,13 +305,13 @@ export class ListView {
         ${showSummary ? '<div class="entry-summary"></div>' : ''}
         <div class="entry-meta">
           ${favicon}
-          <span class="entry-source"></span>
+          <span class="entry-source" title="${attr(item.sourceTitle || '')}"></span>
           ${badge ? `<span class="entry-account-badge"></span>` : ''}
           ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
           ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
           <span class="read-min-slot">${readMinutesChip(item)}</span>
           ${this.laterAgeBadge(item)}
-          <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
+          <span class="entry-time" title="${attr(fullTime(item.publishedAt))}">${escapeHTML(formatTime(item.publishedAt))}</span>
         </div>
       </div>
     `;
@@ -517,7 +517,7 @@ export class ListView {
     row.innerHTML = `<span class="cluster-count"></span>
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
       <span class="cluster-hint">${escapeHTML(t('同题报道 · 点击展开'))}</span>
-      <span class="entry-time">${escapeHTML(formatTime(cluster.items[0].publishedAt))}</span>`;
+      <span class="entry-time" title="${attr(fullTime(cluster.items[0].publishedAt))}">${escapeHTML(formatTime(cluster.items[0].publishedAt))}</span>`;
     row.querySelector('.cluster-count').textContent = t('%lld 篇').replace('%lld', String(cluster.items.length));
     row.querySelector('span:nth-child(2)').textContent = stripHtml(cluster.items[0].title);
     row.title = t('多源相似报道，点击展开');
@@ -849,7 +849,7 @@ export class ListView {
       <span class="entry-unread-dot"></span>
       <h3 class="mag-title"></h3>
       <div class="mag-meta">
-        <span class="mag-feed"></span>
+        <span class="mag-feed" title="${attr(item.sourceTitle || "")}"></span>
         ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
         ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
         ${readMinutesChip(item)}
@@ -1136,6 +1136,13 @@ function jaccard(a, b) {
 }
 /** 相似报道聚类：同标题语义（3-gram Jaccard>0.55）折叠为一行。 */
 /** 剥标签+解实体+折叠空白（R31）：摘要/标题统一净化，RSS 里混进的片段 HTML 不再当文本显示。 */
+/** 完整日期时间（R39）：列表相对日期悬停显示全量时间。 */
+function fullTime(ts) {
+  if (!ts) return "";
+  const locale = (window.__robinLanguage || "zh") === "zh" ? "zh-CN" : "en-US";
+  try { return new Date(ts * 1000).toLocaleString(locale, { year: "numeric", month: "long", day: "numeric", weekday: "long", hour: "2-digit", minute: "2-digit" }); } catch (_) { return ""; }
+}
+
 function stripHtml(s) {
   return String(s ?? '')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')

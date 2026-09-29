@@ -51,6 +51,7 @@ const OFFLINE = [
   { file: 'scripts/diag-tools-relocate.js', runner: 'electron', desc: 'R35 工具条迁位/零干涉/真点击命中（离线）' },
   { file: 'scripts/diag-dup-img.js', runner: 'electron', desc: 'R37 同址重复图折叠/figure 壳清理/文本守恒（离线）' },
   { file: 'scripts/diag-img-ratio.js', runner: 'electron', desc: 'R38 图片宽高占位/表情豁免/失败不塌（离线）' },
+  { file: 'scripts/diag-r39-details.js', runner: 'electron', desc: 'R39 细节三连：时间/来源悬停全量+清除键命中区（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },
