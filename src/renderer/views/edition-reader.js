@@ -1279,7 +1279,12 @@ export class EditionReader {
   _toggleToc(fromIndex) {
     if (!this.overlay) return;
     let toc = this.overlay.querySelector('.er-toc');
-    if (toc) { toc.remove(); return; }
+    if (toc) {
+      // R48：关闭走滑出动画（与开启对称），动画完再移除
+      toc.classList.add('closing');
+      setTimeout(() => toc.remove(), 240);
+      return;
+    }
     toc = document.createElement('div');
     toc.className = 'er-toc';
     const rows = (this.article?.headings || []).map((h) =>

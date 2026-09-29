@@ -5246,3 +5246,16 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 @media (prefers-reduced-motion: reduce) {
   .er-selbar, .list-batch-bar, .search-history { animation: none; }
 }
+
+/* ===== R48 浮层家族出场/退场动画统一 ===== */
+@keyframes sel-popover-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.er-sel-popover { animation: sel-popover-in 0.16s var(--ease-out); transform-origin: top center; }
+.er-toc { transition: transform 0.22s var(--ease-out); }
+.er-toc.closing { transform: translateX(100%); }
+@media (prefers-reduced-motion: reduce) {
+  .er-sel-popover { animation: none; }
+  .er-toc, .er-toc.closing { transition: none; }
+}
