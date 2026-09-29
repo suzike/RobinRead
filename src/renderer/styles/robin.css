@@ -4936,3 +4936,43 @@ body.dark .search-history-item:hover { background: rgba(255, 255, 255, 0.07); }
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent), inset 3px 0 0 var(--accent);
   background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
+
+/* ===== R29 列表快捷键速查：? 往复开合（body 级 fixed，与浮层家族同语言）===== */
+.list-keys-panel {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  z-index: 600;
+  min-width: 240px;
+  padding: 12px 14px 10px;
+  border-radius: var(--radius-xl);
+  background: rgba(252, 250, 245, 0.97);
+  border: 1px solid var(--separator);
+  box-shadow: 0 12px 32px rgba(40, 36, 28, 0.18);
+  backdrop-filter: blur(10px);
+}
+.list-keys-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+.list-keys-grid { display: flex; flex-direction: column; gap: 6px; }
+.list-keys-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-primary); }
+.list-keys-row kbd {
+  min-width: 74px;
+  text-align: center;
+  padding: 2px 7px;
+  border: 1px solid var(--separator);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--page-background);
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.list-keys-row span { color: var(--text-secondary); }
+body.dark .list-keys-panel { background: rgba(30, 28, 25, 0.97); border-color: rgba(255, 255, 255, 0.09); }
+body.dark .list-keys-row kbd { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }

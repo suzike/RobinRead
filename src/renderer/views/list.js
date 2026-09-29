@@ -50,6 +50,12 @@ export class ListView {
       if (document.querySelector('.er-overlay') || document.querySelector('.cmd-palette-overlay')) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       const key = event.key.toLowerCase();
+      // ? 呼出列表快捷键速查（R29）
+      if (event.key === '?' || (event.shiftKey && key === '/')) {
+        event.preventDefault();
+        this._toggleKeysPanel();
+        return;
+      }
       const isMove = key === 'j' || key === 'k';
       if (!isMove && !(event.key === 'Enter' || key === 'o')) return;
       const curIdx = this.items.findIndex((it) => it.id === this.cursorID);
@@ -63,7 +69,13 @@ export class ListView {
       }
       if (!this.items.length) return;
       event.preventDefault();
+      const atEnd = curIdx === this.items.length - 1;
       const next = Math.min(this.items.length - 1, Math.max(0, curIdx + (key === 'j' ? 1 : -1)));
+      // J 触底（R29）：请求下一页，到位后继续 J 即无缝续览
+      if (key === 'j' && next === curIdx && atEnd && this.handlers.onLoadMore) {
+        this.handlers.onLoadMore();
+        return;
+      }
       if (next === curIdx) return;
       this.cursorID = this.items[next].id;
       this._syncCursor(true);
@@ -390,6 +402,48 @@ export class ListView {
       row.classList.add('nj-cursor');
       if (explicit) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
+  }
+
+  /** 列表快捷键速查（R29）：? 往复开合，浮层随 Esc 一并收起。 */
+  _toggleKeysPanel() {
+    const existing = document.querySelector('.list-keys-panel');
+    if (existing) {
+      existing.remove();
+      if (this._keysDismiss) document.removeEventListener('keydown', this._keysDismiss);
+      return;
+    }
+    if (!this.items.length) return;
+    const panel = document.createElement('div');
+    panel.className = 'list-keys-panel';
+    const rows = [
+      ['J / K', t('移动光标')],
+      ['Enter / O', t('打开光标处文章')],
+      ['Ctrl + A', t('全选当前视野')],
+      ['Ctrl + 点击', t('批量单选（再点反选）')],
+      ['Shift + 点击', t('批量区间选择')],
+      ['Esc', t('取消选择 / 关闭')],
+    ];
+    const grid = document.createElement('div');
+    grid.className = 'list-keys-grid';
+    for (const [k, d] of rows) {
+      const row = document.createElement('div');
+      row.className = 'list-keys-row';
+      const kbd = document.createElement('kbd');
+      kbd.textContent = k;
+      const desc = document.createElement('span');
+      desc.textContent = d;
+      row.append(kbd, desc);
+      grid.appendChild(row);
+    }
+    const head = document.createElement('div');
+    head.className = 'list-keys-head';
+    head.textContent = t('键盘快捷键');
+    panel.append(head, grid);
+    document.body.appendChild(panel);
+    this._keysDismiss = (event) => {
+      if (event.key === 'Escape') this._toggleKeysPanel();
+    };
+    document.addEventListener('keydown', this._keysDismiss, { once: true });
   }
 
   /**

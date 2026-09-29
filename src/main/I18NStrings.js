@@ -1339,6 +1339,12 @@ const STRINGS = {
   "清除搜索历史": { zh: "清除搜索历史", en: "Clear search history" },
   "字号三档步进": { zh: "字号三档步进", en: "Step font size" },
   "行距 · 字号 · 页边距 · 栏宽 · 首字下沉": { zh: "行距 · 字号 · 页边距 · 栏宽 · 首字下沉", en: "Leading · Size · Margin · Column · Cap" },
+  "移动光标": { zh: "移动光标", en: "Move cursor" },
+  "打开光标处文章": { zh: "打开光标处文章", en: "Open article at cursor" },
+  "全选当前视野": { zh: "全选当前视野", en: "Select all in view" },
+  "批量单选（再点反选）": { zh: "批量单选（再点反选）", en: "Toggle single pick" },
+  "批量区间选择": { zh: "批量区间选择", en: "Range pick" },
+  "取消选择 / 关闭": { zh: "取消选择 / 关闭", en: "Clear selection / close" },
 };
 
 module.exports = { STRINGS };

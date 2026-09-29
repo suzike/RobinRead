@@ -82,7 +82,25 @@ app.whenReady().then(async () => {
       document.querySelector('.entry-row[data-entry-id="' + curID + '"]').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
       await new Promise(r => setTimeout(r, 40));
       const bothClasses = document.querySelector('.entry-row[data-entry-id="' + curID + '"]').className.includes('nj-cursor') && document.querySelector('.entry-row[data-entry-id="' + curID + '"]').className.includes('nj-picked');
-      return { s1, s2, s3, s4, openSeq, beforeInputNav, restored, magCur, bothClasses };
+      // R29：J 触底请求加载更多（先光标落末条再 J）；? 呼出速查；Esc 收起
+      lv.render([mk(0), mk(1), mk(2), mk(3)], { kind: 'all' }, null, true);
+      await new Promise(r => setTimeout(r, 150));
+      window.__loadMore = 0;
+      lv.handlers.onLoadMore = () => { window.__loadMore += 1; };
+      key('j'); key('j'); key('j'); key('j');
+      await new Promise(r => setTimeout(r, 60));
+      const atLast = cur() === 'n-3';
+      key('j');
+      await new Promise(r => setTimeout(r, 60));
+      const loadMoreCalls = window.__loadMore;
+      key('?', null);
+      await new Promise(r => setTimeout(r, 60));
+      const keysRows = document.querySelectorAll('.list-keys-row').length;
+      const keysHead = document.querySelector('.list-keys-head')?.textContent;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(r => setTimeout(r, 60));
+      const keysClosed = !document.querySelector('.list-keys-panel');
+      return { s1, s2, s3, s4, openSeq, beforeInputNav, restored, magCur, bothClasses, atLast, loadMoreCalls, keysRows, keysHead, keysClosed };
     `);
     if (a.__err) throw new Error('nav: ' + a.__err);
     ok(a.s1 === 'n-0' && a.s2 === 'n-0', 'J/K 移动光标（首个 J 落第 0 条，' + a.s1 + ' → ' + a.s2 + '）');
@@ -92,6 +110,9 @@ app.whenReady().then(async () => {
     ok(a.restored === 'n-1', '重渲染后光标环按 id 恢复（' + a.restored + '）');
     ok(a.magCur === 'n-0', '杂志卡同样受光标（' + a.magCur + '）');
     ok(a.bothClasses, '光标与批选叠态共存');
+    ok(a.atLast && a.loadMoreCalls >= 1, 'R29 J 触底请求加载更多（' + a.loadMoreCalls + ' 次）');
+    ok(a.keysRows === 6 && a.keysHead.length > 0, 'R29 ? 呼出速查 6 行（' + a.keysRows + '）');
+    ok(a.keysClosed, 'R29 Esc 收起速查面板');
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {
