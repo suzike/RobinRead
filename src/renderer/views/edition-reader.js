@@ -781,6 +781,7 @@ export class EditionReader {
     if (savedPos > 0 && savedPos < this.pages.length) {
       this.startIndex = savedPos;
       this.index = savedPos;
+      this._resumedFrom = savedPos; // 续读提醒（R18）
       this._syncSheets(true);
     }
     if (this.reduceMotion) this._doOpen();
@@ -842,6 +843,10 @@ export class EditionReader {
     this.open = true;
     this._play();
     this._fx('open');
+    // 续读提醒（R18）：开书后提示已落位到上次位置
+    if (this._resumedFrom > 0) {
+      setTimeout(() => this._notice(`${t('已续读至上次位置 · 第')} ${this._resumedFrom + 1} ${t('页')}`), 950);
+    }
     const cover = this.overlay.querySelector('.er-cover');
     const dur = this.reduceMotion ? 0.16 : 0.65;
     cover.hidden = false;
