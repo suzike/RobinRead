@@ -41,6 +41,34 @@ export class ListView {
       if (event.key === 'Escape') this._clearPick();
     };
     document.addEventListener('keydown', this._escPick);
+    // R28 键盘导航：J/K 移动光标（enter/o 打开）。箭头键不接——_split 视图下会劫持文章滚动；
+    // 输入框聚焦、命令面板/期刊打开时全部让路。光标按 id 锚定（列表刷新位移不错位）
+    this.cursorID = null;
+    this._navKey = (event) => {
+      const el = event.target;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (document.querySelector('.er-overlay') || document.querySelector('.cmd-palette-overlay')) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const key = event.key.toLowerCase();
+      const isMove = key === 'j' || key === 'k';
+      if (!isMove && !(event.key === 'Enter' || key === 'o')) return;
+      const curIdx = this.items.findIndex((it) => it.id === this.cursorID);
+      if (!isMove) {
+        event.preventDefault();
+        if (curIdx >= 0) {
+          const item = this.items[curIdx];
+          this.handlers.onSelect(item.id, item);
+        }
+        return;
+      }
+      if (!this.items.length) return;
+      event.preventDefault();
+      const next = Math.min(this.items.length - 1, Math.max(0, curIdx + (key === 'j' ? 1 : -1)));
+      if (next === curIdx) return;
+      this.cursorID = this.items[next].id;
+      this._syncCursor(true);
+    };
+    document.addEventListener('keydown', this._navKey);
 
     // 顶部 inset（毛玻璃 + 标题，对应 safeAreaInset header）
     this.scrollEl.innerHTML = '';
@@ -351,6 +379,17 @@ export class ListView {
     this.picked.clear();
     this.pickAnchor = -1;
     this._syncPickUI();
+  }
+
+  /** 键盘光标（R28）：J/K 移动的行游标；explicit 时才滚动入视野（重渲染恢复不抢滚动位置）。 */
+  _syncCursor(explicit = false) {
+    this.rowsHost.querySelectorAll('.entry-row.nj-cursor').forEach((el) => el.classList.remove('nj-cursor'));
+    if (!this.cursorID) return;
+    const row = this.rowForEntry(this.cursorID);
+    if (row) {
+      row.classList.add('nj-cursor');
+      if (explicit) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
   }
 
   /**
@@ -737,9 +776,14 @@ export class ListView {
   markSelected(entryID) {
     this.selectedID = entryID;
     this.rowsHost.querySelectorAll('.entry-row.selected').forEach((el) => el.classList.remove('selected'));
-    if (!entryID) return;
-    const row = this.rowForEntry(entryID);
-    if (row) row.classList.add('selected');
+    if (entryID) {
+      const row = this.rowForEntry(entryID);
+      if (row) row.classList.add('selected');
+      // R28：无活动光标时光标跟随打开的文章（J/K 已有光标则不打扰）
+      if (!this.cursorID) this.cursorID = entryID;
+    }
+    // 重渲染后恢复光标环（selectedID 为空也要恢复 J/K 光标）
+    this._syncCursor(false);
   }
 
   rowForEntry(entryID) {

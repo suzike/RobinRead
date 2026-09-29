@@ -42,6 +42,7 @@ const OFFLINE = [
   { file: 'scripts/diag-row-quick.js', runner: 'electron', desc: 'R22 行内快捷操作：三键挂载/隐藏浮现/IPC 参数（离线）' },
   { file: 'scripts/diag-list-batch.js', runner: 'electron', desc: 'R23 批量多选：Ctrl/Shift 圈选/批量条/批设通道（离线）' },
   { file: 'scripts/diag-search-history.js', runner: 'electron', desc: 'R26 搜索历史下拉：Enter 记忆/去重上限/点选即搜（离线）' },
+  { file: 'scripts/diag-list-nav.js', runner: 'electron', desc: 'R28 键盘导航：J/K 光标/钳位/Enter 打开/叠态（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },

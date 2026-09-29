@@ -4926,3 +4926,13 @@ body.dark .row-quick-btn:hover { background: rgba(255, 255, 255, 0.08); color: r
 body.dark .search-history { background: rgba(30, 28, 25, 0.97); border-color: rgba(255, 255, 255, 0.09); }
 body.dark .search-history-item { color: rgba(238, 234, 224, 0.9); }
 body.dark .search-history-item:hover { background: rgba(255, 255, 255, 0.07); }
+
+/* ===== R28 键盘导航光标：J/K 行游标（细内环+微底色），与选中/批选叠态互容 ===== */
+.entry-row.nj-cursor {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.entry-row.nj-cursor.nj-picked {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent), inset 3px 0 0 var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
