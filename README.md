@@ -1,6 +1,7 @@
 <div align="center">
 
   <img src="docs/images/panorama.jpg" alt="知更 RobinRead 全功能全景图" width="100%" />
+- **[v2.12.56 — 微动效三连（R47）](https://github.com/suzike/RobinRead/releases/tag/v2.12.56)**（2026-09-29）：细节优化 10 轮第 9 轮——**微动效三连**：划词胶囊 **pop-in**（0.16s 淡入+缩放 0.94→1+上移 4px，origin 底部中心）、批量操作条 **slide-up**（0.18s 淡入+上移 12px）、搜索历史下拉 **fade-in**（0.14s 淡入+下移 4px）——既有组件出场动画补齐，prefers-reduced-motion 自动关闭。探针 55 项全绿（新增动效 3 断言），实机 mid/落定两帧挑剔官 PASS（中间态被真实捕捉）
 - **[v2.12.55 — 细节优化三连（R46）](https://github.com/suzike/RobinRead/releases/tag/v2.12.55)**（2026-09-29）：细节优化 10 轮第 8 轮——列表触底加载**「···」呼吸点**（与装载页同语言，新页到达自动移除；单页不溢出不误显）；正文已加载图 **cursor: zoom-in**（灯箱可点击暗示）；**分割条 hover/dragging 高亮**（1px 分隔线变 3px 主题色，拖拽把手可视化）。探针 54 项全绿（新增细节 5 断言），实机触底帧挑剔官两轮打回收敛后 PASS
 - **[v2.12.54 — 细节优化三连（R45）](https://github.com/suzike/RobinRead/releases/tag/v2.12.54)**（2026-09-29）：细节优化 10 轮第 7 轮（语义扫尾）——知识标签 chips 补 **type=button + :focus-visible 焦点环**；搜索清除键 **aria-label=清除搜索内容 + type=button**（图标-only 按钮读屏可达）；批量操作条 **role=toolbar + aria-label=批量操作**（R25 容器语义补齐）。探针 51 项全绿（新增细节 5 断言），实机截图挑剔官 PASS
 - **[v2.12.53 — 细节优化三连（R44）](https://github.com/suzike/RobinRead/releases/tag/v2.12.53)**（2026-09-29）：细节优化 10 轮第 6 轮——装载页「正在装载正文…」尾部**三点呼吸动画**；**滑轨键盘翻页**（刻度可聚焦，←/→ 翻页，滑轨从鼠标专属升级为键盘可达）；滑轨**刻度 title 页码 N/M**；空态刷新按钮 :active 缩放与 :focus-visible 焦点环。探针 50 项全绿（新增细节 4 断言），实机两帧挑剔官 PASS（呼吸点中间态可辨、翻页落定零回归）
