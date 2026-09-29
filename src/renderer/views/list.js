@@ -232,7 +232,36 @@ export class ListView {
       event.preventDefault();
       this.handlers.onContext(event, item);
     });
+    row.appendChild(this._quickActions(item));
     return row;
+  }
+
+  /**
+   * 行内快捷操作（R22）：hover / 键盘聚焦浮现 已读·收藏·稍后读 三连。
+   * 走与右键菜单相同的 IPC 通路（app:state 推送回流刷新），按钮拦截 click 免触发整行打开。
+   */
+  _quickActions(item) {
+    const bar = document.createElement('div');
+    bar.className = 'row-quick';
+    const mk = (cls, icon_, title, onClick) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `row-quick-btn ${cls}`;
+      b.title = title;
+      b.innerHTML = icon(icon_);
+      b.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onClick();
+      });
+      return b;
+    };
+    bar.appendChild(mk('q-read', item.isRead ? 'envelopeOpen' : 'checkAll',
+      t(item.isRead ? '标为未读' : '标为已读'), () => window.robin.markRead(item.id, !item.isRead)));
+    bar.appendChild(mk('q-star', item.isStarred ? 'starFilled' : 'star',
+      t(item.isStarred ? '取消收藏' : '收藏'), () => window.robin.toggleStar(item.id)));
+    bar.appendChild(mk('q-later', 'clock',
+      t(item.isLater ? '移出稍后读' : '稍后读'), () => window.robin.toggleLater(item.id, !item.isLater)));
+    return bar;
   }
 
   clusterRow(cluster) {
@@ -571,6 +600,7 @@ export class ListView {
 
     card.appendChild(cover);
     card.appendChild(body);
+    card.appendChild(this._quickActions(item));
     card.addEventListener('click', () => this.handlers.onSelect(item.id, item));
     card.addEventListener('contextmenu', (event) => {
       event.preventDefault();

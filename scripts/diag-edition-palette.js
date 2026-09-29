@@ -58,7 +58,7 @@ app.whenReady().then(async () => {
     `);
     if (a.__err) throw new Error('palette: ' + a.__err);
     ok(a.count === 9, '期刊命令 9 条（' + a.count + '）');
-    ok(a.labels.includes('期刊：下一页') && a.labels.includes('期刊：导出当前页图片'), '含翻页/导出命令');
+    ok(a.labels.includes('下一页') && a.labels.includes('导出当前页图片'), '含翻页/导出命令（R21 起去「期刊：」前缀）');
     ok(a.pageTurned, '「下一页」命令真实翻页（' + a.pageTurned + '）');
     ok(a.cmdsAfter === 0, '期刊关闭后命令清空');
     ok(a.z === 920, '命令面板 z-index 920 高于期刊（' + a.z + '）');

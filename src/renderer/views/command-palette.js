@@ -115,6 +115,9 @@ export class CommandPalette {
       else if (label.includes(q)) score = 2;
       else if (keywords.includes(q)) score = 1;
       else if (group && group.includes(q)) score = 0.5;
+      // 搜组名意为整组导航（R21 验收附注）：label 顺带含组名的命令降权到组名命中之后，
+      // 避免「退出期刊」这类敏感命令在输入「期刊」时被默认聚焦
+      if (score === 2 && group && group.includes(q)) score = 0.4;
       if (score > 0) scored.push({ cmd, score, order });
     });
     scored.sort((a, b) => b.score - a.score || a.order - b.order);

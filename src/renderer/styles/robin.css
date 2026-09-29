@@ -4771,3 +4771,62 @@ body.dark .list-scroll.nj-mag-kraft .nj-mag-card { background: rgba(255, 255, 25
 /* 测量宿主（分页器隐藏实测） */
 .er-measure { position: absolute; left: -99999px; top: 0; visibility: hidden; pointer-events: none; }
 
+
+/* ===== R22 行内快捷操作：hover/聚焦浮现 已读·收藏·稍后读 三连 ===== */
+.entry-row { position: relative; }
+.nj-mag-card { position: relative; }
+.row-quick {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 9px;
+  background: rgba(250, 248, 242, 0.82);
+  border: 1px solid var(--separator);
+  box-shadow: 0 2px 8px rgba(40, 36, 28, 0.10);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+  z-index: 3;
+}
+.entry-row:hover .row-quick,
+.entry-row:focus-within .row-quick,
+.nj-mag-card:hover .row-quick,
+.nj-mag-card:focus-within .row-quick {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.row-quick-btn {
+  width: 25px;
+  height: 25px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.row-quick-btn svg { width: 13px; height: 13px; }
+.row-quick-btn:hover { background: var(--row-hover); color: var(--text-primary); }
+.row-quick-btn.q-star:hover { color: var(--warm-accent); }
+.row-quick-btn.q-later:hover { color: var(--accent); }
+/* 当前态徽记：收藏过的行浮条上星星常亮暖色，稍后读中的行时钟常亮 */
+.entry-row.starred .q-star, .nj-mag-card.starred .q-star { color: var(--warm-accent); }
+.entry-row.later .q-later, .nj-mag-card.later .q-later { color: var(--accent); }
+/* 杂志卡：浮条压在封面图右上，底色加深保读 */
+.nj-mag-card .row-quick { top: 8px; right: 8px; background: rgba(250, 248, 242, 0.9); }
+body.dark .row-quick {
+  background: rgba(34, 32, 28, 0.78);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+body.dark .nj-mag-card .row-quick { background: rgba(34, 32, 28, 0.88); }
+body.dark .row-quick-btn { color: rgba(235, 231, 222, 0.66); }
+body.dark .row-quick-btn:hover { background: rgba(255, 255, 255, 0.08); color: rgba(245, 242, 234, 0.95); }

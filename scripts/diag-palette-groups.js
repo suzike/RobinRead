@@ -62,6 +62,25 @@ app.whenReady().then(async () => {
     ok(a.items === 5, '命令条数不受组头影响（5 条）');
     ok(a.lastActive === '4' && a.activeLabel === '期刊：上一页', '键盘导航走满命令且跳过组头（active idx ' + a.lastActive + '）');
     ok(a.hits === 2 && a.hitHeads.join(',') === '期刊', '组名「期刊」可搜（2 条命中 + 组头）');
+    // R21 验收附注：搜组名时 label 顺带含组名的命令降权（敏感命令不默认聚焦）
+    const b = await run('rank', `
+      const { CommandPalette } = await import('./views/command-palette.js');
+      const cp = new CommandPalette();
+      cp.present([
+        { group: '期刊', label: '下一页', keywords: 'next', icon: 'chevronRight', action: () => {} },
+        { group: '期刊', label: '退出期刊', keywords: 'exit', icon: 'close', action: () => {} },
+      ]);
+      await new Promise(r => setTimeout(r, 200));
+      const input = document.querySelector('.cmd-palette input');
+      input.value = '期刊';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 200));
+      const order = [...document.querySelectorAll('.cmd-item .cmd-label')].map((el) => el.textContent);
+      cp.dismiss();
+      return { order };
+    `);
+    if (b.__err) throw new Error('rank: ' + b.__err);
+    ok(b.order[0] === '下一页' && b.order.includes('退出期刊'), '组名搜索时 label 含组名者降权不默认聚焦（' + b.order.join('→') + '）');
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {
