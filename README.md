@@ -1,6 +1,7 @@
 <div align="center">
 
   <img src="docs/images/panorama.jpg" alt="知更 RobinRead 全功能全景图" width="100%" />
+- **[v2.12.55 — 细节优化三连（R46）](https://github.com/suzike/RobinRead/releases/tag/v2.12.55)**（2026-09-29）：细节优化 10 轮第 8 轮——列表触底加载**「···」呼吸点**（与装载页同语言，新页到达自动移除；单页不溢出不误显）；正文已加载图 **cursor: zoom-in**（灯箱可点击暗示）；**分割条 hover/dragging 高亮**（1px 分隔线变 3px 主题色，拖拽把手可视化）。探针 54 项全绿（新增细节 5 断言），实机触底帧挑剔官两轮打回收敛后 PASS
 - **[v2.12.54 — 细节优化三连（R45）](https://github.com/suzike/RobinRead/releases/tag/v2.12.54)**（2026-09-29）：细节优化 10 轮第 7 轮（语义扫尾）——知识标签 chips 补 **type=button + :focus-visible 焦点环**；搜索清除键 **aria-label=清除搜索内容 + type=button**（图标-only 按钮读屏可达）；批量操作条 **role=toolbar + aria-label=批量操作**（R25 容器语义补齐）。探针 51 项全绿（新增细节 5 断言），实机截图挑剔官 PASS
 - **[v2.12.53 — 细节优化三连（R44）](https://github.com/suzike/RobinRead/releases/tag/v2.12.53)**（2026-09-29）：细节优化 10 轮第 6 轮——装载页「正在装载正文…」尾部**三点呼吸动画**；**滑轨键盘翻页**（刻度可聚焦，←/→ 翻页，滑轨从鼠标专属升级为键盘可达）；滑轨**刻度 title 页码 N/M**；空态刷新按钮 :active 缩放与 :focus-visible 焦点环。探针 50 项全绿（新增细节 4 断言），实机两帧挑剔官 PASS（呼吸点中间态可辨、翻页落定零回归）
 - **[v2.12.52 — 细节优化三连（R43）](https://github.com/suzike/RobinRead/releases/tag/v2.12.52)**（2026-09-29）：细节优化 10 轮第 5 轮——期刊速查面板（? 呼出）**role=dialog 读屏语义**；搜索历史下拉 **role=listbox** + 候选项 **role=option + aria-selected 随键盘高亮同步**（R40 导航的读屏补全）；**窄窗（≤1000px）进度文字让位**——「本期约剩 N 分钟」隐藏防与工具条胶囊重叠，滑轨/folio 冗余在信息不丢。探针 49 项全绿（新增细节 5 断言），实机 900px 窄窗挑剔官 4/4 PASS（滑轨-胶囊净距 77px 零重叠）
