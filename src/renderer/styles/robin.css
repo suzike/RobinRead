@@ -5190,3 +5190,8 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
   pointer-events: auto;
 }
 .nj-img-failed-reason { display: block; padding: 10px 12px 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary); }
+
+/* ===== R43 窄窗防重叠：进度文字让位（滑轨/folio 冗余在，信息不丢）===== */
+@media (max-width: 1000px) {
+  .er-rail .er-count { display: none !important; }
+}

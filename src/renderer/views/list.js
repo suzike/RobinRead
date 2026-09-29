@@ -953,6 +953,8 @@ export class ListView {
     if (!items.length) return;
     const drop = document.createElement('div');
     drop.className = 'search-history';
+    drop.setAttribute('role', 'listbox'); // R43：读屏语义
+    drop.setAttribute('aria-label', t('搜索历史'));
     // 挂 body 走 fixed（工具栏 overflow:hidden 会裁剪 inset 内的绝对定位浮层），滚动即收
     const hostRect = this.searchHost.getBoundingClientRect();
     drop.style.left = `${Math.round(hostRect.left)}px`;
@@ -962,6 +964,7 @@ export class ListView {
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'search-history-item';
+      row.setAttribute('role', 'option'); // R43：读屏语义
       row.innerHTML = `${icon('search')}<span></span>`;
       row.querySelector('span').textContent = term;
       row.addEventListener('mousedown', (event) => { // mousedown 抢在 blur 收起前
@@ -1000,7 +1003,10 @@ export class ListView {
     if (!items.length) return;
     const cur = items.findIndex((el) => el.classList.contains('hl'));
     const next = (cur + dir + items.length) % items.length;
-    items.forEach((el, i) => el.classList.toggle('hl', i === next));
+    items.forEach((el, i) => {
+      el.classList.toggle('hl', i === next);
+      el.setAttribute('aria-selected', i === next ? 'true' : 'false'); // R43：读屏语义同步
+    });
     items[next].scrollIntoView({ block: 'nearest' });
   }
 

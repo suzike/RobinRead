@@ -1943,6 +1943,8 @@ export class EditionReader {
     ];
     panel = document.createElement('div');
     panel.className = 'er-keys-panel';
+    panel.setAttribute('role', 'dialog'); // R43：读屏语义
+    panel.setAttribute('aria-label', t('键盘快捷键'));
     panel.innerHTML = `<div class="er-keys-head">${escapeHTML(t('键盘快捷键'))}</div>
       <div class="er-keys-grid">${KEYS.map(([k, d]) => `<div class="er-keys-row"><kbd>${escapeHTML(k)}</kbd><span>${escapeHTML(d)}</span></div>`).join('')}</div>
       ${this._sessionPages || (this._sessionEntries && this._sessionEntries.size) ? `<div class="er-keys-session">${escapeHTML(t('本次会话'))} · ${escapeHTML(t('翻页'))} <b>${this._sessionPages || 0}</b> · ${escapeHTML(t('读'))} <b>${(this._sessionEntries || new Set()).size}</b> ${escapeHTML(t('篇'))}</div>` : ''}`;
