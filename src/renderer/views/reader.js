@@ -1462,6 +1462,18 @@ export class ReaderView {
   _decorateImage(img) {
     img.decoding = 'async';
     img.classList.add('nj-img');
+    // 宽高比占位（R38 细节）：已知宽高比（width/height 属性或微信 data-ratio）的图在加载前
+    // 预留等比空间，消除「加载完成瞬间正文整体下跳」；小尺寸内联图（表情等）不参与
+    const aw = Number(img.getAttribute('width'));
+    const ah = Number(img.getAttribute('height'));
+    const dr = parseFloat(img.getAttribute('data-ratio'));
+    let ratio = 0;
+    if (aw > 0 && ah > 0) ratio = aw / ah;
+    else if (dr > 0) ratio = 1 / dr;
+    if (ratio > 0 && (aw === 0 || aw >= 240 || dr > 0)) {
+      img.style.aspectRatio = String(ratio);
+      img.classList.add('nj-img-ratio');
+    }
     let src = (img.getAttribute('src') || '').trim();
     // 绕过 wechat2rss img-proxy：直接加载真实图片（mmbiz.qpic.cn 等）。
     // 该代理是境外服务器且 k token 会过期（403），是微信图片加载慢/失败的根源。

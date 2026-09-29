@@ -5143,3 +5143,13 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 /* R36 打回：控制键成组（.lt-controls 为整体换行单位）——首行恒「标题+搜索」，次行控制键整组左置 */
 .list-top-inset .lt-controls { order: 4; display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-left: 0; }
 .list-top-inset .list-search { min-width: 132px; }
+
+/* ===== R38 图片宽高占位：已知比例的图加载前预留等比空间（含失败态塌陷治理）===== */
+.reader-article img.nj-img-ratio { width: 100%; height: auto; object-fit: cover; }
+.reader-article img.nj-img-ratio.nj-img-loading,
+.reader-article img.nj-img-ratio.nj-img-failed { height: auto; /* aspectRatio 已锁定高度，shimmer/失败占位不塌 */ }
+/* R38 打回：shimmer 对比度提升（原峰值-基底仅约 11 灰阶偏淡） */
+.reader-article img.nj-img-loading {
+  background: linear-gradient(100deg, var(--note-background) 30%, color-mix(in srgb, var(--accent) 10%, var(--note-background)) 50%, var(--note-background) 70%);
+  background-size: 220% 100%;
+}
