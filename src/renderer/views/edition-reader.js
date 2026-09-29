@@ -1048,9 +1048,27 @@ export class EditionReader {
   }
 
   async _paginateArticle(entry, html) {
+    // 字体就绪后再测量（R34 打回）：衬线字体异步加载会让测量用回退字体行高，
+    // 渲染时行数变多 → 叶底整段被裁。等待一次性完成，之后测量与渲染同字体。
+    if (document.fonts && document.fonts.status !== 'loaded') {
+      try { await document.fonts.ready; } catch (_) { /* 字体 API 异常不阻塞分页 */ }
+    }
     const m = this._metrics();
     const leafH = Math.max(160, m.bookH - HEADING_H - 28); // 底部安全余量：防叶末行贴纸缘被切（两轮实证 7-14px 级误差，一次盖住）
     const colW = this._colW();
+    // R34 重排缓存：同文章同排版参数（字号/密度/页边/栏/首字/视口）直接复用上次装箱结果，
+    // 来回翻页、排版面板反复调整、resize 抖动不再重复测量与贪心装箱
+    const layoutKey = [entry.id, colW, FONTSCALE[this.typo?.fontScale] || 1, this.typo?.density,
+      this.typo?.margin, this.typo?.firstCap ? 1 : 0, `${m.paperW}x${m.bookH}`, String(html || '').length].join('|');
+    if (this._layoutCache?.has(layoutKey)) {
+      const hit = this._layoutCache.get(layoutKey);
+      this._layoutCache.delete(layoutKey);
+      this._layoutCache.set(layoutKey, hit); // LRU touch
+      this.article.headings = hit.headings;
+      this.article.spreads = hit.spreads;
+      this.pages = hit.pages;
+      return;
+    }
     // 解析块
     const host = document.createElement('div');
     host.className = 'er-measure';
@@ -1072,10 +1090,15 @@ export class EditionReader {
     wrap.style.cssText = `width:${colW}px;`;
     wrap.innerHTML = '<i style="display:block;height:0"></i>';
     host.appendChild(wrap);
+    const margins = new WeakMap(); // margin 必须在节点挂载时抓取（host.remove() 后 detached 节点读不到样式表）
     const measureBatch = (els) => {
       for (const el of els) wrap.appendChild(el);
       const heights = els.map((el) => Math.ceil(el.getBoundingClientRect().height));
-      for (const el of els) el.remove();
+      for (const el of els) {
+        const cs = getComputedStyle(el);
+        margins.set(el, { mt: parseFloat(cs.marginTop) || 0, mb: parseFloat(cs.marginBottom) || 0 });
+        el.remove();
+      }
       return heights;
     };
     // 首叶头部：眉题 + 大标题 + 分隔线
@@ -1176,16 +1199,25 @@ export class EditionReader {
     host.remove();
     // 贪心装箱（半叶）；标题块 keep-with-next：叶底放不下「标题+后块」时整组下移，杜绝孤行节标题
     // 块间距按真实段距计（.er-article p margin-bottom ≈ 1.15em ≈ 18px；旧值 8px 系统性低估导致末叶溢出纸缘）
-    const BLK_GAP = 18;
+    // R34 打回：rect 高不含外边距——节标题 1.8em 上边距被系统性漏算，标题密集文累积溢出叶底裁行。
+    // 装箱间隙用「前块 mb 与后块 mt 的折叠值」，与浏览器普通流一致（margin 已在挂载时抓取）
+    for (const blk of blocks) {
+      const mg = margins.get(blk.el);
+      blk.mt = mg ? mg.mt : 0;
+      blk.mb = mg ? mg.mb : 0;
+    }
     const isHeadingBlk = (blk) => /^h[1-6]$/i.test(blk?.el?.tagName || '');
     const leaves = [];
     let cur = [], used = 0;
     for (let bi = 0; bi < blocks.length; bi++) {
       const blk = blocks[bi];
-      const need = used + blk.h + (isHeadingBlk(blk) && blocks[bi + 1] ? BLK_GAP + blocks[bi + 1].h : 0);
+      const prev = cur[cur.length - 1];
+      const gap = prev ? Math.max(prev.mb, blk.mt) : 0;
+      const need = used + gap + blk.h + (isHeadingBlk(blk) && blocks[bi + 1] ? Math.max(blk.mb, blocks[bi + 1].mt) + blocks[bi + 1].h : 0);
       if (used > 0 && need > leafH) { leaves.push(cur); cur = []; used = 0; }
+      const prevIn = cur[cur.length - 1];
       cur.push(blk);
-      used += blk.h + (cur.length === 1 ? 4 : BLK_GAP);
+      used += (prevIn ? Math.max(prevIn.mb, blk.mt) : 0) + blk.h;
     }
     if (cur.length) leaves.push(cur);
     // 两叶一对开；末尾单叶补「完」页
@@ -1218,6 +1250,10 @@ export class EditionReader {
       article: sp,
     }));
     if (this.article) this.article.spreads = spreads;
+    // R34：装箱结果入缓存（LRU 上限 12 篇；spreads 携带可复挂的块 DOM）
+    this._layoutCache = this._layoutCache || new Map();
+    if (this._layoutCache.size > 12) this._layoutCache.delete(this._layoutCache.keys().next().value);
+    this._layoutCache.set(layoutKey, { pages: this.pages, spreads, headings });
   }
 
   _splitSentences(text) {
@@ -2215,6 +2251,12 @@ export class EditionReader {
     if (toIdx === this.index) return null;
     const preset = TURN_PRESETS[Math.floor(Math.random() * TURN_PRESETS.length)];
     const fromPage = this.pages[this.index], toPage = this.pages[toIdx];
+    // R34 加固：索引失准（任何来源）时不崩——页对象缺失直接回退淡入路径并校正索引
+    if (!fromPage || !toPage) {
+      this.index = clamp(this.index, 0, this.pages.length - 1);
+      this._syncSheets(true);
+      return null;
+    }
     // 低端机帧率自适应：折页时连续掉帧（<22fps）则本次会话自动回退淡入
     const fade = !this._metrics().spread || fromPage.form !== 'spread' || toPage.form !== 'spread' || this.reduceMotion || this._perfDegraded === true;
     const book = this.overlay.querySelector('.er-book');

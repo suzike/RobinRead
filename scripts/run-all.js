@@ -47,6 +47,7 @@ const OFFLINE = [
   { file: 'scripts/diag-r31-polish.js', runner: 'electron', desc: 'R31 精修：摘要净化/工具栏统一/纸感融合/封面图策略（离线）' },
   { file: 'scripts/diag-palette-move.js', runner: 'electron', desc: 'R32 面板零重建导航+开合动效（离线）' },
   { file: 'scripts/diag-render-sig.js', runner: 'electron', desc: 'R33 渲染签名去重+新到高亮（离线）' },
+  { file: 'scripts/diag-edition-cache.js', runner: 'electron', desc: 'R34 重排缓存/margin 折叠装箱/内容守恒/will-change（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },

@@ -5105,3 +5105,8 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 @media (prefers-reduced-motion: reduce) {
   .entry-row.row-new { animation: none; }
 }
+
+/* ===== R34 翻页 GPU 提示：仅翻页进行中提升合成层，落定即回收 ===== */
+.er-book.er-turning .er-leaf,
+.er-book.er-turning .er-face-front,
+.er-book.er-turning .er-face-back { will-change: transform; }
