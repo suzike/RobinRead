@@ -56,6 +56,7 @@ const OFFLINE = [
   { file: 'scripts/diag-r41-details.js', runner: 'electron', desc: 'R41 细节：失败图点击重试/空态刷新/star 提示（离线）' },
   { file: 'scripts/diag-r42-details.js', runner: 'electron', desc: 'R42 细节：输入收起历史/外链提示/iframe 懒加载（离线）' },
   { file: 'scripts/diag-r43-details.js', runner: 'electron', desc: 'R43 细节三连：速查面板 dialog/历史 listbox/窄窗进度让位（离线）' },
+  { file: 'scripts/diag-r44-details.js', runner: 'electron', desc: 'R44 细节三连：滑轨键盘翻页/刻度 title/装载呼吸点（离线）' },
   { file: 'scripts/diag-r39-details.js', runner: 'electron', desc: 'R39 细节三连：时间/来源悬停全量+清除键命中区（离线）' },
   { file: 'scripts/diag-r40-details.js', runner: 'electron', desc: 'R40 细节三连：chips 换行/历史键盘导航/工具条 aria（离线）' },
   { file: 'scripts/diag-card-export.js', runner: 'electron', desc: '精读卡片导出：解析器+模板+离屏截图（离线）' },

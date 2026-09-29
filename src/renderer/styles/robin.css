@@ -5195,3 +5195,15 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 @media (max-width: 1000px) {
   .er-rail .er-count { display: none !important; }
 }
+
+/* ===== R44 装载页三点呼吸 + 空态刷新按下反馈 ===== */
+.er-loading-page::after {
+  content: '···';
+  letter-spacing: 6px;
+  display: inline-block;
+  margin-left: 6px;
+  animation: er-dot-breathe 1.2s ease-in-out infinite;
+}
+@keyframes er-dot-breathe { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+.list-empty-refresh:active { transform: scale(0.96); }
+.list-empty-refresh:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }

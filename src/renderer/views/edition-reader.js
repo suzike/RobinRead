@@ -2763,6 +2763,13 @@ export class EditionReader {
       const tick = e.target.closest('.er-tick');
       if (tick) this._go(Number(tick.dataset.index));
     });
+    // R44：滑轨键盘翻页——刻度按钮聚焦时 ←/→ 翻页（与全局遥控导航同语义）
+    rail.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this._go(this.index + (e.key === 'ArrowRight' ? 1 : -1));
+      }
+    });
     rail.addEventListener('pointerdown', (e) => this._railDown(e));
     rail.addEventListener('pointerenter', () => this._railHover(true));
     rail.addEventListener('pointerleave', () => { if (!this.scrub) this._railHover(false); });
@@ -2805,7 +2812,7 @@ export class EditionReader {
       const sep = prevTpl && isLead && prevTpl !== page.template ? '<i class="er-tick-sep" title=""></i>' : '';
       if (page) prevTpl = page.template;
       return `${sep}<button class="er-tick${pageIndex === cur ? ' on' : ''}" data-index="${pageIndex}" data-slot="${slot}"
-        aria-label="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}"></button>`;
+        aria-label="${escapeHTML(t('页面'))} ${pageIndex + 1} / ${this.pages.length}" title="${pageIndex + 1} / ${this.pages.length}"></button>`;
     }).join('');
     // 阅读进度与剩余时间预估（R4）
     const count = rail.querySelector('.er-count');
