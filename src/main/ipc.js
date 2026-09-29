@@ -876,12 +876,12 @@ function registerIPCHandlers(store, window) {
       const landscape = ratio < 1;
       const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
       const boxH = Math.round(stageW * ratio);
-      // pass1：自然内容高（竖版=流式卡高/zoom；横版=满宽重排后卡高/(stageW/CARD_WIDTH)）
+      // pass1：自然内容高（横版=满宽重排渲染高 ÷ (满宽比 × 页 zoom)；竖版=流式卡高/zoom）
       let page = renderStagePage(data, options, { zoom, ratio });
       await load(page);
       const natRect = await probe();
       const natH = landscape
-        ? Math.round(natRect.h / (stageW / CARD_WIDTH))
+        ? Math.round(natRect.h / ((stageW / CARD_WIDTH) * zoom))
         : Math.round(natRect.h / zoom);
       let fill = null;
       let finalZoom;
@@ -899,7 +899,7 @@ function registerIPCHandlers(store, window) {
         fill = { scale: s };
       } else if (natH > boxH * 1.02) {
         // 内容超出 → 锁高双栏密排分级密度（d1 间距/行距/头图收紧 → d2 再收字号/段距/头图）
-        // + 溢出探针量真实终端；仍超 → 整卡等比 contain（内容完整优先，字适度变小）
+        // 仍超 → 多栏铺满（直排模板：内容按画幅高切栏，字号保持）；4 栏仍超 → 整卡等比 contain 兜底
         const measureCompact = async (density) => {
           page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true, density } });
           await load(page);
@@ -909,12 +909,65 @@ function registerIPCHandlers(store, window) {
         const H1 = await measureCompact(1);
         if (H1 > boxH + 2) {
           const H2 = await measureCompact(2);
-          if (H2 > boxH + 2) finalZoom = boxH / H2;
-          fill = { compact: true, density: 2 };
+          if (H2 > boxH + 2) {
+            const est = Math.min(4, Math.max(2, Math.ceil(H2 / boxH)));
+            const Hmax = Math.round(boxH * 0.42);
+            // 双杠杆 ladder（heroH 大杠杆 → 字号/间距 Z）：
+            // 每档用 auto+balance 渲染测「每栏均衡高 colH」，选 colH≈画幅高（填满）的档，再锁高正式渲染
+            const ladder = [
+              { boost: 1, heroH: 170 },
+              { boost: 1, heroH: Math.round(Hmax * 0.6) },
+              { boost: 1, heroH: Hmax },
+              { boost: 1.18, heroH: Hmax },
+              { boost: 1.32, heroH: Hmax },
+            ];
+            let colOk = false;
+            let chosen = null;
+            let colH = Infinity;
+            for (const step of ladder) {
+              page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true, density: 2, cols: est, ...step, auto: true } });
+              await load(page);
+              const m = await probe();
+              colH = m.sh || 0; // balance 模式下容器高 = 每栏均衡高
+              chosen = { ...step };
+              if (colH <= boxH * 1.03) break; // 该档已能装下
+            }
+            if (colH <= boxH * 1.03) {
+              fill = { compact: true, density: 2, cols: est, boost: chosen.boost, heroH: chosen.heroH };
+              colOk = true;
+            }
+            if (!colOk) {
+              // 超载回落：横版自然高长图（宽度铺满画幅宽、双栏完整、字号正常）——放弃画幅高约束，不再整卡缩小
+              // 高度超 GPU 安全上限（~10000 DIP）时自动降清晰度重渲，保内容完整
+              page = renderStagePage(data, options, { zoom, ratio });
+              // 横版原生双栏补 balance（无定高下 auto 会全进栏 1）：与预览双栏长图一致
+              page = { ...page, html: page.html.replace('</style></head>', '.xc-card.landscape .xc-inner{column-fill:balance !important;}</style></head>') };
+              await load(page);
+              let rect = await probe();
+              let z = zoom;
+              while ((rect.h || 0) > 10000 && z > 1) {
+                z = Math.max(1, z - 0.5);
+                let p2 = renderStagePage(data, options, { zoom: z, ratio });
+                p2 = { ...p2, html: p2.html.replace('</style></head>', '.xc-card.landscape .xc-inner{column-fill:balance !important;}</style></head>') };
+                page = p2;
+                await load(page);
+                rect = await probe();
+              }
+              const height = Math.min(Math.max(rect.h || boxH, boxH), 16000);
+              win.setContentSize(page.width, height);
+              win.setBackgroundColor(page.bg);
+              await new Promise((r) => setTimeout(r, 140));
+              const image = await win.webContents.capturePage();
+              const png = format === 'jpeg' ? image.toJPEG(92) : image.toPNG();
+              if (png.length < 1000) throw new Error('长图渲染结果为空');
+              return { base64: png.toString('base64'), width: page.width, height, truncated: height >= 16000, format: format === 'jpeg' ? 'jpeg' : 'png', longImage: true };
+            }
+          }
+          if (!fill || !fill.cols) fill = { compact: true, density: 2 };
         } else { fill = { compact: true, density: 1 }; }
       }
-      // 最终渲染：auto 布局（全内容参与布局，永不锁高裁切）+ 单次缩放进画幅
-      const finalFill = (fill && fill.compact) ? { ...fill, auto: true } : fill;
+      // 最终渲染：auto 布局（全内容参与布局，永不锁高裁切）+ 单次缩放进画幅；多栏时锁高（分栏需定高）
+      const finalFill = (fill && fill.compact) ? { ...fill, auto: !fill.cols } : fill;
       page = renderStagePage(data, options, { zoom, ratio, fill: finalFill, finalZoom });
       await load(page);
       const W = page.width, H = page.height;

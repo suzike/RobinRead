@@ -84,6 +84,19 @@ app.whenReady().then(async () => {
         const r2 = unwrap(await window.robin.renderCardPng({ templateId: 'min', data, options: { templateId: 'min', qr: null }, zoom: 2, ratio: 4 / 3 }), 'render2 fail');
         out.r2 = { w: r2.width, h: r2.height, len: r2.base64.length };
         log('r2 ok ' + JSON.stringify(out.r2));
+        // 超载 16:9：长文走多栏铺满（cols≥2、无整卡缩放），而非 contain 缩小
+        const LONG = Array.from({ length: 14 }, (_, i) => '第' + (i + 1) + '段：纸感阅读的关键不在于仿旧，而在于把注意力还给文字本身。版心、行距、页边与留白共同构成节奏，让长文在屏幕上也保有翻阅的呼吸感，安静是最重要的排版变量，中英混排 Mixed English 与数字 2026 亦不例外，本段用于超载多栏铺满验证。').join('\\n\\n');
+        const longData = { ...data, title: '超载长文的 16:9 多栏铺满', lead: LONG, content: LONG, sections: LONG };
+        const r3 = unwrap(await window.robin.renderCardPng({ templateId: 'paper', data: longData, options: { templateId: 'paper', qr: null }, zoom: 3, ratio: 9 / 16 }), 'render3 fail');
+        out.r3 = { w: r3.width, h: r3.height, len: r3.base64.length };
+        log('r3 ok ' + JSON.stringify(out.r3));
+        // 多栏注入断言（fill.cols → column-count + 无整卡缩小）
+        const tpl = await import('./card-export/templates.js');
+        const fitted = tpl.renderCardFitted(longData, { templateId: 'paper' }, { ratio: 9 / 16, fill: { compact: true, density: 2, cols: 3 } });
+        out.colsCss = (fitted.css.match(/column-count:3/g) || []).length;
+        const pg = tpl.renderStagePage(longData, { templateId: 'paper' }, { zoom: 3, ratio: 9 / 16, fill: { compact: true, density: 2, cols: 3 }, finalZoom: 1 });
+        out.colsInPage = (pg.html.match(/column-count:3/g) || []).length > 0;
+        out.noShrink = !/zoom:0\.\d+ !important/.test(pg.html);
 
         log('import preview.js');
         const mod = await import('./card-export/preview.js');
@@ -112,6 +125,9 @@ app.whenReady().then(async () => {
     ok(!result.error, 'E2E 页面脚本无异常', result.error || '');
     ok(result.r1 && result.r1.w >= 1500 && result.r1.len > 30000, 'IPC card:renderPng 自适应档', JSON.stringify(result.r1 || {}));
     ok(result.r2 && result.r2.w === 1500 && result.r2.h === 2000, 'IPC card:renderPng 3:4 档（隐藏窗口复用 + 两遍渲染）', JSON.stringify(result.r2 || {}));
+    ok(result.r3 && result.r3.w >= 1333 && result.r3.w <= 3999 && result.r3.h >= 900 && result.r3.h <= 16000 && result.r3.len > 30000, 'IPC 超载 16:9 回落长图（宽度铺满 + 高度随内容 + 高度过限自动降清晰度，不再整卡缩小）', JSON.stringify(result.r3 || {}));
+    ok((result.colsCss || 0) >= 1, '多栏 fill 注入 column-count:3', `colsCss=${result.colsCss}`);
+    ok(result.colsInPage && result.noShrink, '导出页多栏铺满且无整卡缩小', `inPage=${result.colsInPage} noShrink=${result.noShrink}`);
     ok(result.save === true, 'IPC app:writeBinaryFile');
     ok(result.copy === true, 'IPC app:copyImage');
     ok(result.modalOpen === true, 'preview.js 弹窗打开');

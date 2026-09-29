@@ -1706,7 +1706,9 @@ export function renderCardFitted(data, options = {}, fit = {}) {
   const landscape = ratio < 1;
   const stageW = landscape ? Math.round(CARD_WIDTH / ratio) : CARD_WIDTH;
   const boxH = Math.round(stageW * ratio);
-  const cardOpts = landscape ? { ...options, orientation: 'landscape', slimLevel: fit.slimLevel ?? (ratio < 0.7 ? 3 : 2) } : options;
+  // 多栏铺满场景：全量内容参与（容量由栏数兜），禁用横版 slim 截断（R21 修复：sections 被 slim 砍光致大片留白）
+  const slimOverride = (fit.fill && fit.fill.cols >= 2) ? 0 : undefined;
+  const cardOpts = landscape ? { ...options, orientation: 'landscape', slimLevel: fit.slimLevel ?? slimOverride ?? (ratio < 0.7 ? 3 : 2) } : options;
   const card = renderCard(data, cardOpts);
   const landCss = landscape ? LAND_CSS(stageW) : '';
   let inner = card.html;
@@ -1749,6 +1751,25 @@ export function renderCardFitted(data, options = {}, fit = {}) {
     // 溢出探针：内容流末端（footer 后），multicol/锁高的真实终端判定用
     if (/<\/footer>/i.test(inner)) inner = inner.replace(/<\/footer>/i, '</footer><div class="xc-overflow-probe" style="position:relative;height:0;"></div>');
     else inner += '<div class="xc-overflow-probe" style="position:relative;height:0;"></div>';
+    // 多栏铺满（画幅硬约束下优先保字号：内容按画幅高切栏，而非整卡缩字）
+    // 双杠杆填满画幅：heroH（头图高度，最大杠杆）+ Z（字号/行距/间距 1.0–1.32），由导出/预览 ladder 收敛下发
+    // auto=true → 不锁高、column-fill:balance（供 ladder 测「每栏均衡高」选档）；auto=false → 锁高 + 顺序填充（最终导出/预览）
+    if (fit.fill.cols >= 2) {
+      const Z = Math.min(1.32, Math.max(1, fit.fill.boost || 1));
+      const heroH = Math.round(Math.min(boxH * 0.42, Math.max(170, fit.fill.heroH || 170)));
+      const fz = (v) => (v * Z).toFixed(1);
+      const lockH = fit.fill.auto ? '' : `height:${boxH}px !important;`;
+      const fillMode = fit.fill.auto ? 'balance' : 'auto';
+      fitCss += `
+        .xc-card{display:block !important;${lockH}box-sizing:border-box;padding:22px 38px 0;column-gap:34px;column-fill:${fillMode};overflow:hidden;}
+        .xc-card:not(:has(> .xc-inner)){column-count:${fit.fill.cols};}
+        .xc-card:has(> .xc-inner) .xc-inner{columns:${fit.fill.cols} !important;column-gap:34px;column-fill:${fillMode};display:block !important;}
+        .xc-card > .xc-hero, .xc-card > .xc-cover, .xc-card > .xc-title, .xc-card > .xc-meta { column-span: all; }
+        .xc-card .xc-sec{break-inside:auto !important;}
+        .xc-fill-spacer{display:none !important;}
+      `;
+      inner = inner.replace(/<div class="xc-fill-spacer"><\/div>/, '');
+    }
   }
   return { html: inner, css: `${card.css}${landCss}${fitCss}`, bg: card.bg, boxW: stageW, boxH };
 }
@@ -1766,6 +1787,22 @@ export function renderStagePage(data, options = {}, fit = {}) {
   if (!ratio) return renderFullPage(data, options, zoom);
   const landscape = ratio < 1;
 
+  // 超载长图模式（画幅高约束放齐）：宽度铺满画幅宽、多栏切分、高度取内容均衡高——保字号保完整
+  if (fit.longImage && fit.fill && fit.fill.cols >= 2) {
+    const f = renderCardFitted(data, options, fit);
+    return {
+      html: `<!doctype html><html><head><meta charset="utf-8"><style>
+        html,body{margin:0;padding:0;background:${f.bg}}
+        .xc-export{zoom:${zoom};${vstyle}}
+        .xc-stage{width:${f.boxW}px;overflow:hidden;background:${f.bg}}
+        .xc-stage > .xc-card{width:${f.boxW}px;flex:none;zoom:1 !important}
+      </style><style>${f.css}</style></head><body><div class="xc-export"><div class="xc-stage">${f.html}</div></div></body></html>`,
+      bg: f.bg,
+      width: Math.round(f.boxW * zoom),
+      height: null,
+    };
+  }
+
   // 自然测量页（第一遍）：拿真实内容高度
   if (!fit.fill && fit.naturalHeight == null) {
     const slimLevel = landscape ? (ratio < 0.7 ? 3 : 2) : options.slimLevel;
@@ -1778,7 +1815,7 @@ export function renderStagePage(data, options = {}, fit = {}) {
       const html = `<!doctype html><html><head><meta charset="utf-8"><style>
         html,body{margin:0;padding:0;background:${card.bg}}
         .xc-stage{width:${stageW}px}
-        .xc-stage > .xc-card{zoom:${fill}}
+        .xc-stage > .xc-card{zoom:${fill * zoom} !important}
       </style><style>${card.css}</style></head><body><div class="xc-stage">${card.html}</div></body></html>`;
       return { html, bg: card.bg, width: w, height: null };
     }

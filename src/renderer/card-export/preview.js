@@ -338,15 +338,65 @@ export async function openCardExportModal({ data, link = '' }) {
         };
         requestAnimationFrame(refine);
       } else if (natH > nat.boxH * 1.02) {
-        // 内容超出 → 紧凑注入；真实内容高用 auto 布局测量（multicol/锁高均不可靠）→ contain 缩放进画幅
+        // 内容超出 → 紧凑注入；真实内容高用 auto 布局测量（multicol/锁高均不可靠）→ 多栏铺满 / contain 缩放进画幅
         const fa = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, auto: true } });
         const H2 = measure(fa.html, fa.css);
-        const finalZoom = H2 > nat.boxH ? nat.boxH / H2 : 1;
-        paint(renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true } }), finalZoom);
+        // 多栏铺满 + 双杠杆 ladder（hero 高度 → 字号/间距）：
+        // 每档 auto+balance 测「每栏均衡高 colH」，选 colH≈画幅高（填满）的档，再锁高正式渲染；仍超回退 contain
+        const cols = Math.min(4, Math.max(2, Math.ceil(H2 / nat.boxH)));
+        const Hmax = Math.round(nat.boxH * 0.42);
+        const ladder = [
+          { boost: 1, heroH: 170 },
+          { boost: 1, heroH: Math.round(Hmax * 0.6) },
+          { boost: 1, heroH: Hmax },
+          { boost: 1.18, heroH: Hmax },
+          { boost: 1.32, heroH: Hmax },
+        ];
+        let chosen = null;
+        let colH = Infinity;
+        for (const step of ladder) {
+          const fTry = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, density: 2, cols, ...step, auto: true } });
+          colH = measure(fTry.html, fTry.css + '.xc-card{column-fill:balance !important;}'); // balance 后容器高 = 每栏均衡高
+          chosen = { ...step };
+          if (colH <= nat.boxH * 1.03) break;
+        }
+        if (colH <= nat.boxH * 1.03) {
+          const f3 = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, density: 2, cols, ...chosen } });
+          paintCols(f3, cols);
+        } else {
+          // 超载回落：横版自然高长图（宽度铺满画幅宽、单栏完整、字号正常）——放弃画幅高约束，不再整卡缩小
+          const p2 = host.clientWidth ? host.clientWidth / nat.boxW : 0.4;
+          const grow = nat.boxW / CARD_WIDTH; // 横版卡由基宽放大到画幅宽
+          const showH = Math.round(natH * grow);
+          shadow.innerHTML = `<style>${nat.css}
+            .cardx-scale { zoom: ${p2}; }
+            .cardx-stage { width:${nat.boxW}px; overflow:hidden; background:${nat.bg}; border-radius: 8px; }
+            .cardx-stage > .xc-card { width:${nat.boxW}px; zoom:${grow} !important; transform:none !important; }
+            </style>
+            <div class="cardx-scale"><div class="cardx-stage">${nat.html}</div></div>`;
+          capEl.classList.add('cardx-editable-hint');
+          capEl.textContent = `${t('导出尺寸')} ${nat.boxW * state.zoom}×${Math.round(showH * state.zoom)}px · ${t('超载回落长图')}`;
+        }
       } else {
         paint(nat);
       }
     });
+  }
+
+  /** 多栏铺满预览：超载长文按画幅高切栏，字号保持不缩。 */
+  function paintCols(fitted, cols) {
+    const p = host.clientWidth ? host.clientWidth / fitted.boxW : 0.4;
+    const vf = variantFilter(state.variant);
+    shadow.innerHTML = `<style>${fitted.css}
+      .cardx-scale { zoom: ${p}; }
+      .cardx-stage { width:${fitted.boxW}px; height:${fitted.boxH}px; overflow:hidden; background:${fitted.bg}; ${vf !== 'none' ? `filter:${vf}` : ''} border-radius: 8px; }
+      .cardx-stage > .xc-card { width:${fitted.boxW}px; height:${fitted.boxH}px; box-sizing:border-box; padding:22px 38px 0; column-count:${cols}; column-gap:34px; column-fill:auto; overflow:hidden; display:block !important; transform:none !important; }
+      .cardx-stage > .xc-card > .xc-inner { display:block !important; }
+      .cardx-stage > .xc-card > .xc-hero, .cardx-stage > .xc-card > .xc-cover, .cardx-stage > .xc-card > .xc-title, .cardx-stage > .xc-card > .xc-meta { column-span: all; }
+      </style>
+      <div class="cardx-scale"><div class="cardx-stage">${fitted.html}</div></div>`;
+    capEl.classList.add('cardx-editable-hint');
+    capEl.textContent = `${t('导出尺寸')} ${fitted.boxW * state.zoom}×${fitted.boxH * state.zoom}px · ${t('多栏铺满')}`;
   }
 
   function renderSidebar() {
