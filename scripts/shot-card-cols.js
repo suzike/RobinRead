@@ -29,20 +29,29 @@ app.whenReady().then(async () => {
     await win.loadFile(path.join(__dirname, '..', 'src', 'renderer', 'index.html'));
     await sleep(800);
     const info = await win.webContents.executeJavaScript(`(async () => {
-      const mod = await import('./card-export/preview.js');
-      const PARA = '段落内容用于超载多栏铺满验证：纸感阅读的关键不在于仿旧，而在于把注意力还给文字本身。版心、行距、页边与留白共同构成节奏，让长文在屏幕上也保有翻阅的呼吸感，安静是最重要的排版变量，中英混排 Mixed English 与数字 2026 亦不例外。';
       const data = {
-        kind: 'summary', title: '超载长文的 16:9 多栏铺满：让内容匹配画幅，而不是缩小内容',
-        lead: '当一篇长文遇上 16:9 横幅画幅，正确的做法不是把整张卡片缩小到字迹难辨，而是像杂志那样把内容切分为多栏铺满版面。',
+        kind: 'summary', title: '超载长文的 16:9 回落长图：内容完整可读，而不是缩小内容',
+        lead: '当一篇长文遇上 16:9 横幅画幅而装不下时，正确的做法是回落为自然高度长图：宽度保持、高度随内容、字号正常、一段不少。',
         feedTitle: '潮流周刊', date: '2026 年 9 月 29 日',
-        prose: Array.from({ length: 14 }, (_, i) => '第' + (i + 1) + '段：' + PARA + '本段为第 ' + (i + 1) + ' 段的补充正文，用于把内容总量推到单栏容量之上，验证超载回落长图的真实效果。'),
-        points: ['画幅是硬约束：输出宽度精确等于所选比例', '字号优先：回落长图保住可读性，而不是整卡缩小', '头图通栏：题图保持全宽', '内容完整：十四段正文一段不少'],
+        prose: Array.from({ length: 14 }, (_, i) => '第' + (i + 1) + '段：纸感阅读的关键不在于仿旧，而在于把注意力还给文字本身。版心、行距、页边与留白共同构成节奏，让长文在屏幕上也保有翻阅的呼吸感，安静是最重要的排版变量，中英混排 Mixed English 与数字 2026 亦不例外。本段为第 ' + (i + 1) + ' 段的补充正文，用于验证超载回落长图的完整呈现。'),
+        points: [
+          { t: '画幅装不下时回落长图', d: '内容完整优先：宽度保持、高度随内容，绝不整卡缩小到字迹难辨。' },
+          { t: '字号正常', d: '回落长图保住可读性，正文一段不少。' },
+          { t: '头图通栏', d: '题图保持全宽，正文按自然流排布。' },
+          { t: '极限回退', d: '四栏仍装不下的超长文才走回落长图通道。' },
+        ],
       };
+      const mod = await import('./card-export/preview.js');
       await mod.openCardExportModal({ data, link: 'https://example.com/post/1' });
       await new Promise(r => setTimeout(r, 700));
       const btns = [...document.querySelectorAll('.cardx-ratio button, .cardx-ratio .chip, [class*=ratio] button')];
       const b169 = btns.find((b) => b.textContent.trim() === '16:9');
       if (b169) b169.click();
+      await new Promise(r => setTimeout(r, 400));
+      // 统一切 3x 清晰度（与导出证据图同档）
+      const zBtns = [...document.querySelectorAll('button')].filter((b) => /^2x$|^3x$/.test(b.textContent.trim()));
+      const z3 = zBtns.find((b) => b.textContent.trim() === '3x');
+      if (z3) z3.click();
       await new Promise(r => setTimeout(r, 2600));
       const host = document.querySelector('.cardx-host');
       const cap = document.querySelector('.cardx-cap, [class*=cap]');

@@ -364,18 +364,17 @@ export async function openCardExportModal({ data, link = '' }) {
           const f3 = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, density: 2, cols, ...chosen } });
           paintCols(f3, cols);
         } else {
-          // 超载回落：横版自然高长图（宽度铺满画幅宽、单栏完整、字号正常）——放弃画幅高约束，不再整卡缩小
-          const p2 = host.clientWidth ? host.clientWidth / nat.boxW : 0.4;
-          const grow = nat.boxW / CARD_WIDTH; // 横版卡由基宽放大到画幅宽
-          const showH = Math.round(natH * grow);
-          shadow.innerHTML = `<style>${nat.css}
+          // 超载回落：自然高度长图（竖版流式、宽 750×zoom、内容完整字号正常）——同导出 ratio:null 通道
+          const natV = renderCardFitted(data, cardOptions(), {});
+          const p2 = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.4;
+          shadow.innerHTML = `<style>${natV.css}
             .cardx-scale { zoom: ${p2}; }
-            .cardx-stage { width:${nat.boxW}px; overflow:hidden; background:${nat.bg}; border-radius: 8px; }
-            .cardx-stage > .xc-card { width:${nat.boxW}px; zoom:${grow} !important; transform:none !important; }
+            .cardx-stage { width:${CARD_WIDTH}px; overflow:hidden; background:${natV.bg}; border-radius: 8px; }
             </style>
-            <div class="cardx-scale"><div class="cardx-stage">${nat.html}</div></div>`;
+            <div class="cardx-scale"><div class="cardx-stage">${natV.html}</div></div>`;
+          host.scrollTop = 0; // 回落长图重渲后回到顶部
           capEl.classList.add('cardx-editable-hint');
-          capEl.textContent = `${t('导出尺寸')} ${nat.boxW * state.zoom}×${Math.round(showH * state.zoom)}px · ${t('超载回落长图')}`;
+          capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${t('自然高度')}px · ${t('超载回落长图')}`;
         }
       } else {
         paint(nat);

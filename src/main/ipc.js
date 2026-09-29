@@ -937,30 +937,9 @@ function registerIPCHandlers(store, window) {
               colOk = true;
             }
             if (!colOk) {
-              // 超载回落：横版自然高长图（宽度铺满画幅宽、双栏完整、字号正常）——放弃画幅高约束，不再整卡缩小
-              // 高度超 GPU 安全上限（~10000 DIP）时自动降清晰度重渲，保内容完整
-              page = renderStagePage(data, options, { zoom, ratio });
-              // 横版原生双栏补 balance（无定高下 auto 会全进栏 1）：与预览双栏长图一致
-              page = { ...page, html: page.html.replace('</style></head>', '.xc-card.landscape .xc-inner{column-fill:balance !important;}</style></head>') };
-              await load(page);
-              let rect = await probe();
-              let z = zoom;
-              while ((rect.h || 0) > 10000 && z > 1) {
-                z = Math.max(1, z - 0.5);
-                let p2 = renderStagePage(data, options, { zoom: z, ratio });
-                p2 = { ...p2, html: p2.html.replace('</style></head>', '.xc-card.landscape .xc-inner{column-fill:balance !important;}</style></head>') };
-                page = p2;
-                await load(page);
-                rect = await probe();
-              }
-              const height = Math.min(Math.max(rect.h || boxH, boxH), 16000);
-              win.setContentSize(page.width, height);
-              win.setBackgroundColor(page.bg);
-              await new Promise((r) => setTimeout(r, 140));
-              const image = await win.webContents.capturePage();
-              const png = format === 'jpeg' ? image.toJPEG(92) : image.toPNG();
-              if (png.length < 1000) throw new Error('长图渲染结果为空');
-              return { base64: png.toString('base64'), width: page.width, height, truncated: height >= 16000, format: format === 'jpeg' ? 'jpeg' : 'png', longImage: true };
+              // 超载回落（画幅高约束放齐）：走自然高度长图通道（竖版流式、宽 750×zoom、内容完整字号正常）
+              // ——横版多栏/lock 高链路的测量不可靠性不再参与，直接复用已验证的非画幅管线
+              return renderCardPngOnce({ templateId, data, options, zoom, ratio: null, format });
             }
           }
           if (!fill || !fill.cols) fill = { compact: true, density: 2 };
