@@ -35,6 +35,7 @@ export const icons = {
   personX: i('<circle cx="7" cy="5.4" r="2.6"/><path d="M1.8 13.6c.7-2.5 2.8-3.8 5.2-3.8"/><path d="M11 9.8l3.6 3.6M14.6 9.8L11 13.4"/>'),
   ai: i('<path d="M8 1.4l1.5 3.1 3.4.5-2.5 2.4.6 3.4L8 9.2l-3 1.6.6-3.4L3.1 5l3.4-.5L8 1.4z"/><path d="M5.6 13.6h4.8"/>'),
   chevronRight: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+  chevronLeft: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`,
   chevronDown: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
   translate: i('<path d="M2 3.4h6M4.8 2v1.4c0 2.8-1.2 5.3-3 6.9"/><path d="M3 6.6c1.3 2.1 3.2 3.4 5.4 3.9"/><path d="M9 14l2.9-7.6L14.8 14M10 11.4h3.9"/>', '0 0 16 16', 14, 14),
   spark: i('<path d="M8 1.8l1.4 3 3 1.4-3 1.4L8 10.6 6.6 7.6l-3-1.4 3-1.4L8 1.8z"/><path d="M12.2 10.2l.7 1.4 1.4.7-1.4.7-.7 1.4-.7-1.4-1.4-.7 1.4-.7.7-1.4z"/>', '0 0 16 16', 14, 14),

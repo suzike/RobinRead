@@ -835,8 +835,8 @@ body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: o
 
 /* ── 命令面板（方向 22）── */
 .cmd-palette-overlay {
-  position: fixed; inset: 0; z-index: 400;
-  background: rgba(20, 17, 12, 0.35);
+  position: fixed; inset: 0; z-index: 920; /* 高于期刊 overlay(900)，期刊打开时命令面板可用（R20） */
+  background: rgba(20, 17, 12, 0.55);
   display: flex; justify-content: center; align-items: flex-start;
   padding-top: 12vh;
 }
@@ -4729,6 +4729,11 @@ body.dark .list-scroll.nj-mag-kraft { --accent: #9AA87C; }
 .er-article li { margin-bottom: 0.35em; }
 .er-article hr { border: none; border-top: 0.5px solid rgba(139, 133, 116, 0.4); margin: 1.6em 30%; }
 .er-article-img { border-radius: var(--radius-sm); overflow: hidden; background: rgba(139, 133, 116, 0.08); margin-bottom: 1.1em; }
+/* 段落聚焦（R19）：非聚焦段落降透明 */
+.er-overlay.er-focus .er-article > * { opacity: 0.2; transition: opacity 0.25s var(--ease-out); }
+.er-overlay.er-focus .er-article > .er-blk-focus { opacity: 1; }
+.er-overlay.er-focus .er-canvas { cursor: ns-resize; }
+.er-blk-focus { transition: opacity 0.25s var(--ease-out); }
 .er-article-img img { width: 100%; height: 100%; object-fit: cover; }
 .er-article-head { margin-bottom: 18px; }
 .er-article-kicker { font-family: var(--font-sans); font-size: 11.5px; letter-spacing: 0.18em; color: var(--accent, #617357); margin-bottom: 10px; }

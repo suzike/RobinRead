@@ -1411,6 +1411,12 @@ export class EditionReader {
     canvas.style.height = `${page.height}px`;
     // 正文图片灯箱：点击放大（Esc/点击关闭）
     canvas.addEventListener('click', (ev) => {
+      if (this.focusMode) {
+        const blocks = this._focusBlocks();
+        const target = ev.target.closest('.er-article > *');
+        const idx = blocks.indexOf(target);
+        if (idx >= 0) { ev.stopPropagation(); this._focusIdx = idx; this._applyFocus(); return; }
+      }
       const img = ev.target.closest('img');
       if (img && img.src && img.closest('.er-article')) { ev.stopPropagation(); this._openLightbox(img.src); }
     });
@@ -1848,6 +1854,23 @@ export class EditionReader {
     this._selRequestID = null;
   }
 
+  /** 命令面板接入（R20）：期刊打开时的专属命令（app.js buildPaletteCommands 合并）。 */
+  paletteCommands() {
+    if (!this.overlay || !this.open) return [];
+    const paperBtn = () => this.overlay.querySelector('.er-paper')?.click();
+    return [
+      { label: t('期刊：下一页'), keywords: 'page next 期刊 下一页 翻页', icon: 'chevronRight', action: () => this._go(this.index + 1) },
+      { label: t('期刊：上一页'), keywords: 'page prev 期刊 上一页', icon: 'chevronLeft', action: () => this._go(this.index - 1) },
+      { label: t('期刊：搜索本期 / 本文'), keywords: 'find search 期刊 搜索 查找', icon: 'search', action: () => this._findOpen() },
+      { label: t('期刊：排版面板（行距/页边/栏宽/首字下沉）'), keywords: 'typography aa 排版 行距 页边 栏宽 首字', icon: 'textLarger', action: () => this._toggleTypePanel(this.overlay.querySelector('.er-type')) },
+      { label: t('期刊：切换纸张质感'), keywords: 'paper 纸张 质感 牛皮 书卷', icon: 'bookOpen', action: paperBtn },
+      { label: t('期刊：段落聚焦开关'), keywords: 'focus 段落 聚焦', icon: 'eye', action: () => this._toggleFocusMode() },
+      { label: t('期刊：导出当前页图片'), keywords: 'export 导出 当前页 图片 截图', icon: 'export', action: () => this._exportPage() },
+      { label: t('期刊：沉浸全屏'), keywords: 'fullscreen 全屏 沉浸', icon: 'expand', action: () => this._toggleFullscreen() },
+      { label: t('期刊：退出'), keywords: 'exit quit 退出 期刊', icon: 'close', action: () => this.dismiss() },
+    ];
+  }
+
   // ────────────────────────────────────────────────
   // 快捷键速查面板（R14）：? 呼出，纸张卡片两列
   // ────────────────────────────────────────────────
@@ -1907,6 +1930,40 @@ export class EditionReader {
       this._notice(t('当前页图片已复制到剪贴板'));
     } catch {
       this._notice(t('导出失败：请重试'));
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // 段落聚焦（R19）：文章模式 P 切换，其余段落降透明、点击/↑↓ 换段
+  // ────────────────────────────────────────────────
+  _focusBlocks() {
+    const page = this.pages[this.index];
+    if (!page || !page.article) return [];
+    return [...(page.article.left || []), ...(page.article.right || [])].map((b) => b.el).filter(Boolean);
+  }
+  _applyFocus() {
+    const blocks = this._focusBlocks();
+    blocks.forEach((el, i) => el.classList.toggle('er-blk-focus', this.focusMode && i === this._focusIdx));
+  }
+  _focusMove(dir) {
+    const blocks = this._focusBlocks();
+    if (!blocks.length) return;
+    this._focusIdx = clamp((this._focusIdx == null ? 0 : this._focusIdx) + dir, 0, blocks.length - 1);
+    this._applyFocus();
+  }
+  _toggleFocusMode() {
+    if (!this.overlay) return;
+    if (this.mode !== 'article') { this._notice(t('段落聚焦在文章模式下使用（先点开一篇文章）')); return; }
+    this.focusMode = !this.focusMode;
+    this.overlay.classList.toggle('er-focus', this.focusMode);
+    if (this.focusMode) {
+      this._focusIdx = 0;
+      this._applyFocus();
+      this._notice(t('段落聚焦：点击段落或 ↑↓ 切换'));
+    } else {
+      this._focusIdx = null;
+      // 全局清（翻页中途关闭时旧页快照不在当前页引用里）
+      this.overlay.querySelectorAll('.er-blk-focus').forEach((el) => el.classList.remove('er-blk-focus'));
     }
   }
 
@@ -2467,6 +2524,8 @@ export class EditionReader {
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); return this._toggleFullscreen(); }
     // 快捷键速查（R14）：Shift+/ 即 ?
     if (e.key === '?' || (e.shiftKey && e.key === '/')) { e.preventDefault(); return this._toggleKeysPanel(); }
+    // 段落聚焦（R19）：P 切换，↑↓ 换段
+    if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._toggleFocusMode(); }
     // 收藏 / 稍后读（R12）：S/L 作用于选中卡（版面）或当前文章
     if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._quickToggle('star'); }
     if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); return this._quickToggle('later'); }
@@ -2496,6 +2555,11 @@ export class EditionReader {
       return;
     }
     if (this.mode === 'article') {
+      // 段落聚焦模式：↑↓ 换段（R19）
+      if (this.focusMode) {
+        if (e.key === 'ArrowUp') { e.preventDefault(); return this._focusMove(-1); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); return this._focusMove(1); }
+      }
       if (e.key === 'PageUp' || e.key === 'ArrowLeft') { e.preventDefault(); return this._go(this.index - 1); }
       if (e.key === 'PageDown' || e.key === 'ArrowRight') { e.preventDefault(); return this._go(this.index + 1); }
       return;
@@ -2667,6 +2731,7 @@ export class EditionReader {
       count.hidden = true;
     }
     this._syncToc(); // 目录面板开着时，翻页同步当前节高亮（R8）
+    if (this.focusMode) this._applyFocus(); // 段落聚焦：翻页后对新页重聚焦（R19）
   }
   /** 本期总阅读分钟（readMinutes 优先，无则按标题+摘要字数估算），缓存一次。 */
   _remainMinutes(progress) {

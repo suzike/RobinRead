@@ -642,6 +642,9 @@ function buildPaletteCommands() {
     }
     if (added >= 40) break;
   }
+  // 期刊打开时：合并期刊专属命令（R20）
+  const editionCommands = document.querySelector('.er-overlay')?.__editionReader?.paletteCommands?.();
+  if (Array.isArray(editionCommands) && editionCommands.length) commands.push(...editionCommands);
   return commands;
 }
 
