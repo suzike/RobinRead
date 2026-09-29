@@ -137,10 +137,16 @@ export class CommandPalette {
 
   _move(delta) {
     if (!this.filtered.length) return;
-    this.activeIndex = (this.activeIndex + delta + this.filtered.length) % this.filtered.length;
-    this._render();
-    const active = this.listHost.querySelector('.cmd-item.active');
-    active?.scrollIntoView({ block: 'nearest' });
+    const next = (this.activeIndex + delta + this.filtered.length) % this.filtered.length;
+    if (next === this.activeIndex) return;
+    // R32 零重建：方向键只翻 active 类，不再整表 innerHTML 重建（千次导航零 DOM churn）
+    const items = this.listHost.querySelectorAll('.cmd-item');
+    const el = items[next];
+    if (!el) { this.activeIndex = next; this._render(); return; }
+    items[this.activeIndex]?.classList.remove('active');
+    el.classList.add('active');
+    this.activeIndex = next;
+    el.scrollIntoView({ block: 'nearest' });
   }
 
   _run(cmd) {
