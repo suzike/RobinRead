@@ -103,6 +103,19 @@ app.whenReady().then(async () => {
       return true;
     `);
     log(`palette open=${palOk}`);
+    const pillDiag = await run(`
+      const s = document.querySelector('.list-search');
+      if (!s) return { none: true };
+      const cs = getComputedStyle(s);
+      const r = s.getBoundingClientRect();
+      const inset = document.querySelector('.list-top-inset');
+      const ir = inset ? inset.getBoundingClientRect() : null;
+      return { marginRight: cs.marginRight, right: Math.round(r.right), width: Math.round(r.width),
+        insetRight: ir ? Math.round(ir.right) : null, insetPadR: inset ? getComputedStyle(inset).paddingRight : null,
+        parentClass: s.parentElement.className, parentOverflow: s.parentElement ? getComputedStyle(s.parentElement).overflow : null,
+        scrollW: s.parentElement ? s.parentElement.scrollWidth : 0, clientW: s.parentElement ? s.parentElement.clientWidth : 0 };
+    `);
+    log(`pill diag: ${JSON.stringify(pillDiag)}`);
     win.webContents.invalidate();
     await sleep(700);
     await shot('2-command-palette.png');

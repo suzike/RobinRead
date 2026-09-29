@@ -442,6 +442,12 @@ export class ListView {
     } else {
       card.classList.add('no-image');
     }
+    if (!item.isRead) {
+      const dot = document.createElement('span');
+      dot.className = 'nj-edition-cover-dot';
+      dot.title = t('未读');
+      card.appendChild(dot);
+    }
     card.appendChild(caption);
     card.addEventListener('click', () => open(item));
     card.addEventListener('keydown', (event) => {
