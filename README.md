@@ -298,3 +298,4 @@ website/                    # 官网源码（CloudBase 静态托管）
 <div align="center">
   <sub><a href="https://ronbinread-d9gmsqi2vc0a18f04-1401273698.tcloudbaseapp.com/">ronbinread · tcloudbaseapp.com</a> — 双语流转，克制智能化</sub>
 </div>
+- **[v2.12.43 — 期刊重排缓存+装箱修正（R34）](https://github.com/suzike/RobinRead/releases/tag/v2.12.43)**（2026-09-29）：五轮前端精修×性能增强收官——**重排缓存**：文章装箱结果按排版参数指纹缓存（LRU 12 篇），来回翻页/面板调整/窗口缩放不再重复测量装箱，二次打开瞬时复用；**装箱正确性修复**：块测量漏算节标题 1.8em 外边距导致标题密集文累积溢出叶底裁行——改 margin 折叠建模（前块下边距×后块上边距取大），叶内容零溢出+内容守恒断言固化进探针；测量前等待字体就绪（衬线异步加载不再污染行高）；翻页中折页面 will-change 合成层提升。探针 39 项全绿，实机图挑剔官三轮打回收敛后 PASS
