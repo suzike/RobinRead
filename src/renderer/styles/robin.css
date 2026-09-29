@@ -5095,3 +5095,13 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 @media (prefers-reduced-motion: reduce) {
   .cmd-palette-overlay, .cmd-palette { animation: none; }
 }
+
+/* ===== R33 新到文章高亮：到达一次性淡出底色（reduceMotion 关闭）===== */
+@keyframes row-new-fade {
+  0% { background: color-mix(in srgb, var(--accent) 17%, transparent); }
+  100% { background: transparent; }
+}
+.entry-row.row-new { animation: row-new-fade 1.7s var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .entry-row.row-new { animation: none; }
+}

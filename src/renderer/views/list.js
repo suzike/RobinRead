@@ -26,6 +26,11 @@ export class ListView {
     // R23 批量多选：选中集合 + 区间锚点（视图层状态，随重渲染清空）
     this.picked = new Set();
     this.pickAnchor = -1;
+    // R33 渲染签名去重 + 新到高亮
+    this._lastSig = null;
+    this._sigBust = false;
+    this._knownIds = new Set();
+    this._markNew = false;
     // Esc 清选；Ctrl/Cmd+A 全选当前视野（R25：输入框聚焦与期刊打开时不劫持）
     this._escPick = (event) => {
       if ((event.ctrlKey || event.metaKey) && (event.key === 'a' || event.key === 'A')) {
@@ -141,18 +146,36 @@ export class ListView {
     this.sortBtn.classList.toggle('active', listSort !== 'time');
   }
 
+  /** 渲染签名（R33）：视野/选中/未读徽/视图形态 + 逐条 id 与三态，任何实质变化都换签名。 */
+  _renderSig(items, scope, selectedID, hasUnread) {
+    let h = `${scope?.kind || ''}|${scope?.id || scope?.name || ''}|${selectedID || ''}|${hasUnread ? 1 : 0}|${this.viewMode}`;
+    for (const it of items) h += `|${it.id}:${it.isRead ? 1 : 0}${it.isStarred ? 1 : 0}${it.isLater ? 1 : 0}`;
+    return h;
+  }
+
   /** 时间线形态（list 经典列表 / magazine 沉浸杂志），切换后下一次 render 生效。 */
   setViewMode(mode) {
     this.viewMode = mode === 'magazine' ? 'magazine' : 'list';
+    this._sigBust = true; // 同一签名的另一形态必须真重绘
     this.viewBtn.innerHTML = `<span>${escapeHTML(this.viewMode === 'magazine' ? t('杂志') : t('列表'))}</span>`;
     this.viewBtn.classList.toggle('active', this.viewMode === 'magazine');
   }
 
   render(items, scope, selectedID, hasUnread) {
+    // R33 渲染签名去重：app:state 推送频繁，列表无实质变化时跳过整段重建（保滚动/选中/批量态）
+    const sig = this._renderSig(items, scope, selectedID, hasUnread);
+    if (sig === this._lastSig && !this._sigBust) {
+      this.items = items;
+      return;
+    }
+    this._lastSig = sig;
+    this._sigBust = false;
     this._clearPick();
     this.items = items;
     this.scope = scope;
     this.selectedID = selectedID;
+    // R33 新到高亮：已见识过列表（非首屏）时，不在 known 集合里的行标记 row-new
+    this._markNew = this._knownIds.size > 0;
     this.topInset.querySelector('.list-top-title').textContent = this.titleForScope(scope);
     this.rowsHost.innerHTML = '';
 
@@ -176,11 +199,15 @@ export class ListView {
         empty.querySelector('p').textContent = t(hasFeeds ? '切换到其他分类，或等待下一次订阅更新。' : '添加订阅后，这里会显示文章。');
       }
       this.rowsHost.appendChild(empty);
+      this._knownIds = new Set();
+      this._markNew = false;
       return;
     }
 
     if (this.viewMode === 'magazine') {
       this._renderMagazine(items, selectedID);
+      this._knownIds = new Set(items.map((it) => it.id));
+      this._markNew = false;
       return;
     }
     // 非杂志模式：清除杂志纸张质感底色，避免纸感底泄漏进列表视图
@@ -206,6 +233,8 @@ export class ListView {
         }
       };
       appendNext();
+      this._knownIds = new Set(items.map((it) => it.id));
+      this._markNew = false;
       return;
     }
     const fragment = document.createDocumentFragment();
@@ -220,6 +249,8 @@ export class ListView {
     this.markSelected(selectedID);
     this._observeReveal();
     this._mountResumeCard();
+    this._knownIds = new Set(items.map((it) => it.id));
+    this._markNew = false;
   }
 
   titleForScope(scope) {
@@ -254,7 +285,9 @@ export class ListView {
     const cleanTitle = stripHtml(item.title) || t('未命名文章');
     const cleanSummary = stripHtml(item.summaryPreview);
     const showSummary = shouldShowSummary(cleanTitle, cleanSummary);
-    row.className = `entry-row ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''} ${showSummary ? 'has-summary' : ''}`;
+    const isNew = this._markNew && !this._knownIds.has(item.id);
+    row.className = `entry-row ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''} ${showSummary ? 'has-summary' : ''} ${isNew ? 'row-new' : ''}`;
+    if (isNew) setTimeout(() => row.classList.remove('row-new'), 1800); // 动画完摘类（隐藏窗动画事件不派发，定时器可靠）
     row.dataset.entryId = item.id;
     row.dataset.isLater = item.isLater ? '1' : '0'; // 右键菜单注入「稍后读」toggle 依据
 
@@ -513,6 +546,7 @@ export class ListView {
   appendRows(items) {
     const empty = this.rowsHost.querySelector('.list-empty');
     if (empty) empty.remove();
+    for (const item of items) this._knownIds.add(item.id); // 翻页行并入已见识（R33：不再误标新到）
     if (this.viewMode === 'magazine') {
       const grid = this.rowsHost.querySelector('.nj-mag-grid');
       if (!grid) { this._renderMagazine(items, this.selectedID); return; }
@@ -768,7 +802,7 @@ export class ListView {
 
   magCard(item) {
     const card = document.createElement('article');
-    card.className = `entry-row nj-mag-card ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''}`;
+    card.className = `entry-row nj-mag-card ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''} ${this._markNew && !this._knownIds.has(item.id) ? 'row-new' : ''}`;
     card.dataset.entryId = item.id;
     card.dataset.isLater = item.isLater ? '1' : '0';
     card.tabIndex = -1;
@@ -962,6 +996,7 @@ export class ListView {
   /** 继续阅读卡（知识增强）：「今天」视野顶部恢复上次未读完的文。 */
   setResume(candidate) {
     this.resumeCandidate = candidate;
+    this._sigBust = true; // 继续读卡依赖此数据而签名不含它（R33）
   }
 
   _mountResumeCard() {
@@ -986,6 +1021,7 @@ export class ListView {
 
   setLaterAges(ageMap) {
     this.laterAges = ageMap || {};
+    this._sigBust = true; // 行标依赖此数据而签名不含它（R33）
   }
 
   /** 稍后读行标：入队超 1 天显示「已存 N 天」，超 14 天记红。 */

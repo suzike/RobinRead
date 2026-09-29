@@ -90,13 +90,14 @@ app.whenReady().then(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await new Promise(r => setTimeout(r, 60));
       const afterEsc = { picked: pickedCount(), barGone: !bar() };
-      // 重渲染清选
+      // 重渲染清选（R33 起：同签名跳过重建会保留选择——这是收益；改用三态变化的重载验证清选）
       click(row(0), { ctrlKey: true });
       click(row(1), { ctrlKey: true });
       await new Promise(r => setTimeout(r, 60));
-      lv.render(Array.from({ length: 5 }, (_, i) => mk(i)), { kind: 'all' }, null, true);
+      const keptThroughSameSig = document.querySelectorAll('.entry-row.nj-picked').length;
+      lv.render(Array.from({ length: 5 }, (_, i) => mk(i, i === 0 ? { isRead: true } : {})), { kind: 'all' }, null, true);
       await new Promise(r => setTimeout(r, 120));
-      const afterRender = { picked: document.querySelectorAll('.entry-row.nj-picked').length, barGone: !document.querySelector('.list-batch-bar') };
+      const afterRender = { keptThroughSameSig, picked: document.querySelectorAll('.entry-row.nj-picked').length, barGone: !document.querySelector('.list-batch-bar') };
       return { afterCtrl, afterShift, afterToggle, afterToggleAll, afterRead, afterEsc, afterRender, opened };
     `);
     if (a.__err) throw new Error('batch: ' + a.__err);
@@ -107,7 +108,8 @@ app.whenReady().then(async () => {
     ok(a.afterToggleAll.picked === 0 && a.afterToggleAll.barGone, '全部反选到 0 后批量条消失');
     ok(a.afterRead.pickedBeforeRead === 3 && a.afterRead.picked === 0 && a.afterRead.barGone, '批量已读后清选收条');
     ok(a.afterEsc.picked === 0 && a.afterEsc.barGone, 'Esc 取消选择');
-    ok(a.afterRender.picked === 0 && a.afterRender.barGone, '重渲染清选');
+    ok(a.afterRender.keptThroughSameSig === 2, 'R33 同签名推送不清批量选择（保 ' + a.afterRender.keptThroughSameSig + ' 条）');
+    ok(a.afterRender.picked === 0 && a.afterRender.barGone, '实质变化重载清选收条');
     ok(ipcCalls.markMany.length === 1 && ipcCalls.markMany[0][0].length === 3 && ipcCalls.markMany[0][1] === true, 'read:markMany 参数正确（' + JSON.stringify(ipcCalls.markMany[0]) + '）');
     ok(ipcCalls.starMany.length === 1, 'read:starMany 通道命中（' + ipcCalls.starMany.length + ' 次）');
     ok(ipcCalls.laterMany.length === 1 && ipcCalls.laterMany[0][1] === true, 'read:laterMany 通道命中');
