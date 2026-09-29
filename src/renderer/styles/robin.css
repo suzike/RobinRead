@@ -4830,3 +4830,48 @@ body.dark .row-quick {
 body.dark .nj-mag-card .row-quick { background: rgba(34, 32, 28, 0.88); }
 body.dark .row-quick-btn { color: rgba(235, 231, 222, 0.66); }
 body.dark .row-quick-btn:hover { background: rgba(255, 255, 255, 0.08); color: rgba(245, 242, 234, 0.95); }
+
+/* ===== R23 批量多选：Ctrl/Shift+点击圈选 + 底部批量操作条 ===== */
+.entry-row.nj-picked {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.list-batch-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px 7px 14px;
+  border-radius: var(--radius-xl);
+  background: rgba(34, 32, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  z-index: 500;
+  animation: none;
+}
+.list-batch-count {
+  color: rgba(245, 242, 234, 0.92);
+  font-size: 12.5px;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+.list-batch-btn {
+  border: none;
+  background: transparent;
+  color: rgba(235, 231, 222, 0.78);
+  font-size: 12.5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.list-batch-btn:hover { background: rgba(255, 255, 255, 0.1); color: #f5f2ea; }
+.list-batch-btn.b-read:hover { color: #9fc48f; }
+.list-batch-btn.b-star:hover { color: #e0a380; }
+.list-batch-btn.b-later:hover { color: #a8bd9c; }
+.list-batch-btn.b-cancel { color: rgba(235, 231, 222, 0.5); }
+.list-batch-btn.b-cancel:hover { color: rgba(235, 231, 222, 0.9); }

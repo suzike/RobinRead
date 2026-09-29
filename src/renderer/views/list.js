@@ -8,7 +8,7 @@
  *                     [favicon 14 + 来源 + 账户徽标 + 星标 | 日期（今天→时间/今年→月日/更早→年月）]
  * 无限滚动：pageSize 100，末行出现时加载下一页。
  */
-import { t } from '../i18n.js';
+import { t, tf } from '../i18n.js';
 import { icon } from '../icons.js';
 import { EditionReader } from './edition-reader.js';
 import { paperPref, setPaperPref } from './paper-pref.js';
@@ -23,6 +23,11 @@ export class ListView {
     this.items = [];
     this.scope = null;
     this.selectedID = null;
+    // R23 批量多选：选中集合 + 区间锚点（视图层状态，随重渲染清空）
+    this.picked = new Set();
+    this.pickAnchor = -1;
+    this._escPick = (event) => { if (event.key === 'Escape') this._clearPick(); };
+    document.addEventListener('keydown', this._escPick);
 
     // 顶部 inset（毛玻璃 + 标题，对应 safeAreaInset header）
     this.scrollEl.innerHTML = '';
@@ -87,6 +92,7 @@ export class ListView {
   }
 
   render(items, scope, selectedID, hasUnread) {
+    this._clearPick();
     this.items = items;
     this.scope = scope;
     this.selectedID = selectedID;
@@ -227,13 +233,98 @@ export class ListView {
       else fav.addEventListener('error', hide, { once: true });
     }
 
-    row.addEventListener('click', () => this.handlers.onSelect(item.id, item));
+    row.addEventListener('click', (event) => {
+      // R23 批量多选：Ctrl/Cmd+点击单选、Shift+点击选区间；普通点击照常打开
+      if (event.ctrlKey || event.metaKey || event.shiftKey) {
+        event.preventDefault();
+        if (event.shiftKey) this._rangePick(item.id);
+        else this._togglePick(item.id);
+        return;
+      }
+      this.handlers.onSelect(item.id, item);
+    });
     row.addEventListener('contextmenu', (event) => {
       event.preventDefault();
       this.handlers.onContext(event, item);
     });
     row.appendChild(this._quickActions(item));
     return row;
+  }
+
+  /**
+   * 批量多选（R23）：Ctrl+点击单选 / Shift+点击区间选，选中行左侧色条标识，
+   * 底部浮出批量操作条（标已读/收藏/稍后读/取消）。选中态是视图层状态，
+   * 批量动作走批设 IPC（read:*Many），完成后清选并等 app:state 回流刷新。
+   */
+  _togglePick(entryID) {
+    if (this.picked.has(entryID)) this.picked.delete(entryID);
+    else this.picked.add(entryID);
+    this.pickAnchor = this.items.findIndex((it) => it.id === entryID);
+    this._syncPickUI();
+  }
+
+  _rangePick(entryID) {
+    const to = this.items.findIndex((it) => it.id === entryID);
+    if (to < 0) return;
+    const from = this.pickAnchor >= 0 ? this.pickAnchor : 0;
+    const [a, b] = from <= to ? [from, to] : [to, from];
+    for (let i = a; i <= b; i += 1) this.picked.add(this.items[i].id);
+    this._syncPickUI();
+  }
+
+  _syncPickUI() {
+    const ids = new Set(this.picked);
+    this.rowsHost.querySelectorAll('.entry-row').forEach((el) => {
+      el.classList.toggle('nj-picked', ids.has(el.dataset.entryId));
+    });
+    let bar = document.querySelector('.list-batch-bar');
+    if (!this.picked.size) {
+      bar?.remove();
+      return;
+    }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'list-batch-bar';
+      const count = document.createElement('span');
+      count.className = 'list-batch-count';
+      const mk = (cls, label, title, fn) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `list-batch-btn ${cls}`;
+        b.title = title;
+        b.textContent = label;
+        b.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const picked = [...this.picked];
+          if (!picked.length) return;
+          fn(picked);
+          this._clearPick();
+        });
+        return b;
+      };
+      bar.appendChild(count);
+      bar.appendChild(mk('b-read', t('标为已读'), t('把选中的文章标记为已读'), (ids2) => window.robin.markMany(ids2, true)));
+      bar.appendChild(mk('b-star', t('收藏'), t('把选中的文章加入收藏'), (ids2) => window.robin.starMany(ids2)));
+      bar.appendChild(mk('b-later', t('稍后读'), t('把选中的文章加入稍后读'), (ids2) => window.robin.laterMany(ids2, true)));
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'list-batch-btn b-cancel';
+      cancel.title = t('取消选择（Esc）');
+      cancel.textContent = t('取消选择');
+      cancel.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this._clearPick();
+      });
+      bar.appendChild(cancel);
+      document.body.appendChild(bar);
+    }
+    bar.querySelector('.list-batch-count').textContent = tf('已选 %lld 篇', this.picked.size);
+  }
+
+  _clearPick() {
+    this.picked.clear();
+    this.pickAnchor = -1;
+    this._syncPickUI();
   }
 
   /**
@@ -601,7 +692,15 @@ export class ListView {
     card.appendChild(cover);
     card.appendChild(body);
     card.appendChild(this._quickActions(item));
-    card.addEventListener('click', () => this.handlers.onSelect(item.id, item));
+    card.addEventListener('click', (event) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey) {
+        event.preventDefault();
+        if (event.shiftKey) this._rangePick(item.id);
+        else this._togglePick(item.id);
+        return;
+      }
+      this.handlers.onSelect(item.id, item);
+    });
     card.addEventListener('contextmenu', (event) => {
       event.preventDefault();
       this.handlers.onContext(event, item);

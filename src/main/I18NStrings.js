@@ -1319,6 +1319,12 @@ const STRINGS = {
   "Miniflux 用户：地址填 https://你的实例/greader（2.42+ 内置 Google Reader API），裸域名会自动补 /greader；在 Miniflux「设置 → 集成」中启用 Google Reader API 并使用其专用用户名与密码。": { zh: "Miniflux 用户：地址填 https://你的实例/greader（2.42+ 内置 Google Reader API），裸域名会自动补 /greader；在 Miniflux「设置 → 集成」中启用 Google Reader API 并使用其专用用户名与密码。", en: "Miniflux users: enter https://your-instance/greader (the Google Reader API is built in since 2.42+; a bare domain gets /greader appended automatically). Enable the Google Reader API under Miniflux Settings → Integrations and use its dedicated username and password." },
   "点击标签查看相关文章 · 字号与色深代表文章数": { zh: "点击标签查看相关文章 · 字号与色深代表文章数", en: "Click a tag to see related articles · size and shade show article counts" },
   "探索源": { zh: "探索源", en: "Discover Feeds" },
+  "已选 %lld 篇": { zh: "已选 %lld 篇", en: "%lld selected" },
+  "取消选择": { zh: "取消选择", en: "Clear selection" },
+  "取消选择（Esc）": { zh: "取消选择（Esc）", en: "Clear selection (Esc)" },
+  "把选中的文章标记为已读": { zh: "把选中的文章标记为已读", en: "Mark selected articles as read" },
+  "把选中的文章加入收藏": { zh: "把选中的文章加入收藏", en: "Star selected articles" },
+  "把选中的文章加入稍后读": { zh: "把选中的文章加入稍后读", en: "Add selected articles to Read Later" },
 };
 
 module.exports = { STRINGS };

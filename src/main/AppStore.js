@@ -1019,6 +1019,70 @@ class AppStore extends EventEmitter {
     return entryIDs.length;
   }
 
+  /**
+   * R23 批量操作：按 id 集合批设状态（列表多选模式）。语义仿 markAllRead——
+   * 逐条置库 + 远端 outbox，不走 evolution 行为记录；全程只推送一次状态，
+   * 避免上百条逐条 _emitState 把渲染层打成重绘风暴。
+   */
+  markMany(entryIDs, read = true) {
+    const ids = (entryIDs || []).filter(Boolean);
+    const byAccount = new Map();
+    for (const entryID of ids) {
+      this.statesRepo.setRead(entryID, Boolean(read));
+      if (read) this._retainedUnreadIDs.add(entryID);
+      const entry = this.articlesRepo.entry(entryID);
+      if (entry && entry.accountID !== LOCAL_ACCOUNT_ID) {
+        if (!byAccount.has(entry.accountID)) byAccount.set(entry.accountID, []);
+        byAccount.get(entry.accountID).push(entryID);
+        this.statesRepo.enqueueOutbox(entry.accountID, entryID, 'read', Boolean(read));
+      }
+    }
+    if (ids.length) {
+      this._noteEntryChange(null, true, false);
+      this._bumpListSet();
+      this._scheduleOutboxDrain(1500);
+      this._emitState();
+    }
+    return ids.length;
+  }
+
+  /** 批量收藏（单向置 true；批量语义不做 toggle，取消收藏仍走单条右键/快捷键）。 */
+  starMany(entryIDs) {
+    const ids = (entryIDs || []).filter(Boolean);
+    const byAccount = new Map();
+    for (const entryID of ids) {
+      this.statesRepo.setStarred(entryID, true);
+      this._retainedStarredIDs.add(entryID);
+      const entry = this.articlesRepo.entry(entryID);
+      if (entry && entry.accountID !== LOCAL_ACCOUNT_ID) {
+        if (!byAccount.has(entry.accountID)) byAccount.set(entry.accountID, []);
+        byAccount.get(entry.accountID).push(entryID);
+        this.statesRepo.enqueueOutbox(entry.accountID, entryID, 'starred', true);
+      }
+    }
+    if (ids.length) {
+      this._noteEntryChange(null, false, true);
+      this._scheduleOutboxDrain(1500);
+      this._emitState();
+    }
+    return ids.length;
+  }
+
+  /** 批量稍后读（单向入队；出队走单条）。later 视野行集变化 → _bumpListSet 全量重拉。 */
+  laterMany(entryIDs, later = true) {
+    const ids = (entryIDs || []).filter(Boolean);
+    for (const entryID of ids) {
+      this.statesRepo.setLater(entryID, Boolean(later));
+      if (later) this._retainedLaterIDs.add(entryID);
+    }
+    if (ids.length) {
+      this._noteEntryChange(null, false, false, Boolean(later));
+      this._bumpListSet();
+      this._emitState();
+    }
+    return ids.length;
+  }
+
   // MARK: - 正文提取
 
   articleContent(entryID) {
