@@ -210,6 +210,18 @@ export class ListView {
         empty.innerHTML = `<div class="glyph">${icon('newspaper')}</div><h3></h3><p></p>`;
         empty.querySelector('h3').textContent = t('没有文章');
         empty.querySelector('p').textContent = t(hasFeeds ? '切换到其他分类，或等待下一次订阅更新。' : '添加订阅后，这里会显示文章。');
+        // R41：有订阅源的空态提供「立即刷新」一键动作，免去去侧栏找刷新
+        if (hasFeeds) {
+          const refresh = document.createElement('button');
+          refresh.type = 'button';
+          refresh.className = 'list-empty-refresh';
+          refresh.textContent = t('立即刷新');
+          refresh.addEventListener('click', (event) => {
+            event.stopPropagation();
+            window.robin.refresh();
+          });
+          empty.appendChild(refresh);
+        }
       }
       this.rowsHost.appendChild(empty);
       this._knownIds = new Set();
@@ -319,7 +331,7 @@ export class ListView {
           <span class="entry-source" title="${attr(item.sourceTitle || '')}"></span>
           ${badge ? `<span class="entry-account-badge"></span>` : ''}
           ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
-          ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
+          ${item.isStarred ? `<span class="star-mini" title="${attr(t('已收藏'))}">${icon('starFilled')}</span>` : ''}
           <span class="read-min-slot">${readMinutesChip(item)}</span>
           ${this.laterAgeBadge(item)}
           <span class="entry-time" title="${attr(fullTime(item.publishedAt))}">${escapeHTML(formatTime(item.publishedAt))}</span>
@@ -861,7 +873,7 @@ export class ListView {
       <h3 class="mag-title"></h3>
       <div class="mag-meta">
         <span class="mag-feed" title="${attr(item.sourceTitle || "")}"></span>
-        ${item.isStarred ? `<span class="star-mini">${icon('starFilled')}</span>` : ''}
+        ${item.isStarred ? `<span class="star-mini" title="${attr(t("已收藏"))}">${icon('starFilled')}</span>` : ''}
         ${item.isLater ? `<span class="later-mini" title="${attr(t('稍后读'))}">${icon('clock')}</span>` : ''}
         ${readMinutesChip(item)}
         <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>

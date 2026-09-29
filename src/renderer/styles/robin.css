@@ -5157,3 +5157,36 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 /* R40：搜索历史候选项键盘高亮态 */
 .search-history-item.hl { background: var(--row-hover); }
 .search-history-item.hl span { color: var(--text-primary); }
+
+/* ===== R41 空态「立即刷新」按钮 ===== */
+.list-empty-refresh {
+  appearance: none;
+  border: 1px solid var(--separator);
+  background: var(--surface, #fff);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 18px;
+  margin-top: 14px;
+  border-radius: var(--radius-full, 999px);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.list-empty-refresh:hover { border-color: var(--accent); background: var(--row-hover); }
+
+/* ===== R41 打回：失败图编排式占位（提示条+内边距，替代原生 alt 兜底观感）===== */
+.nj-img-failed-wrap { position: relative; display: block; }
+.nj-img-failed-wrap img { width: 100%; border-radius: var(--radius-md); }
+.nj-img-failed-tip {
+  position: absolute; left: 8px; right: 8px; bottom: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--note-background);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  pointer-events: auto;
+}
+.nj-img-failed-reason { display: block; padding: 10px 12px 0; font-size: 12px; line-height: 1.6; color: var(--text-secondary); }

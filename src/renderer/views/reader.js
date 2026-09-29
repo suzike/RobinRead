@@ -1502,7 +1502,12 @@ export class ReaderView {
         img.classList.add('nj-img-loading');
       }
     };
-    img.addEventListener('load', () => img.classList.remove('nj-img-loading', 'nj-img-retrying', 'nj-img-failed'));
+    img.addEventListener('load', () => {
+      // R41：重试成功 → 拆掉失败占位壳恢复原位（alt 还原）
+      img.closest('.nj-img-failed-wrap')?.replaceWith(img);
+      if (img.dataset.altBackup != null) { img.alt = img.dataset.altBackup; delete img.dataset.altBackup; }
+      img.classList.remove('nj-img-loading', 'nj-img-retrying', 'nj-img-failed');
+    });
     img.addEventListener('error', () => {
       // 图片失败自动重试（借鉴上游 v1.4.5）：首次失败经代理通道重取一次，仍失败才标记
       const retries = Number(img.dataset.retryCount || 0);
@@ -1518,9 +1523,37 @@ export class ReaderView {
       img.classList.remove('nj-img-loading', 'nj-img-retrying');
       img.classList.add('nj-img-failed');
       img.title = t('图片加载失败（可能是源站防盗链或代理失效）');
+      // R41 编排式失败占位：可见「点击图片可重试」提示条（悬停 title 之外的静态锚点）
+      if (!img.closest('.nj-img-failed-wrap')) {
+        const wrapEl = document.createElement('span');
+        wrapEl.className = 'nj-img-failed-wrap';
+        img.replaceWith(wrapEl);
+        wrapEl.appendChild(img);
+        // alt 贴角根除：原因行改由壳渲染（失败态清空 alt，成功后还原）
+        if (!img.dataset.altBackup) { img.dataset.altBackup = img.alt || ''; img.alt = ''; }
+        const reason = document.createElement('span');
+        reason.className = 'nj-img-failed-reason';
+        reason.textContent = img.title;
+        const tip = document.createElement('span');
+        tip.className = 'nj-img-failed-tip';
+        tip.textContent = t('加载失败 · 点击图片可重试');
+        wrapEl.appendChild(reason);
+        wrapEl.appendChild(tip);
+        tip.addEventListener('click', () => img.click());
+      }
     });
     markState();
     img.addEventListener('click', () => {
+      // R41：失败图点击即手动重试（清重试计数换缓存戳重取），不再只能干看破框
+      if (img.classList.contains('nj-img-failed')) {
+        img.dataset.retryCount = '0';
+        img.classList.remove('nj-img-failed');
+        img.classList.add('nj-img-loading');
+        img.title = t('正在重试加载…');
+        const sep = img.src.includes('?') ? '&' : '?';
+        img.src = `${img.src.split('#')[0]}${sep}r=${Date.now()}`;
+        return;
+      }
       if (img.naturalWidth > 0) {
         const gallery = [...this.body.querySelectorAll('img')]
           .filter((im) => im.naturalWidth > 0)
