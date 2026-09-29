@@ -806,6 +806,20 @@ export class ReaderView {
       const h = Number(img.getAttribute('height'));
       if ((w === 1 && h === 1) || /pixel|track|beacon|spacer/i.test(img.src || '')) img.remove();
     });
+    // 同址重复图折叠（R37 实机反馈）：公众号式「封面+正文头图」同址重复只保留首次出现。
+    // key 取去查询串的地址（mmbiz 类同路径不同 wx_fmt 参数即同一张图）；figure 只包这一张图时连壳移除
+    const seenSrcs = new Set();
+    this.body.querySelectorAll('img').forEach((img) => {
+      const key = (img.getAttribute('src') || img.src || '').split('?')[0];
+      if (!key) return;
+      if (seenSrcs.has(key)) {
+        const fig = img.closest('figure');
+        if (fig && fig.querySelectorAll('img').length === 1) fig.remove(); // 壳内仅此一张：连壳移除
+        else img.remove();
+        return;
+      }
+      seenSrcs.add(key);
+    });
     // 空块（两轮，处理删空后产生的新的空块）
     for (let round = 0; round < 2; round += 1) {
       this.body.querySelectorAll('p, div').forEach((el) => {
