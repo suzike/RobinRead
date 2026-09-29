@@ -94,14 +94,16 @@ export class ListView {
     this.topInset.innerHTML = `
       <div class="list-top-title"></div>
       <div class="tb-spring"></div>
-      <button class="digest-btn" id="view-mode-btn" title="${escapeHTML(t('切换列表 / 杂志视图'))}"><span></span></button>
-      <button class="digest-btn" id="list-sort-btn" title="${escapeHTML(t('切换排序方式'))}"><span></span></button>
-      <button class="digest-btn" id="digest-btn" title="${escapeHTML(t('AI 汇总今日全部文章'))}">${icon('spark')}<span></span></button>
-      <button class="digest-btn" id="later-clean-btn" title="${escapeHTML(t('把入队超过 14 天的稍后读标记已读并移出队列'))}" style="display:none"></button>
       <div class="list-search" id="list-search">
         ${icon('search')}
         <input type="text" placeholder="${escapeHTML(t('搜索…'))}" id="list-search-input" spellcheck="false"/>
         <button class="clear" id="list-search-clear">${icon('close')}</button>
+      </div>
+      <div class="lt-controls">
+        <button class="digest-btn" id="view-mode-btn" title="${escapeHTML(t('切换列表 / 杂志视图'))}"><span></span></button>
+        <button class="digest-btn" id="list-sort-btn" title="${escapeHTML(t('切换排序方式'))}"><span></span></button>
+        <button class="digest-btn" id="digest-btn" title="${escapeHTML(t('AI 汇总今日全部文章'))}">${icon('spark')}<span></span></button>
+        <button class="digest-btn" id="later-clean-btn" title="${escapeHTML(t('把入队超过 14 天的稍后读标记已读并移出队列'))}" style="display:none"></button>
       </div>`;
     this.topInset.querySelector('#digest-btn span').textContent = t('今日简报');
     const cleanBtn = this.topInset.querySelector('#later-clean-btn');
@@ -656,10 +658,13 @@ export class ListView {
       dateEl.textContent = new Date(newest.publishedAt * 1000)
         .toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
     }
-    mastLine.append(brand, dateEl);
-    mastLine.appendChild(paperBtn);
+    // R36 双簇布局：刊名+日期 一簇（左）、翻页阅读+纸感 一簇（右）——簇内不折行，只在簇间换行
+    const brandCluster = document.createElement('span');
+    brandCluster.className = 'nj-edition-brand-cluster';
+    brandCluster.append(brand, dateEl);
+    mastLine.appendChild(brandCluster);
     const readBtn = document.createElement('button');
-    readBtn.className = 'nj-edition-paper';
+    readBtn.className = 'nj-edition-paper nj-edition-read';
     readBtn.title = t('翻页阅读本期文章');
     readBtn.textContent = '翻页阅读';
     readBtn.addEventListener('click', () => {
@@ -674,7 +679,10 @@ export class ListView {
       });
       er.present();
     });
-    mastLine.appendChild(readBtn);
+    const actionsCluster = document.createElement('span');
+    actionsCluster.className = 'nj-edition-actions';
+    actionsCluster.append(readBtn, paperBtn);
+    mastLine.appendChild(actionsCluster);
   mast.appendChild(mastLine);
 
     const open = (item) => this.handlers.onSelect(item.id, item);

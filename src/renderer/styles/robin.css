@@ -5128,3 +5128,18 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 /* R35 打回：关闭键与同排按钮墨色一致（原 opacity 0.45 偏浅） */
 .er-tools .er-close { opacity: 0.55; }
 .er-tools .er-close:hover { opacity: 0.9; }
+
+/* ===== R36 布局合理性：工具栏两行秩序 + 刊头双簇 ===== */
+/* 工具栏 DOM 序：标题 spring 搜索 三按钮——order 编排为「标题+搜索恒首行（搜索恒右），控制键次行左置」；
+   宽屏一行容纳时自然同行：今天 …… [搜索] [杂志][未读优先][今日简报] */
+.list-top-inset .list-top-title { order: 1; }
+.list-top-inset .tb-spring { order: 2; flex: 1 1 12px; }
+.list-top-inset .list-search { order: 3; margin-left: 0; }
+.list-top-inset .digest-btn { order: 4; }
+/* 刊头双簇：簇内不折行，簇间才换行 */
+.nj-edition-brand-cluster { display: inline-flex; align-items: baseline; gap: 12px; flex: 1 1 auto; min-width: 0; }
+.nj-edition-actions { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+/* R36 打回：控制键成组（.lt-controls 为整体换行单位）——首行恒「标题+搜索」，次行控制键整组左置 */
+.list-top-inset .lt-controls { order: 4; display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-left: 0; }
+.list-top-inset .list-search { min-width: 132px; }

@@ -40,15 +40,16 @@ const TURN_PRESETS = [
   { corner: -0.35, dur: 0.32 }, { corner: 1, dur: 0.35 },
 ];
 
-// 版心随窗口比例自适应（92%），跨显示器尺寸连续缩放；上限 2100 防超宽屏夸张
-const pageWidth = (w) => Math.min(2100, Math.max(1, Math.round(w * 0.92)));
+// 版心随窗口比例自适应：常规 92%（上限 2100 防超宽屏夸张）；沉浸全屏（R36）97%/2400——
+// 全屏态两侧大空带是用户点名的不合理留白
+const pageWidth = (w, fs) => Math.min(fs ? 2400 : 2100, Math.max(1, Math.round(w * (fs ? 0.97 : 0.92))));
 /* 阅读排版三档（R1）：页边距与密度的唯一真源（JS 版心测量与 CSS 共用） */
 const MARGIN_X = { narrow: 24, standard: 36, wide: 52 };
 const DENSITY = { compact: { gapY: 18, lh: 0.86 }, standard: { gapY: 24, lh: 1 }, airy: { gapY: 36, lh: 1.26 } };
 /* 字号三档（R24）：乘在全局 --article-font-size 上的系数，分页器实测计算样式自动跟随 */
 const FONTSCALE = { small: 0.9, standard: 1, large: 1.14 };
-const hInset = (w, margin = 'standard') => Math.min(w < 620 ? 20 : (MARGIN_X[margin] || 36), (pageWidth(w) - 1) / 2);
-const turnInset = (h) => Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
+const hInset = (w, margin = 'standard', fs) => Math.min(w < 620 ? 20 : (MARGIN_X[margin] || 36), (pageWidth(w, fs) - 1) / 2);
+const turnInset = (h, fs) => fs ? 8 : Math.min(14, Math.max(0, h - RAIL_H) * 0.03);
 
 /** cubic-bezier(0.28,0.12,0.22,1.0) 求解（MagazineTurnGeometry.eased 二分法原样移植）。 */
 function bezierEase(x) {
@@ -164,10 +165,11 @@ export class EditionReader {
   // ────────────────────────────────────────────────
   _metrics() {
     const w = window.innerWidth, h = window.innerHeight;
-    const ins = turnInset(h);
-    const paperW = pageWidth(w);
+    const fs = !!document.fullscreenElement; // 沉浸全屏（R36）：版心扩张 + 上下留白收窄
+    const ins = turnInset(h, fs);
+    const paperW = pageWidth(w, fs);
     const bookH = Math.max(1, h - RAIL_H - ins * 2);
-    const hi = hInset(w, this.typo?.margin);
+    const hi = hInset(w, this.typo?.margin, fs);
     const contentW = Math.max(1, paperW - hi * 2);
     const flow = paperW < 620 || (h - RAIL_H) < 460;
     const spread = !flow && paperW >= 860;
@@ -840,6 +842,7 @@ export class EditionReader {
     this._dismissSelBar();
     this._dismissSelPopover();
     window.removeEventListener('resize', this._onResize);
+    document.removeEventListener('fullscreenchange', this._onResize);
     this.overlay?.remove();
     this.overlay = null;
   }
@@ -913,6 +916,8 @@ export class EditionReader {
       this._resizeTimer = setTimeout(() => this._relayout(false), 160);
     };
     window.addEventListener('resize', this._onResize);
+    // 沉浸全屏切换（R36）：版心 92%→97% 扩张，进出场都重排
+    document.addEventListener('fullscreenchange', this._onResize);
     // 尺寸轮询守卫：跨显示器拖动/切换时 Electron 偶发丢 resize 事件（实测存在），
     // 每 800ms 比对视口与 DPR，变化即重排——彻底保证书籍组件跟随显示器尺寸
     this._lastViewport = { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio };
