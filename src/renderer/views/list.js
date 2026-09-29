@@ -114,6 +114,7 @@ export class ListView {
     this.searchHost = this.topInset.querySelector('#list-search');
     let searchTimer = null;
     this.searchInput.addEventListener('input', () => {
+      if (this.searchInput.value) this._hideSearchHistory(); // R42：输入即收起历史下拉（不遮输入与结果）
       this.searchHost.classList.toggle('has-value', Boolean(this.searchInput.value));
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => this.handlers.onSearch?.(this.searchInput.value.trim()), 260);

@@ -1344,7 +1344,8 @@ const STRINGS = {
   "全选当前视野": { zh: "全选当前视野", en: "Select all in view" },
   "批量单选（再点反选）": { zh: "批量单选（再点反选）", en: "Toggle single pick" },
   "批量区间选择": { zh: "批量区间选择", en: "Range pick" },
-  "取消选择 / 关闭": { zh: "取消选择 / 关闭", en: "Clear selection / close" },
+  "取消选择 / 关闭": { zh: "取消选择 / 关闭", en: "Clear selection / close" },  "在浏览器打开外部链接": { zh: "在浏览器打开外部链接", en: "Open external link in browser" },
+
 };
 
 module.exports = { STRINGS };

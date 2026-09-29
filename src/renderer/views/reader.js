@@ -806,6 +806,8 @@ export class ReaderView {
       const h = Number(img.getAttribute('height'));
       if ((w === 1 && h === 1) || /pixel|track|beacon|spacer/i.test(img.src || '')) img.remove();
     });
+    // 正文 iframe 懒加载（R42）：嵌入视频等离屏不加载
+    this.body.querySelectorAll('iframe').forEach((f) => { f.loading = 'lazy'; });
     // 同址重复图折叠（R37 实机反馈）：公众号式「封面+正文头图」同址重复只保留首次出现。
     // key 取去查询串的地址（mmbiz 类同路径不同 wx_fmt 参数即同一张图）；figure 只包这一张图时连壳移除
     const seenSrcs = new Set();
@@ -1351,6 +1353,8 @@ export class ReaderView {
 
   _interceptLinks() {
     this.body.querySelectorAll('a[href]').forEach((anchor) => {
+      // R42：外链悬停提示（正文内链接点击即在浏览器打开）
+      if (/^https?:/i.test(anchor.getAttribute('href') || '')) anchor.title = t('在浏览器打开外部链接');
       anchor.addEventListener('click', (event) => {
         event.preventDefault();
         const href = anchor.getAttribute('href');
