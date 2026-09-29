@@ -54,6 +54,15 @@ app.whenReady().then(async () => {
     }
     if (!bridgeReady) throw new Error('bridge not ready');
     await sleep(600);
+    // 隐藏窗合成器会把 CSS animation 冻结在首帧（fade-in → opacity 0 幽灵层）
+    // 截图前统一禁动画，保证面板/弹窗/命令面板都按终态渲染
+    await run(`
+      const st = document.createElement('style');
+      st.id = 'shot-no-anim';
+      st.textContent = '*{animation:none !important;transition:none !important;}';
+      document.head.appendChild(st);
+      return true;
+    `);
 
     const shot = async (name) => {
       const img = await win.webContents.capturePage();
@@ -72,12 +81,30 @@ app.whenReady().then(async () => {
     await sleep(1500); // 等封面图失败兜底/布局稳定
     await shot('1-magazine-edition.png');
 
-    // 2. 命令面板
+    // 2. 命令面板（轮询等 overlay 真实出现再截；隐藏窗 CSS animation 冻结在首帧——注入禁动画样式）
     await run(`
       document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP', key: 'P', ctrlKey: true, shiftKey: true, bubbles: true }));
       return true;
     `);
-    await sleep(400);
+    let palOk = false;
+    for (let i = 0; i < 10 && !palOk; i += 1) {
+      await sleep(300);
+      if (!(await run(`return !!document.querySelector('.cmd-palette-overlay')`))) {
+        await run(`
+          document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP', key: 'P', ctrlKey: true, shiftKey: true, bubbles: true }));
+          return true;
+        `);
+      } else palOk = true;
+    }
+    await run(`
+      const st = document.createElement('style');
+      st.textContent = '.cmd-palette-overlay{animation:none !important;opacity:1 !important;}.cmd-palette{animation:none !important;opacity:1 !important;}';
+      document.head.appendChild(st);
+      return true;
+    `);
+    log(`palette open=${palOk}`);
+    win.webContents.invalidate();
+    await sleep(700);
     await shot('2-command-palette.png');
     await run(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return true;`);
     await sleep(300);

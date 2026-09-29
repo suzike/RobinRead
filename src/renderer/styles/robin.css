@@ -666,7 +666,8 @@ body.rp-micro-off .reader-article { text-spacing-trim: space-all; }
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 2px 2px 9px;
   border-bottom: 3px double color-mix(in srgb, var(--text-primary) 55%, transparent);
 }
@@ -675,8 +676,11 @@ body.rp-micro-off .reader-article { text-spacing-trim: space-all; }
   font-size: 1.5em;
   font-weight: 700;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
-.nj-edition-date { font-size: 0.82em; color: var(--text-secondary); letter-spacing: 0.04em; }
+.nj-edition-date { font-size: 0.82em; color: var(--text-secondary); letter-spacing: 0.04em; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.nj-edition-paper { flex: 0 0 auto; white-space: nowrap; }
 .nj-edition-cover {
   position: relative;
   margin: 14px 0 4px;
@@ -4193,6 +4197,11 @@ body.dark .list-scroll.nj-mag-book { --accent: #8A9A6E; }
 body.dark .list-scroll.nj-mag-kraft { --accent: #9AA87C; }
 .list-scroll.nj-mag-book .nj-mag-card { background: rgba(255, 251, 240, 0.92); }
 .list-scroll.nj-mag-paper .nj-mag-card { background: rgba(255, 253, 246, 0.92); }
+/* 夜间：纸感容器下的卡片底色需重新压暗（4199 的特异性覆盖会击穿 body.dark .nj-mag-card） */
+body.dark .list-scroll.nj-mag-paper .nj-mag-card { background: rgba(255, 255, 255, 0.055); }
+body.dark .list-scroll.nj-mag-white .nj-mag-card { background: rgba(255, 255, 255, 0.055); }
+body.dark .list-scroll.nj-mag-book .nj-mag-card { background: rgba(255, 255, 255, 0.055); }
+body.dark .list-scroll.nj-mag-kraft .nj-mag-card { background: rgba(255, 255, 255, 0.055); }
 .nj-img-retrying { opacity: 0.45; filter: blur(1px); }
 
 /* ── D15 列表标题译文副行 ── */
