@@ -59,6 +59,7 @@ const OFFLINE = [
   { file: 'scripts/diag-r44-details.js', runner: 'electron', desc: 'R44 细节三连：滑轨键盘翻页/刻度 title/装载呼吸点（离线）' },
   { file: 'scripts/diag-r45-details.js', runner: 'electron', desc: 'R45 细节三连：chips 卫生/清除键 aria/批量条 toolbar（离线）' },
   { file: 'scripts/diag-r46-details.js', runner: 'electron', desc: 'R46 细节三连：底部呼吸点/zoom-in 光标/分割条 hover（离线）' },
+  { file: 'scripts/diag-r47-motion.js', runner: 'electron', desc: 'R47 微动效三连：三出场动画规则命中（离线）' },
   { file: 'scripts/diag-r44-details.js', runner: 'electron', desc: 'R44 细节三连：滑轨键盘翻页/刻度 title/装载呼吸点（离线）' },
   { file: 'scripts/diag-r45-details.js', runner: 'electron', desc: 'R45 细节三连：chips 卫生/清除键 aria/批量条 toolbar（离线）' },
   { file: 'scripts/diag-r39-details.js', runner: 'electron', desc: 'R39 细节三连：时间/来源悬停全量+清除键命中区（离线）' },
