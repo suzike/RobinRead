@@ -665,6 +665,7 @@ export class ReaderView {
         for (const tag of list) {
           const chip = document.createElement('button');
           chip.className = 'robin-tag-chip';
+          chip.type = 'button'; // R45：表单卫生
           chip.textContent = `#${tag}`;
           chip.title = t('查看该标签的全部文章');
           chip.addEventListener('click', () => this.handlers.onOpenTag?.(tag));

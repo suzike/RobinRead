@@ -97,7 +97,7 @@ export class ListView {
       <div class="list-search" id="list-search">
         ${icon('search')}
         <input type="text" placeholder="${escapeHTML(t('搜索…'))}" id="list-search-input" spellcheck="false"/>
-        <button class="clear" id="list-search-clear">${icon('close')}</button>
+        <button class="clear" id="list-search-clear" type="button" aria-label="${escapeHTML(t('清除搜索内容'))}">${icon('close')}</button>
       </div>
       <div class="lt-controls">
         <button class="digest-btn" id="view-mode-btn" title="${escapeHTML(t('切换列表 / 杂志视图'))}"><span></span></button>
@@ -403,6 +403,8 @@ export class ListView {
     if (!bar) {
       bar = document.createElement('div');
       bar.className = 'list-batch-bar';
+      bar.setAttribute('role', 'toolbar'); // R45：读屏语义
+      bar.setAttribute('aria-label', t('批量操作'));
       const count = document.createElement('span');
       count.className = 'list-batch-count';
       const mk = (cls, label, title, fn) => {

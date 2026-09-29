@@ -5207,3 +5207,6 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 @keyframes er-dot-breathe { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 .list-empty-refresh:active { transform: scale(0.96); }
 .list-empty-refresh:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+
+/* ===== R45 标签 chips 键盘焦点环 ===== */
+.robin-tag-chip:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
