@@ -4879,3 +4879,50 @@ body.dark .row-quick-btn:hover { background: rgba(255, 255, 255, 0.08); color: r
 .list-batch-btn.b-cancel:hover { color: rgba(240, 237, 229, 0.95); }
 /* R25：批量条改主题橄榄深调（挑剔官备忘），与应用色系呼应 */
 .list-batch-bar { background: rgba(40, 46, 35, 0.94); border-color: rgba(190, 205, 170, 0.14); }
+
+/* ===== R26 搜索历史下拉：聚焦空框或 ↓ 呼出，点选即搜（body 级 fixed，坐标 JS 下发）===== */
+.search-history {
+  position: fixed;
+  z-index: 600; /* 高于批量条 500、低于期刊 900；body 级浮层需盖过列表容器 */
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: rgba(252, 250, 245, 0.97);
+  border: 1px solid var(--separator);
+  box-shadow: 0 10px 28px rgba(40, 36, 28, 0.16);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.search-history-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.search-history-item svg { width: 12px; height: 12px; color: var(--text-secondary); flex: 0 0 auto; }
+.search-history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-history-item:hover { background: var(--row-hover); }
+.search-history-clear {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  text-align: left;
+  padding: 6px 8px 4px;
+  margin-top: 2px;
+  border-top: 1px solid var(--separator);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  cursor: pointer;
+}
+.search-history-clear:hover { color: var(--warm-accent); }
+body.dark .search-history { background: rgba(30, 28, 25, 0.97); border-color: rgba(255, 255, 255, 0.09); }
+body.dark .search-history-item { color: rgba(238, 234, 224, 0.9); }
+body.dark .search-history-item:hover { background: rgba(255, 255, 255, 0.07); }

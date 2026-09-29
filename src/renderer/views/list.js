@@ -73,8 +73,12 @@ export class ListView {
     });
     this.searchInput.addEventListener('keydown', (event) => {
       event.stopPropagation();
-      if (event.key === 'Escape') { this.clearSearch(); this.handlers.onSearch?.(''); }
+      if (event.key === 'Escape') { this._hideSearchHistory(); this.clearSearch(); this.handlers.onSearch?.(''); }
+      else if (event.key === 'Enter') { this._rememberSearch(this.searchInput.value.trim()); this._hideSearchHistory(); }
+      else if (event.key === 'ArrowDown') { event.preventDefault(); this._showSearchHistory(); }
     });
+    this.searchInput.addEventListener('focus', () => { if (this.searchInput.value) return; this._showSearchHistory(); });
+    this.searchInput.addEventListener('blur', () => setTimeout(() => this._hideSearchHistory(), 150)); // 延迟让候选点击先于收起
     this.topInset.querySelector('#list-search-clear').addEventListener('click', () => {
       this.clearSearch();
       this.handlers.onSearch?.('');
@@ -754,6 +758,68 @@ export class ListView {
   focusSearch() {
     this.searchInput?.focus();
     this.searchInput?.select();
+  }
+
+  /**
+   * 搜索历史（R26）：最近 5 个搜索词，聚焦空框或 ↓ 呼出下拉，点选即搜；
+   * Enter 提交时记忆（输入过程不记，避免存进半截词），可一键清空。
+   */
+  get searchHistory() {
+    try { return JSON.parse(localStorage.getItem('robinread.searchHistory') || '[]'); } catch (_) { return []; }
+  }
+
+  _rememberSearch(term) {
+    if (!term) return;
+    const list = this.searchHistory.filter((x) => x !== term);
+    list.unshift(term);
+    try { localStorage.setItem('robinread.searchHistory', JSON.stringify(list.slice(0, 5))); } catch (_) { /* 隐私模式：放弃 */ }
+  }
+
+  _showSearchHistory() {
+    this._hideSearchHistory();
+    const items = this.searchHistory;
+    if (!items.length) return;
+    const drop = document.createElement('div');
+    drop.className = 'search-history';
+    // 挂 body 走 fixed（工具栏 overflow:hidden 会裁剪 inset 内的绝对定位浮层），滚动即收
+    const hostRect = this.searchHost.getBoundingClientRect();
+    drop.style.left = `${Math.round(hostRect.left)}px`;
+    drop.style.top = `${Math.round(hostRect.bottom + 6)}px`;
+    drop.style.minWidth = `${Math.max(200, Math.round(hostRect.width))}px`;
+    for (const term of items) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'search-history-item';
+      row.innerHTML = `${icon('search')}<span></span>`;
+      row.querySelector('span').textContent = term;
+      row.addEventListener('mousedown', (event) => { // mousedown 抢在 blur 收起前
+        event.preventDefault();
+        this.searchInput.value = term;
+        this.searchHost.classList.add('has-value');
+        this._rememberSearch(term);
+        this._hideSearchHistory();
+        this.handlers.onSearch?.(term);
+      });
+      drop.appendChild(row);
+    }
+    const clearRow = document.createElement('button');
+    clearRow.type = 'button';
+    clearRow.className = 'search-history-clear';
+    clearRow.textContent = t('清除搜索历史');
+    clearRow.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      try { localStorage.removeItem('robinread.searchHistory'); } catch (_) { /* 同上 */ }
+      this._hideSearchHistory();
+    });
+    drop.appendChild(clearRow);
+    document.body.appendChild(drop);
+    this._histScrollEl = () => this._hideSearchHistory();
+    this.scrollEl.addEventListener('scroll', this._histScrollEl, { once: true, passive: true });
+  }
+
+  _hideSearchHistory() {
+    document.querySelector('.search-history')?.remove();
+    if (this._histScrollEl) { this.scrollEl?.removeEventListener('scroll', this._histScrollEl); this._histScrollEl = null; }
   }
 
   clearSearch() {
