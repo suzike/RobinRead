@@ -867,7 +867,7 @@ body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: o
   border-bottom: 1px solid var(--separator);
   font-family: inherit;
 }
-.cmd-palette-list { overflow-y: auto; padding: 6px; }
+.cmd-palette-list { overflow-y: auto; padding: 6px 6px 12px; scroll-padding-bottom: 12px; }
 .cmd-item {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 10px;
@@ -880,6 +880,14 @@ body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: o
 .cmd-item .cmd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95em; }
 .cmd-item .cmd-hint { font-size: 0.75em; color: var(--text-secondary); flex-shrink: 0; }
 .cmd-empty { padding: 22px; text-align: center; color: var(--text-secondary); font-size: 0.9em; }
+/* 分组小节头（R21）：统一上缘发丝线（首组除外），两实例同款 */
+.cmd-group-head {
+  padding: 9px 10px 5px; margin-top: 3px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--text-tertiary); text-transform: uppercase;
+}
+.cmd-group-head:not(:first-child) { border-top: 0.5px solid var(--separator); margin-top: 6px; }
+.cmd-group-head:first-child { margin-top: 0; }
 .cmd-palette-foot {
   padding: 7px 14px;
   border-top: 1px solid var(--separator);

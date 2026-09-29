@@ -38,18 +38,19 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, 1500));
       er._go(1);
       await new Promise(r => setTimeout(r, 1600));
-      // 同 app.js 真实通路：全局命令 + 期刊命令合并（期刊组在前，模拟合并后的排序）
+      // 同 app.js 真实通路：期刊命令（group 标签）+ 全局命令合并
       const palette = new CommandPalette();
       const edition = er.paletteCommands();
       const global = [
-        { label: '打开：今天', keywords: 'today 今日', icon: 'sun', action: () => {} },
-        { label: '打开：未读', keywords: 'unread 未读', icon: 'envelopeClosed', action: () => {} },
-        { label: '切换：浅色 / 深色主题', keywords: 'theme 主题', icon: 'appearance', action: () => {} },
-        { label: '打开：设置', keywords: 'settings 设置', icon: 'gear', action: () => {} },
+        { group: '全局', label: '打开：今天', keywords: 'today 今日', icon: 'sun', action: () => {} },
+        { group: '全局', label: '打开：未读', keywords: 'unread 未读', icon: 'envelopeClosed', action: () => {} },
+        { group: '全局', label: '切换：浅色 / 深色主题', keywords: 'theme 主题', icon: 'appearance', action: () => {} },
+        { group: '全局', label: '打开：设置', keywords: 'settings 设置', icon: 'gear', action: () => {} },
       ];
       palette.present([...edition, ...global]);
-      await new Promise(r => setTimeout(r, 500));
-      return { cmds: edition.length + global.length, visible: !!document.querySelector('.cmd-palette') };
+      await new Promise(r => setTimeout(r, 600));
+      return { cmds: edition.length + global.length, visible: !!document.querySelector('.cmd-palette'),
+        heads: [...document.querySelectorAll('.cmd-group-head')].map((h) => h.textContent).join(',') };
     })()`);
     await sleep(300);
     await shot('r20-1-palette-on-edition.png');

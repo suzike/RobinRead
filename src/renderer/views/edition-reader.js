@@ -1859,15 +1859,15 @@ export class EditionReader {
     if (!this.overlay || !this.open) return [];
     const paperBtn = () => this.overlay.querySelector('.er-paper')?.click();
     return [
-      { label: t('期刊：下一页'), keywords: 'page next 期刊 下一页 翻页', icon: 'chevronRight', action: () => this._go(this.index + 1) },
-      { label: t('期刊：上一页'), keywords: 'page prev 期刊 上一页', icon: 'chevronLeft', action: () => this._go(this.index - 1) },
-      { label: t('期刊：搜索本期 / 本文'), keywords: 'find search 期刊 搜索 查找', icon: 'search', action: () => this._findOpen() },
-      { label: t('期刊：排版面板（行距/页边/栏宽/首字下沉）'), keywords: 'typography aa 排版 行距 页边 栏宽 首字', icon: 'textLarger', action: () => this._toggleTypePanel(this.overlay.querySelector('.er-type')) },
-      { label: t('期刊：切换纸张质感'), keywords: 'paper 纸张 质感 牛皮 书卷', icon: 'bookOpen', action: paperBtn },
-      { label: t('期刊：段落聚焦开关'), keywords: 'focus 段落 聚焦', icon: 'eye', action: () => this._toggleFocusMode() },
-      { label: t('期刊：导出当前页图片'), keywords: 'export 导出 当前页 图片 截图', icon: 'export', action: () => this._exportPage() },
-      { label: t('期刊：沉浸全屏'), keywords: 'fullscreen 全屏 沉浸', icon: 'expand', action: () => this._toggleFullscreen() },
-      { label: t('期刊：退出'), keywords: 'exit quit 退出 期刊', icon: 'close', action: () => this.dismiss() },
+      { group: t('期刊'), label: t('下一页'), keywords: 'page next 期刊 下一页 翻页', icon: 'chevronRight', action: () => this._go(this.index + 1) },
+      { group: t('期刊'), label: t('上一页'), keywords: 'page prev 期刊 上一页', icon: 'chevronLeft', action: () => this._go(this.index - 1) },
+      { group: t('期刊'), label: t('搜索本期 / 本文'), keywords: 'find search 期刊 搜索 查找', icon: 'search', action: () => this._findOpen() },
+      { group: t('期刊'), label: t('排版面板（行距/页边/栏宽/首字下沉）'), keywords: 'typography aa 排版 行距 页边 栏宽 首字', icon: 'textLarger', action: () => this._toggleTypePanel(this.overlay.querySelector('.er-type')) },
+      { group: t('期刊'), label: t('切换纸张质感'), keywords: 'paper 纸张 质感 牛皮 书卷', icon: 'bookOpen', action: paperBtn },
+      { group: t('期刊'), label: t('段落聚焦开关'), keywords: 'focus 段落 聚焦', icon: 'eye', action: () => this._toggleFocusMode() },
+      { group: t('期刊'), label: t('导出当前页图片'), keywords: 'export 导出 当前页 图片 截图', icon: 'export', action: () => this._exportPage() },
+      { group: t('期刊'), label: t('沉浸全屏'), keywords: 'fullscreen 全屏 沉浸', icon: 'expand', action: () => this._toggleFullscreen() },
+      { group: t('期刊'), label: t('退出期刊'), keywords: 'exit quit 退出 期刊', icon: 'close', action: () => this.dismiss() },
     ];
   }
 
