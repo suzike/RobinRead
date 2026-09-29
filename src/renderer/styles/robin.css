@@ -4266,7 +4266,7 @@ body.dark .list-scroll.nj-mag-kraft { --accent: #9AA87C; }
 .er-find-btn { appearance: none; border: none; background: transparent; color: var(--erp-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 3px 7px; border-radius: var(--radius-xs); }
 .er-find-btn:hover { color: var(--erp-ink); background: rgba(43, 39, 33, 0.08); }
 /* 搜索命中叶短高亮（文章模式定位反馈） */
-.er-article-leaf.er-leaf-hit { box-shadow: inset 0 0 0 2px var(--accent, #617357); border-radius: 4px; transition: box-shadow 0.3s var(--ease-out); }
+.er-article-leaf.er-leaf-hit { box-shadow: inset 0 0 0 2px var(--accent, #617357); border-radius: var(--radius-xs); transition: box-shadow 0.3s var(--ease-out); }
 /* 工具条搜索按钮与其他按钮同构 */
 .er-find { height: 32px; padding: 0 9px; appearance: none; border: none; background: transparent; color: var(--erp-ink); opacity: 0.55; cursor: pointer; border-radius: var(--radius-sm); display: inline-flex; align-items: center; }
 .er-find:hover { opacity: 0.9; background: rgba(43, 39, 33, 0.07); }
