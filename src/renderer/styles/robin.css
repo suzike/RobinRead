@@ -3343,7 +3343,7 @@ body.dark .reader-article .hljs-punctuation { color: var(--text-secondary); }
 .nj-find-nav:hover, .nj-find-close:hover { background: var(--row-selected); color: var(--text-primary); }
 
 /* 文章头部标签 chips（知识联动） */
-.robin-tag-chips { display: inline-flex; gap: 6px; }
+.robin-tag-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; row-gap: 4px; min-width: 0; } /* R40：长标签列表换行不溢出 */
 .robin-tag-chip {
   border: 1px solid var(--note-border);
   background: var(--note-background);
@@ -5153,3 +5153,7 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
   background: linear-gradient(100deg, var(--note-background) 30%, color-mix(in srgb, var(--accent) 10%, var(--note-background)) 50%, var(--note-background) 70%);
   background-size: 220% 100%;
 }
+
+/* R40：搜索历史候选项键盘高亮态 */
+.search-history-item.hl { background: var(--row-hover); }
+.search-history-item.hl span { color: var(--text-primary); }

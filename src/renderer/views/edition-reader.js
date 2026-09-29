@@ -729,6 +729,8 @@ export class EditionReader {
     this.overlay = overlay;
     overlay.__editionReader = this;
     // R35：工具条与舞台手势隔离——pointer/mouse 系不再外泄（拖拽翻页/划词永不误触）；click 仍冒泡供 overlay 委托
+    // R40：无障碍——工具条按钮 aria-label 与 title 同文案（读屏可达）
+    overlay.querySelectorAll('.er-tools button').forEach((b) => { if (b.title && !b.getAttribute('aria-label')) b.setAttribute('aria-label', b.title); });
     const toolsIsolate = overlay.querySelector('.er-tools');
     for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart', 'dblclick']) {
       toolsIsolate.addEventListener(type, (e) => e.stopPropagation());

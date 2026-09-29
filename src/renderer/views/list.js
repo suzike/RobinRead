@@ -121,8 +121,19 @@ export class ListView {
     this.searchInput.addEventListener('keydown', (event) => {
       event.stopPropagation();
       if (event.key === 'Escape') { this._hideSearchHistory(); this.clearSearch(); this.handlers.onSearch?.(''); }
-      else if (event.key === 'Enter') { this._rememberSearch(this.searchInput.value.trim()); this._hideSearchHistory(); }
-      else if (event.key === 'ArrowDown') { event.preventDefault(); this._showSearchHistory(); }
+      else if (event.key === 'Enter') {
+        // R40：下拉开着且高亮候选项时 Enter=选中该项；否则按普通提交记忆
+        const hl = document.querySelector('.search-history-item.hl');
+        if (hl) { hl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); return; }
+        this._rememberSearch(this.searchInput.value.trim());
+        this._hideSearchHistory();
+      }
+      else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (!document.querySelector('.search-history')) this._showSearchHistory();
+        else this._moveHistoryHighlight(1);
+      }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); this._moveHistoryHighlight(-1); }
     });
     this.searchInput.addEventListener('focus', () => { if (this.searchInput.value) return; this._showSearchHistory(); });
     this.searchInput.addEventListener('blur', () => setTimeout(() => this._hideSearchHistory(), 150)); // 延迟让候选点击先于收起
@@ -968,6 +979,16 @@ export class ListView {
   _hideSearchHistory() {
     document.querySelector('.search-history')?.remove();
     if (this._histScrollEl) { this.scrollEl?.removeEventListener('scroll', this._histScrollEl); this._histScrollEl = null; }
+  }
+
+  /** 历史候选键盘高亮（R40）：↓/↑ 在候选项间循环移动，Enter 选中高亮项。 */
+  _moveHistoryHighlight(dir) {
+    const items = [...document.querySelectorAll('.search-history-item')];
+    if (!items.length) return;
+    const cur = items.findIndex((el) => el.classList.contains('hl'));
+    const next = (cur + dir + items.length) % items.length;
+    items.forEach((el, i) => el.classList.toggle('hl', i === next));
+    items[next].scrollIntoView({ block: 'nearest' });
   }
 
   clearSearch() {
