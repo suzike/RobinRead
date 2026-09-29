@@ -4981,3 +4981,102 @@ body.dark .list-keys-row kbd { background: rgba(255, 255, 255, 0.05); border-col
 .entry-row { content-visibility: auto; contain-intrinsic-size: auto 88px; }
 .list-scroll { overflow-anchor: none; }
 .nj-mag-card { contain-intrinsic-size: auto 250px; }
+
+/* ===== R31 封面落位微缩放：加载完成 1.035→1 settle，替代生硬淡入止点 ===== */
+.nj-mag-card .mag-cover img { transition: opacity 0.45s var(--ease-out), transform 0.65s var(--ease-out); transform: scale(1.035); }
+.nj-mag-card .mag-cover img.nj-cover-loaded { opacity: 1; transform: scale(1); }
+
+/* ===== R31 工具栏精修：统一视觉语言（墨色 ghost + 发丝线），纸感主题融入版面 ===== */
+.list-top-inset .list-top-title {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--text-primary);
+  flex: 0 1 auto;
+}
+.list-top-inset .digest-btn {
+  background: transparent;
+  border: 1px solid var(--separator);
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.list-top-inset .digest-btn:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--separator));
+  background: var(--row-hover);
+}
+.list-top-inset .digest-btn.active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.list-top-inset .digest-btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+.list-top-inset .list-search { background: transparent; border-color: var(--separator); margin-left: auto; flex: 0 1 190px; min-width: 104px; max-width: 250px; }
+.list-top-inset .list-search:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+/* 窄栏折行：搜索框落第二行时向左撑满可视宽（不再半截裸弃在左侧） */
+.list-top-inset .list-search:has(+ *) { margin-left: auto; }
+/* 杂志纸感主题：工具栏退成纸面（不再米色浮条+彩 pill 割裂） */
+.list-scroll.nj-mag-paper .list-top-inset { background: color-mix(in srgb, #FDFBF4 90%, transparent); border-bottom-color: rgba(60, 50, 36, 0.12); }
+.list-scroll.nj-mag-white .list-top-inset { background: color-mix(in srgb, #FFFFFF 92%, transparent); border-bottom-color: rgba(60, 50, 36, 0.10); }
+.list-scroll.nj-mag-book  .list-top-inset { background: color-mix(in srgb, #FBF6EA 90%, transparent); border-bottom-color: rgba(74, 60, 38, 0.14); }
+.list-scroll.nj-mag-kraft .list-top-inset { background: color-mix(in srgb, #F4EAD5 90%, transparent); border-bottom-color: rgba(84, 66, 38, 0.16); }
+.list-scroll.nj-mag-paper .list-top-inset,
+.list-scroll.nj-mag-white .list-top-inset,
+.list-scroll.nj-mag-book  .list-top-inset,
+.list-scroll.nj-mag-kraft .list-top-inset { backdrop-filter: blur(6px); }
+.list-scroll.nj-mag-paper .digest-btn,
+.list-scroll.nj-mag-white .digest-btn,
+.list-scroll.nj-mag-book  .digest-btn,
+.list-scroll.nj-mag-kraft .digest-btn {
+  background: rgba(255, 253, 246, 0.9);
+  color: rgba(43, 39, 33, 0.74);
+  border-color: rgba(60, 50, 36, 0.16);
+}
+.list-scroll.nj-mag-paper .digest-btn:hover,
+.list-scroll.nj-mag-white .digest-btn:hover,
+.list-scroll.nj-mag-book  .digest-btn:hover,
+.list-scroll.nj-mag-kraft .digest-btn:hover { color: #2B2721; border-color: rgba(60, 50, 36, 0.3); background: #FFFDF6; }
+.list-scroll.nj-mag-paper .digest-btn.active,
+.list-scroll.nj-mag-white .digest-btn.active,
+.list-scroll.nj-mag-book  .digest-btn.active,
+.list-scroll.nj-mag-kraft .digest-btn.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, rgba(60,50,36,0.16)); background: #FFFDF6; }
+.list-scroll.nj-mag-paper .list-search,
+.list-scroll.nj-mag-white .list-search,
+.list-scroll.nj-mag-book  .list-search,
+.list-scroll.nj-mag-kraft .list-search { background: rgba(255, 253, 246, 0.9); border-color: rgba(60, 50, 36, 0.14); color: #2B2721; }
+/* 夜间纸感容器特异性教训：body.dark 全路径 */
+body.dark .list-scroll.nj-mag-paper .list-top-inset,
+body.dark .list-scroll.nj-mag-white .list-top-inset,
+body.dark .list-scroll.nj-mag-book  .list-top-inset,
+body.dark .list-scroll.nj-mag-kraft .list-top-inset { background: rgba(38, 36, 31, 0.92); border-bottom-color: rgba(255, 255, 255, 0.08); }
+body.dark .list-scroll.nj-mag-paper .digest-btn,
+body.dark .list-scroll.nj-mag-white .digest-btn,
+body.dark .list-scroll.nj-mag-book  .digest-btn,
+body.dark .list-scroll.nj-mag-kraft .digest-btn {
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(235, 231, 222, 0.72);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+body.dark .list-scroll.nj-mag-paper .digest-btn:hover,
+body.dark .list-scroll.nj-mag-white .digest-btn:hover,
+body.dark .list-scroll.nj-mag-book  .digest-btn:hover,
+body.dark .list-scroll.nj-mag-kraft .digest-btn:hover { color: rgba(245, 242, 234, 0.95); border-color: rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.08); }
+body.dark .list-scroll.nj-mag-paper .list-search,
+body.dark .list-scroll.nj-mag-white .list-search,
+body.dark .list-scroll.nj-mag-book  .list-search,
+body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 255, 0.055); border-color: rgba(255, 255, 255, 0.1); color: rgba(238, 234, 224, 0.9); }
+
+/* ===== R31 打回修复 ===== */
+/* ① 刊头与杂志网格同边距（网格 18px，刊头此前 0 顶死左缘） */
+.nj-edition { margin: 4px 18px 20px; }
+/* ② 工具栏折行不再被 44px 定高截断：改 min-height，折行行有呼吸 */
+.list-top-inset { height: auto !important; min-height: 44px; row-gap: 6px; padding-top: 5px; padding-bottom: 7px; }
+
+/* R31：聚簇折叠行补「同题报道」语义标识 */
+.cluster-row .cluster-hint { flex: 0 0 auto; font-size: 11px; color: var(--text-tertiary); }
+.cluster-row .cluster-count { flex: 0 0 auto; }

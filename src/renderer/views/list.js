@@ -251,7 +251,9 @@ export class ListView {
 
   rowFor(item) {
     const row = document.createElement('article');
-    const showSummary = shouldShowSummary(item.title, item.summaryPreview);
+    const cleanTitle = stripHtml(item.title) || t('未命名文章');
+    const cleanSummary = stripHtml(item.summaryPreview);
+    const showSummary = shouldShowSummary(cleanTitle, cleanSummary);
     row.className = `entry-row ${item.isRead ? 'read' : 'unread'} ${item.isStarred ? 'starred' : ''} ${item.isLater ? 'later' : ''} ${showSummary ? 'has-summary' : ''}`;
     row.dataset.entryId = item.id;
     row.dataset.isLater = item.isLater ? '1' : '0'; // 右键菜单注入「稍后读」toggle 依据
@@ -278,8 +280,8 @@ export class ListView {
         </div>
       </div>
     `;
-    row.querySelector('.entry-title').textContent = item.title || t('未命名文章');
-    if (showSummary) row.querySelector('.entry-summary').textContent = item.summaryPreview;
+    row.querySelector('.entry-title').textContent = cleanTitle;
+    if (showSummary) row.querySelector('.entry-summary').textContent = cleanSummary;
     row.querySelector('.entry-source').textContent = item.sourceTitle;
     if (badge) row.querySelector('.entry-account-badge').textContent = badge;
     // CSP 禁内联脚本：favicon 加载失败兜底在这里挂监听（含缓存已失败的同步态）
@@ -477,10 +479,12 @@ export class ListView {
   clusterRow(cluster) {
     const row = document.createElement('div');
     row.className = 'cluster-row';
-    row.innerHTML = `<span class="cluster-count">${cluster.items.length}</span>
+    row.innerHTML = `<span class="cluster-count"></span>
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <span class="cluster-hint">${escapeHTML(t('同题报道 · 点击展开'))}</span>
       <span class="entry-time">${escapeHTML(formatTime(cluster.items[0].publishedAt))}</span>`;
-    row.querySelector('span:nth-child(2)').textContent = cluster.items[0].title;
+    row.querySelector('.cluster-count').textContent = t('%lld 篇').replace('%lld', String(cluster.items.length));
+    row.querySelector('span:nth-child(2)').textContent = stripHtml(cluster.items[0].title);
     row.title = t('多源相似报道，点击展开');
     // AI 对比速读（方向 14 v1）：一键融合多源同题报道（弹窗与生成在 app 层，与今日简报同管线）
     if (cluster.items.length >= 2) {
@@ -664,13 +668,15 @@ export class ListView {
     kicker.className = 'nj-edition-kicker';
     kicker.textContent = `${t('封面故事')} · ${item.sourceTitle || ''}`;
     const h2 = document.createElement('h2');
-    h2.textContent = item.title || t('未命名文章');
+    h2.textContent = stripHtml(item.title) || t('未命名文章');
     caption.append(kicker, h2);
 
     const imageURL = firstImageURL(item.contentHead);
     if (imageURL) {
       const img = document.createElement('img');
       img.alt = '';
+      img.decoding = 'async';
+      img.fetchPriority = 'low';
       img.referrerPolicy = 'no-referrer';
       img.addEventListener('error', () => {
         img.remove();
@@ -745,7 +751,7 @@ export class ListView {
         row.dataset.entryId = item.id;
         const title = document.createElement('span');
         title.className = 'toc-title';
-        title.textContent = item.title || t('未命名文章');
+        title.textContent = stripHtml(item.title) || t('未命名文章');
         const dots = document.createElement('span');
         dots.className = 'toc-dots';
         const meta = document.createElement('span');
@@ -773,6 +779,8 @@ export class ListView {
     if (imageURL) {
       const img = document.createElement('img');
       img.loading = 'lazy';
+      img.decoding = 'async';
+      img.fetchPriority = 'low'; // 封面让位于正文与视口内容（R31）
       img.referrerPolicy = 'no-referrer';
       img.alt = '';
       img.addEventListener('load', () => img.classList.add('nj-cover-loaded'), { once: true });
@@ -805,7 +813,7 @@ export class ListView {
         ${readMinutesChip(item)}
         <span class="entry-time">${escapeHTML(formatTime(item.publishedAt))}</span>
       </div>`;
-    body.querySelector('.mag-title').textContent = item.title || t('未命名文章');
+    body.querySelector('.mag-title').textContent = stripHtml(item.title) || t('未命名文章');
     body.querySelector('.mag-feed').textContent = item.sourceTitle || '';
 
     card.appendChild(cover);
@@ -1083,6 +1091,18 @@ function jaccard(a, b) {
   return hit / (a.size + b.size - hit);
 }
 /** 相似报道聚类：同标题语义（3-gram Jaccard>0.55）折叠为一行。 */
+/** 剥标签+解实体+折叠空白（R31）：摘要/标题统一净化，RSS 里混进的片段 HTML 不再当文本显示。 */
+function stripHtml(s) {
+  return String(s ?? '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    // 短锚文本整块丢弃（「阅读全文 / Read more」类导航样板不残留），长链接保留文字
+    .replace(/<a\s[^>]*>\s*[^<]{0,10}?\s*<\/a>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"').replace(/&#0?39;/g, "'").replace(/&hellip;/gi, '…')
+    .replace(/\s+/g, ' ').trim();
+}
+
 function clusterSimilar(items) {
   const out = [];
   const grams = items.map((item) => trigrams(item.title));
