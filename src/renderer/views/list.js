@@ -572,6 +572,7 @@ export class ListView {
   }
 
   appendRows(items) {
+    this.rowsHost.querySelector('.list-loading-more')?.remove(); // R46：到达即移除呼吸点
     const empty = this.rowsHost.querySelector('.list-empty');
     if (empty) empty.remove();
     for (const item of items) this._knownIds.add(item.id); // 翻页行并入已见识（R33：不再误标新到）
@@ -1159,8 +1160,18 @@ export class ListView {
     if (this._renderingPages) return; // 渐进渲染未完成：scrollHeight 在增长，不构成"到底"
     const el = this.scrollEl;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 240) {
+      this._showLoadingMore(); // R46：底部呼吸点指示
       this.handlers.onLoadMore?.();
     }
+  }
+
+  /** 底部加载指示（R46）：三点呼吸，appendRows 到达后自动移除。 */
+  _showLoadingMore() {
+    if (this.rowsHost.querySelector('.list-loading-more')) return;
+    const el = document.createElement('div');
+    el.className = 'list-loading-more';
+    el.setAttribute('aria-hidden', 'true');
+    this.rowsHost.appendChild(el);
   }
 }
 

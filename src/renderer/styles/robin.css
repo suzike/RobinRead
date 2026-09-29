@@ -5210,3 +5210,19 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 
 /* ===== R45 标签 chips 键盘焦点环 ===== */
 .robin-tag-chip:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+
+/* ===== R46 细节三连 ===== */
+/* ① 底部加载呼吸点（与装载页同语言） */
+.list-loading-more { padding: 14px; text-align: center; color: var(--text-tertiary); font-size: 12px; }
+.list-loading-more::after {
+  content: '···';
+  letter-spacing: 6px;
+  display: inline-block;
+  margin-left: 6px;
+  animation: er-dot-breathe 1.2s ease-in-out infinite;
+}
+/* ② 正文已加载图 → 灯箱可点击暗示 */
+.reader-article img.nj-img:not(.nj-img-failed) { cursor: zoom-in; }
+/* ③ 分割条悬停高亮（拖拽把手可视化） */
+.splitter:hover::after, .splitter.dragging::after { width: 3px; left: 1px; background: color-mix(in srgb, var(--accent) 45%, var(--separator)); }
+.splitter:hover, .splitter.dragging { cursor: col-resize; }
