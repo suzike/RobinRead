@@ -42,33 +42,40 @@ app.whenReady().then(async () => {
         const zf = getComputedStyle(host.shadowRoot.querySelector('.cardx-scale') || st).zoom || 1;
         return { w: Math.round(r.width / zf), h: Math.round(r.height / zf), inline: (st.getAttribute('style') || '').slice(0, 90) };
       };
-      const stageW = () => { const m = (host.shadowRoot.querySelector('.cardx-stage')?.getAttribute('style') || '').match(/width:\s*(\d+)px/); return m ? Number(m[1]) : 0; };
-      // 等待渲染真正落定：stage 内联宽度到达目标值（ladder 多轮测量可超 1s；且换挡会取消上一次渲染）
-      const pick = async (label, wantW) => {
+      const stageBox = () => {
+        const st = host.shadowRoot.querySelector('.cardx-stage');
+        if (!st) return null;
+        const m = (st.getAttribute('style') || '').match(/width:\\s*(\\d+)px;\\s*height:\\s*(\\d+)px/);
+        return m ? { w: Number(m[1]), h: Number(m[2]) } : null;
+      };
+      // 等待渲染真正落定：stage 比例到达目标（v2 比例合同：长文画布会放大，宽度不固定）
+      const pick = async (label, rw, rh) => {
         const b = [...modal.querySelectorAll('.cardx-ratio button')].find(x => x.textContent.trim() === label);
         if (!b) return { clicked: false };
         b.click();
         const t0 = Date.now();
-        while (Date.now() - t0 < 12000) {
-          await new Promise(r => setTimeout(r, 150));
-          if (stageW() === wantW) { await new Promise(r => setTimeout(r, 300)); break; }
+        let box = null;
+        while (Date.now() - t0 < 15000) {
+          await new Promise(r => setTimeout(r, 180));
+          box = stageBox();
+          if (box && Math.abs(box.w / box.h - rw / rh) < 0.02 && box.w > 400) { await new Promise(r => setTimeout(r, 350)); break; }
         }
-        return { clicked: true, active: b.classList.contains('active'), st: ratioOf(), cap: caption().slice(0, 60), gotW: stageW() };
+        return { clicked: true, active: b.classList.contains('active'), st: box || { w: 0, h: 0 }, dbg: (host.shadowRoot.querySelector('.cardx-stage')?.getAttribute('style') || '(no-stage)'), cap: caption().slice(0, 60) };
       };
       const out = {};
-      out.r43 = await pick('4:3', 1000);    // 产品定义：4:3 = 横版宽高比（宽:高），1000×750
-      out.r169 = await pick('16:9', 1333);
-      out.r916 = await pick('9:16', 750);   // 9:16 = 竖版手机全屏，750×1333
-      out.r11 = await pick('1:1', 750);
+      out.r43 = await pick('4:3', 4, 3);    // 比例合同：长文画布放大，比例恒定
+      out.r169 = await pick('16:9', 16, 9);
+      out.r916 = await pick('9:16', 9, 16);
+      out.r11 = await pick('1:1', 1, 1);
       modal.querySelector('.cardx-close')?.click();
       return out;
     })()`);
     if (a.__err) throw new Error('ratiohard: ' + a.__err);
-    const near = (st, w, h) => st && Math.abs(st.w - w) <= 2 && Math.abs(st.h - h) <= 2;
-    ok(a.r43.clicked && near(a.r43.st, 1000, 750), `4:3 → 预览 stage 精确 1000×750（${a.r43.st ? a.r43.st.w + '×' + a.r43.st.h : 'no stage'}）`);
-    ok(a.r169.clicked && near(a.r169.st, 1333, 750), `16:9 → 预览 stage 精确 1333×750（${a.r169.st ? a.r169.st.w + '×' + a.r169.st.h : 'no stage'}）`);
-    ok(a.r916.clicked && near(a.r916.st, 750, 1333), `9:16 → 预览 stage 精确 750×1333（${a.r916.st ? a.r916.st.w + '×' + a.r916.st.h : 'no stage'}）`);
-    ok(a.r11.clicked && near(a.r11.st, 750, 750), `1:1 → 预览 stage 精确 750×750（${a.r11.st ? a.r11.st.w + '×' + a.r11.st.h : 'no stage'}）`);
+    const nearRatio = (st, wr, hr) => st && Math.abs(st.w / st.h - wr / hr) < 0.02 && Math.min(st.w, st.h) >= 712;
+    ok(a.r43.clicked && nearRatio(a.r43.st, 4, 3), `4:3 → 比例恒定（${a.r43.st ? a.r43.st.w + '×' + a.r43.st.h : 'no stage'}，长文画布放大）[dbg: ${a.r43.dbg}]`);
+    ok(a.r169.clicked && nearRatio(a.r169.st, 16, 9), `16:9 → 比例恒定（${a.r169.st ? a.r169.st.w + '×' + a.r169.st.h : 'no stage'}）`);
+    ok(a.r916.clicked && nearRatio(a.r916.st, 9, 16), `9:16 → 比例恒定（${a.r916.st ? a.r916.st.w + '×' + a.r916.st.h : 'no stage'}）`);
+    ok(a.r11.clicked && nearRatio(a.r11.st, 1, 1), `1:1 → 比例恒定（${a.r11.st ? a.r11.st.w + '×' + a.r11.st.h : 'no stage'}）`);
     const caps = [a.r43.cap, a.r169.cap, a.r916.cap, a.r11.cap].join('|');
     ok(!caps.includes('回落'), '标注不再出现「回落长图」');
     ok(caps.includes('场景版式') || caps.includes('缩放进画幅') || caps.includes('铺满'), `超长文走场景版式/contain/铺满（${caps.slice(0, 80)}）`);

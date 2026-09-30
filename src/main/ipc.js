@@ -874,13 +874,28 @@ function registerIPCHandlers(store, window) {
       '(()=>{const c=document.querySelector(".xc-card");const s=document.querySelector(".xc-stage");if(!c||!s)return JSON.stringify({w:0,h:0,sh:0,ch:0,sp:0,bt:0});const sp=c.querySelector(".xc-fill-spacer");const pb=c.querySelector(".xc-overflow-probe");const r=c.getBoundingClientRect();const bt=pb?Math.ceil(pb.getBoundingClientRect().bottom-s.getBoundingClientRect().top):0;return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height),sh:Math.ceil(c.scrollHeight),ch:Math.ceil(c.clientHeight),sp:sp?Math.ceil(sp.getBoundingClientRect().height):0,bt})})()'
     ));
     try {
-      // R-D7 场景排版：画幅专属版式（每尺寸独立排版脚本）——直接渲染进精确画幅，无 ladder 无回落
+      // R-D8 场景排版 v2（比例合同）：基准宽测自然高 → 超比例等比放大重排（≤3 轮）→ 锁定比例画幅弹性填满。零截断。
       if (ratio && options.sceneId) {
         const scenes = await loadScenesModule();
         if (scenes.sceneLayout(options.sceneId)) {
           const { variantFilter } = await loadTemplatesModule();
           const vf = variantFilter(options.variant);
-          const page = scenes.renderScenePage(data, { ...options, tplId: templateId || options.templateId, variantFilterCss: vf !== 'none' ? `filter:${vf};` : '' }, zoom);
+          const sceneOpts = () => ({ ...options, sceneId: options.sceneId, tplId: templateId || options.templateId, variantFilterCss: vf !== 'none' ? `filter:${vf};` : '' });
+          const measureNat = async (W) => {
+            const pg = scenes.renderScenePage(data, { ...sceneOpts(), width: W }, zoom); // height 缺省 = auto
+            await load(pg);
+            return JSON.parse(await win.webContents.executeJavaScript(
+              '(()=>{const c=document.querySelector(".sp-card");return JSON.stringify({h:c?Math.ceil(c.getBoundingClientRect().height):0})})()'
+            )).h;
+          };
+          const SCENE_BOX = { '1:1': [750, 1], '3:4': [750, 4 / 3], '9:16': [750, 16 / 9], '4:3': [1000, 3 / 4], '16:9': [1333, 9 / 16], '2.35:1': [1763, 1 / 2.35] };
+          let [W, R] = SCENE_BOX[options.sceneId] || [750, 1];
+          for (let round = 0; round < 4; round++) {
+            const Hn = await measureNat(W);
+            if (Hn <= W * R + 4) break;
+            W = Math.max(W + 60, Math.ceil((Hn + 8) / R)); // 内容超比例 → 放大画布重排
+          }
+          const page = scenes.renderScenePage(data, { ...sceneOpts(), width: W, height: Math.round(W * R) }, zoom);
           await load(page);
           win.setContentSize(page.width, page.height);
           win.setBackgroundColor(page.bg);

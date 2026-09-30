@@ -30,14 +30,20 @@ app.whenReady().then(async () => {
     };
     const want = { '1:1': [750, 750, 'sp-square'], '3:4': [750, 1000, 'sp-tall'], '9:16': [750, 1333, 'sp-poster'], '4:3': [1000, 750, 'sp-classic'], '16:9': [1333, 750, 'sp-slide'], '2.35:1': [1763, 750, 'sp-cinema'] };
     for (const [id, [w, h, cls]] of Object.entries(want)) {
-      const pg = scenes.renderScenePage(data, { sceneId: id, tplId: 'paper' }, 2);
-      ok(pg.width === w * 2 && pg.height === h * 2 && pg.html.includes(cls), `导出页 ${id} → ${w * 2}×${h * 2} 精确（${pg.width}×${pg.height}，${cls}）`);
+      const pg = scenes.renderScenePage(data, { sceneId: id, tplId: 'paper', height: h }, 2);
+      ok(pg.width === w * 2 && pg.height === h * 2 && pg.html.includes(cls), `锁定画幅导出页 ${id} → ${w * 2}×${h * 2} 精确（${pg.width}×${pg.height}，${cls}）`);
     }
+    const measurePg = scenes.renderScenePage(data, { sceneId: '4:3', tplId: 'paper' }, 2);
+    ok(measurePg.height == null, `测量页（height 缺省）→ height:null 供求解器量自然高（${measurePg.height}）`);
+    // 零截断：line-clamp 移除 + 超长内容末段完整在册
+    ok(!scenes.renderSceneCard(data, { sceneId: '4:3', tplId: 'paper' }).css.includes('-webkit-line-clamp'), '零截断：line-clamp 已移除');
+    const LONG32 = Array.from({ length: 32 }, (_, i) => `第${i + 1}段落全文：比例合同的排版引擎必须把所有内容放进约定横纵比的画幅，字号保持基准，画布等比放大。`).join('\n\n');
+    const longSc = scenes.renderSceneCard({ ...data, content: LONG32, lead: '' }, { sceneId: '3:4', tplId: 'paper' });
+    ok(longSc.html.includes('第32段落全文'), '超长内容末段完整渲染（零截断）');
     const struct = scenes.renderSceneCard(data, { sceneId: '16:9', tplId: 'paper' });
     ok(struct.html.includes('sp-left') && struct.html.includes('sp-right'), '16:9 结构：左右分区（sp-left/sp-right）');
     const struct916 = scenes.renderSceneCard(data, { sceneId: '9:16', tplId: 'paper' });
     ok(struct916.html.includes('sp-hero'), '9:16 结构：hero 压图（sp-hero）');
-    ok(struct.css.includes('-webkit-line-clamp'), '长文截断：line-clamp 在册（精选海报语义）');
 
     // ①② 真实弹窗：切画幅/预设 → 场景类切换
     const win = new BrowserWindow({
@@ -62,18 +68,22 @@ app.whenReady().then(async () => {
         while (Date.now() - t0 < 8000) { await new Promise(r => setTimeout(r, 150)); if (stageW() === wantW) { await new Promise(r => setTimeout(r, 200)); break; } }
         return { clicked: true, cls: cardCls(), w: stageW() };
       };
-      const pickPreset = async (label) => {
+      const pickPreset = async (label, wantCls) => {
         const b = [...modal.querySelectorAll('.cardx-preset-chip')].find(x => x.textContent.trim() === label);
         if (!b) return { clicked: false };
         b.click();
-        await new Promise(r => setTimeout(r, 700));
+        const t0 = Date.now();
+        while (Date.now() - t0 < 9000) {
+          await new Promise(r => setTimeout(r, 160));
+          if (cardCls().includes(wantCls)) { await new Promise(r => setTimeout(r, 250)); break; }
+        }
         return { clicked: true, cls: cardCls(), w: stageW(), cap: (modal.querySelector('[class*=cap]')?.textContent || '').slice(0, 40) };
       };
       const out = {};
       out.s11 = await pickRatio('1:1', 750);
       out.s169 = await pickRatio('16:9', 1333);
       out.s916 = await pickRatio('9:16', 750);
-      out.preset = await pickPreset('小红书 3:4');
+      out.preset = await pickPreset('小红书 3:4', 'sp-tall');
       modal.querySelector('.cardx-close')?.click();
       return out;
     })()`);
@@ -84,19 +94,30 @@ app.whenReady().then(async () => {
     ok(a.preset.clicked && a.preset.cls.includes('sp-tall') && a.preset.w === 750, `预设「小红书 3:4」→ sp-tall 信息流（${a.preset.cls.slice(0, 30)} / ${a.preset.w}px）`);
     ok(String(a.preset.cap).includes('场景版式'), `caption 标注场景版式（${a.preset.cap}）`);
 
-    // ④ 真 IPC：sceneId 走场景页（16:9 @zoom2 → 2666×1500）
+    // ④ 真 IPC：比例合同——短内容 16:9 精确基准；长内容 4:3 放大后比例恒定（负载抖动重试一次）
     const { registerIPCHandlers } = require(path.join(ROOT, 'src', 'main', 'ipc'));
     const fakeStore = { on: () => {}, snapshot: () => ({ sidebarCounts: {}, refreshStatus: {} }), preferences: { get: () => null, set: () => {}, flushSync: () => {} } };
     registerIPCHandlers(fakeStore, win);
-    const r = await win.webContents.executeJavaScript(`(async () => {
-      const res = await window.robin.renderCardPng({ templateId: 'paper', data: ${JSON.stringify(data)}, options: { templateId: 'paper', sceneId: '16:9', qr: null }, zoom: 2, ratio: 9 / 16 });
-      return res && res.ok ? { w: res.data.width, h: res.data.height, len: res.data.base64.length } : { err: res && res.error };
-    })()`);
-    ok(r.w === 2666 && r.h === 1500 && r.len > 20000, `IPC 场景 16:9 → 2666×1500 精确（${r.w}×${r.h}）`);
+    const ipcOnce = () => win.webContents.executeJavaScript(`(async () => {
+      const D = ${JSON.stringify(data)};
+      const res = await window.robin.renderCardPng({ templateId: 'paper', data: D, options: { templateId: 'paper', sceneId: '16:9', qr: null }, zoom: 1, ratio: 9 / 16 });
+      const LONG32 = Array.from({ length: 14 }, (_, i) => '第' + (i + 1) + '段落全文：比例合同的排版引擎必须把所有内容放进约定横纵比的画幅，字号保持基准，画布等比放大，文字重新回流。' ).join('\\n\\n');
+      const res2 = await window.robin.renderCardPng({ templateId: 'paper', data: { ...D, content: LONG32, lead: '' }, options: { templateId: 'paper', sceneId: '4:3', qr: null }, zoom: 1, ratio: 3 / 4 });
+      const ok1 = res && res.ok ? { w: res.data.width, h: res.data.height } : { err: res && res.error };
+      const ok2 = res2 && res2.ok ? { w: res2.data.width, h: res2.data.height } : { err: res2 && res2.error };
+      return { short: ok1, long: ok2 };
+    })()`).catch((e) => ({ __throw: String(e && e.message || e).slice(0, 120) }));
+    let r = await ipcOnce();
+    if (r.__throw) { await sleep(1200); r = await ipcOnce(); }
+    if (r.__throw) throw new Error('IPC scene 渲染两次均失败: ' + r.__throw);
+    ok(r.short.w === 1333 && r.short.h === 750, `IPC 短内容 16:9 → 基准精确 1333×750（${r.short.w}×${r.short.h}）`);
+    const ratioLong = r.long.w / r.long.h;
+    ok(Math.abs(ratioLong - 4 / 3) < 0.01 && r.long.w > 1000, `IPC 长内容 4:3 → 画布放大且比例恒定（${r.long.w}×${r.long.h}，ratio ${ratioLong.toFixed(3)}）`);
 
     if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
     else { console.log('ALL PASSED'); app.exit(0); }
   } catch (e) {
+    try { fs.writeFileSync(path.join(__dirname, '..', '.tmp-shots', 'scenes-err.txt'), String(e && e.stack || e)); } catch (_) {}
     console.error('ERR', String(e && e.stack || e).slice(0, 900));
     app.exit(1);
   }

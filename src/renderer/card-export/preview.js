@@ -312,28 +312,44 @@ export async function openCardExportModal({ data, link = '' }) {
     capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${Math.round(naturalH) * state.zoom}px · ${t('高清输出')}${state.zoom}x${longHint}`;
   }
 
-  /** 场景版式预览（R-D7）：画幅专属排版，直接渲染进精确 stage——无 ladder、无回落。 */
+  /** 场景版式预览（比例合同）：基准宽测自然高 → 超比例等比放大重排（≤3 轮收敛）→ 锁定比例画幅弹性填满。 */
   function renderScenePreview(seq) {
     requestAnimationFrame(() => {
       if (seq !== previewSeq) return;
-      const sc = renderSceneCard(data, {
-        sceneId: state.ratio,
-        tplId: state.tpl,
-        variant: state.variant,
+      const base = { w: 0, r: 0 };
+      const sceneId = state.ratio;
+      const opts = () => ({
+        sceneId, tplId: state.tpl,
         coverFilter: state.coverFilter,
         qr: state.qr ? qrSvg : null,
         watermark: state.watermark,
         watermarkStyle: state.watermarkStyle,
       });
+      const SCENE_BOX = { '1:1': [750, 1], '3:4': [750, 4 / 3], '9:16': [750, 16 / 9], '4:3': [1000, 3 / 4], '16:9': [1333, 9 / 16], '2.35:1': [1763, 1 / 2.35] };
+      let [W, R] = SCENE_BOX[sceneId] || [750, 1];
+      let final = null;
+      // 迭代求解（同步 shadow 测量；测量页脱流防宿主布局压缩宽度；重排单调收敛，3 轮内稳定）
+      for (let round = 0; round < 4; round++) {
+        const sc = renderSceneCard(data, { ...opts(), width: W }); // height 缺省 = auto 测自然高
+        shadow.innerHTML = `<style>${sc.css}</style><div style="position:absolute;left:-99999px;top:0;">${sc.html}</div>`;
+        const el = shadow.querySelector('.sp-card');
+        const Hn = el ? Math.ceil(el.getBoundingClientRect().height) : 0;
+        if (Hn <= W * R + 4) {
+          final = renderSceneCard(data, { ...opts(), width: W, height: Math.round(W * R) }); // 锁定比例画幅
+          break;
+        }
+        W = Math.max(W + 60, Math.ceil((Hn + 8) / R)); // 内容超比例 → 等比放大画布重排
+      }
+      if (!final) final = renderSceneCard(data, { ...opts(), width: W, height: Math.round(W * R) });
       const vf = variantFilter(state.variant);
-      const p = host.clientWidth ? Math.min(1, host.clientWidth / sc.boxW) : 0.5;
-      shadow.innerHTML = `<style>${sc.css}
+      const p = host.clientWidth ? Math.min(1, host.clientWidth / final.boxW) : 0.5;
+      shadow.innerHTML = `<style>${final.css}
         .cardx-scale { zoom: ${p}; ${vf !== 'none' ? `filter:${vf}` : ''} }
-        .cardx-stage { overflow:hidden; background:${sc.bg}; border-radius: 8px; }
+        .cardx-stage { overflow:hidden; background:${final.bg}; border-radius: 8px; }
         </style>
-        <div class="cardx-scale"><div class="cardx-stage" style="width:${sc.boxW}px; height:${sc.boxH}px">${sc.html}</div></div>`;
+        <div class="cardx-scale"><div class="cardx-stage" style="width:${final.boxW}px; height:${Math.round(W * R)}px">${final.html}</div></div>`;
       capEl.classList.add('cardx-editable-hint');
-      capEl.textContent = `${t('导出尺寸')} ${sc.boxW * state.zoom}×${sc.boxH * state.zoom}px · ${t('场景版式')}`;
+      capEl.textContent = `${t('导出尺寸')} ${final.boxW * state.zoom}×${Math.round(W * R) * state.zoom}px · ${t('场景版式')}`;
     });
   }
 
