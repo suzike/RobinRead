@@ -75,6 +75,7 @@ app.whenReady().then(async () => {
       return out;
     })()`);
     if (a.__err) throw new Error('cardx-variant: ' + a.__err);
+    // 源码级：CSS 流式规则在册（不变）
     // 导出端一致性（源码级）：renderFullPage 自适应含 stage 变体滤镜
     const tplSrc = fs.readFileSync(path.join(ROOT, 'src', 'renderer', 'card-export', 'templates.js'), 'utf8');
     ok(tplSrc.includes('.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)} !important}'), '模板：用户显式封面滤镜带 !important（压过模板强制灰度）');

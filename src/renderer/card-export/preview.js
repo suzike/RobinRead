@@ -349,6 +349,7 @@ export async function openCardExportModal({ data, link = '' }) {
         </style>
         <div class="cardx-scale"><div class="cardx-stage" style="width:${final.boxW}px; height:${Math.round(W * R)}px">${final.html}</div></div>`;
       capEl.classList.add('cardx-editable-hint');
+      capEl.title = t('画幅为比例合同：内容过多时画布等比放大（比例不变），过少时锁定基准画幅弹性填满');
       capEl.textContent = `${t('导出尺寸')} ${final.boxW * state.zoom}×${Math.round(W * R) * state.zoom}px · ${t('场景版式')}`;
     });
   }
@@ -492,6 +493,7 @@ export async function openCardExportModal({ data, link = '' }) {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = t(p.label);
+      b.title = t('一键套用该场景的画幅、版式与排版');
       b.className = 'cardx-preset-chip';
       b.addEventListener('click', () => { Object.assign(state, p.set); persist(); renderSidebar(); renderPreview(); });
       presetBox.appendChild(b);

@@ -5274,6 +5274,24 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 }
 .cardx-preset-chip:hover { border-color: var(--accent); color: var(--accent); }
 
+/* ===== R49 细节三连（卡片导出弹窗） ===== */
+/* ① 侧栏/预览区细滚动条（对齐 .modal-sidebar 模式，替换默认粗条） */
+.cardx-side, .cardx-preview { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.cardx-side::-webkit-scrollbar, .cardx-preview::-webkit-scrollbar { width: 5px; }
+.cardx-side::-webkit-scrollbar-thumb, .cardx-preview::-webkit-scrollbar-thumb {
+  background: transparent; border-radius: var(--radius-full);
+  transition: background var(--dur-mid) var(--ease-out);
+}
+.cardx-side:hover::-webkit-scrollbar-thumb, .cardx-preview:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.cardx-side::-webkit-scrollbar-track, .cardx-preview::-webkit-scrollbar-track { background: transparent; }
+/* ② 键盘可达：预设 chips 与分段按钮焦点环 */
+.cardx-preset-chip:focus-visible, .cardx-seg button:focus-visible, .cardx-tpl:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm);
+}
+.cardx-preset-chip:active { transform: scale(0.96); }
+
 /* ===== R-D5 卡片导出弹窗全屏 ===== */
 .cardx-head-btns { display: flex; align-items: center; gap: 4px; }
 .cardx-full, .cardx-close {
