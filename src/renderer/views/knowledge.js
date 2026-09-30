@@ -264,10 +264,10 @@ export class KnowledgeCenter {
         const knowColor = css.getPropertyValue('--warm-accent').trim() || '#a3573d';
         const gridColor = css.getPropertyValue('--note-border').trim() || '#ddd';
         const dpr = window.devicePixelRatio || 1;
-        const W = canvas.parentElement.clientWidth || 700;
+        // 画布宽度取自身 content-box（CSS width:100% 已扣除卡片 padding）；取 parent clientWidth 会连 padding 一起量，右缘溢出卡片
         const H = 120;
-        canvas.width = W * dpr; canvas.height = H * dpr;
-        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+        const W = Math.max(320, canvas.clientWidth || canvas.parentElement.clientWidth || 700);
+        canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
         const ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
         // 补全日期序列（缺日补 0）

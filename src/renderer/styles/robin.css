@@ -3974,7 +3974,7 @@ textarea:focus-visible,
 }
 .kb-legend-read { background: var(--accent); }
 .kb-legend-know { background: var(--warm-accent); }
-.kb-spark-canvas { display: block; }
+.kb-spark-canvas { display: block; width: 100%; height: 120px; }
 .kb-tag-bar-row {
   display: flex;
   align-items: center;
