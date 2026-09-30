@@ -84,7 +84,7 @@ app.whenReady().then(async () => {
         const r2 = unwrap(await window.robin.renderCardPng({ templateId: 'min', data, options: { templateId: 'min', qr: null }, zoom: 2, ratio: 4 / 3 }), 'render2 fail');
         out.r2 = { w: r2.width, h: r2.height, len: r2.base64.length };
         log('r2 ok ' + JSON.stringify(out.r2));
-        // 超载 16:9：长文走超载回落长图（ratio:null 竖版自然长图，宽 750×zoom、内容完整、无整卡缩小）
+        // 超载 16:9（画幅硬合同）：6 栏密排仍装不下 → 整卡 contain 缩进精确 16:9 画幅（1333×750×zoom，绝不回落长图）
         const LONG = Array.from({ length: 14 }, (_, i) => '第' + (i + 1) + '段：纸感阅读的关键不在于仿旧，而在于把注意力还给文字本身。版心、行距、页边与留白共同构成节奏，让长文在屏幕上也保有翻阅的呼吸感，安静是最重要的排版变量，中英混排 Mixed English 与数字 2026 亦不例外，本段用于超载多栏铺满验证。').join('\\n\\n');
         const longData = { ...data, title: '超载长文的 16:9 多栏铺满', lead: LONG, content: LONG, sections: LONG };
         const r3 = unwrap(await window.robin.renderCardPng({ templateId: 'paper', data: longData, options: { templateId: 'paper', qr: null }, zoom: 3, ratio: 9 / 16 }), 'render3 fail');
@@ -125,7 +125,7 @@ app.whenReady().then(async () => {
     ok(!result.error, 'E2E 页面脚本无异常', result.error || '');
     ok(result.r1 && result.r1.w >= 1500 && result.r1.len > 30000, 'IPC card:renderPng 自适应档', JSON.stringify(result.r1 || {}));
     ok(result.r2 && result.r2.w === 1500 && result.r2.h === 2000, 'IPC card:renderPng 3:4 档（隐藏窗口复用 + 两遍渲染）', JSON.stringify(result.r2 || {}));
-    ok(result.r3 && result.r3.w === 2250 && result.r3.h >= 2250 && result.r3.len > 30000, 'IPC 超载 16:9 回落自然长图（竖版 750×3 基宽、高度随内容、内容完整不缩小）', JSON.stringify(result.r3 || {}));
+    ok(result.r3 && result.r3.w === 3999 && result.r3.h === 2250 && result.r3.len > 30000, 'IPC 超载 16:9 画幅硬合同（1333×750×3 精确画幅，contain 不回落长图）', JSON.stringify(result.r3 || {}));
     ok((result.colsCss || 0) >= 1, '多栏 fill 注入 column-count:3', `colsCss=${result.colsCss}`);
     ok(result.colsInPage && result.noShrink, '导出页多栏铺满且无整卡缩小', `inPage=${result.colsInPage} noShrink=${result.noShrink}`);
     ok(result.save === true, 'IPC app:writeBinaryFile');

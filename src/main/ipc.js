@@ -840,6 +840,13 @@ function registerIPCHandlers(store, window) {
     }
     return templatesModule;
   };
+  let scenesModule = null;
+  const loadScenesModule = async () => {
+    if (!scenesModule) {
+      scenesModule = await import(pathToFileURL(path.join(__dirname, '../renderer/card-export/scenes.js')).href);
+    }
+    return scenesModule;
+  };
   handle('card:renderPng', (payload = {}) => {
     const { templateId, data, options, zoom = 2, ratio = null, format = 'png' } = payload || {};
     // 串行化：隐藏窗口同一时刻只渲染一张（排队执行，结果按序返回）
@@ -867,6 +874,23 @@ function registerIPCHandlers(store, window) {
       '(()=>{const c=document.querySelector(".xc-card");const s=document.querySelector(".xc-stage");if(!c||!s)return JSON.stringify({w:0,h:0,sh:0,ch:0,sp:0,bt:0});const sp=c.querySelector(".xc-fill-spacer");const pb=c.querySelector(".xc-overflow-probe");const r=c.getBoundingClientRect();const bt=pb?Math.ceil(pb.getBoundingClientRect().bottom-s.getBoundingClientRect().top):0;return JSON.stringify({w:Math.ceil(r.width),h:Math.ceil(r.height),sh:Math.ceil(c.scrollHeight),ch:Math.ceil(c.clientHeight),sp:sp?Math.ceil(sp.getBoundingClientRect().height):0,bt})})()'
     ));
     try {
+      // R-D7 场景排版：画幅专属版式（每尺寸独立排版脚本）——直接渲染进精确画幅，无 ladder 无回落
+      if (ratio && options.sceneId) {
+        const scenes = await loadScenesModule();
+        if (scenes.sceneLayout(options.sceneId)) {
+          const { variantFilter } = await loadTemplatesModule();
+          const vf = variantFilter(options.variant);
+          const page = scenes.renderScenePage(data, { ...options, tplId: templateId || options.templateId, variantFilterCss: vf !== 'none' ? `filter:${vf};` : '' }, zoom);
+          await load(page);
+          win.setContentSize(page.width, page.height);
+          win.setBackgroundColor(page.bg);
+          await new Promise((r) => setTimeout(r, 150));
+          const imgS = await win.webContents.capturePage();
+          const pngS = format === 'jpeg' ? imgS.toJPEG(92) : imgS.toPNG();
+          if (pngS.length < 1000) throw new Error('卡片渲染结果为空');
+          return { base64: pngS.toString('base64'), width: page.width, height: page.height, truncated: false, format: format === 'jpeg' ? 'jpeg' : 'png' };
+        }
+      }
       if (!ratio) {
         const page = renderStagePage(data, options, { zoom });
         await load(page);
@@ -919,7 +943,7 @@ function registerIPCHandlers(store, window) {
         if (H1 > boxH + 2) {
           const H2 = await measureCompact(2);
           if (H2 > boxH + 2) {
-            const est = Math.min(4, Math.max(2, Math.ceil(H2 / boxH)));
+            const est = Math.min(6, Math.max(2, Math.ceil(H2 / boxH)));
             const Hmax = Math.round(boxH * 0.42);
             // 双杠杆 ladder（heroH 大杠杆 → 字号/间距 Z）：
             // 每档用 auto+balance 渲染测「每栏均衡高 colH」，选 colH≈画幅高（填满）的档，再锁高正式渲染
@@ -946,9 +970,17 @@ function registerIPCHandlers(store, window) {
               colOk = true;
             }
             if (!colOk) {
-              // 超载回落（画幅高约束放齐）：走自然高度长图通道（竖版流式、宽 750×zoom、内容完整字号正常）
-              // ——横版多栏/lock 高链路的测量不可靠性不再参与，直接复用已验证的非画幅管线
-              return renderCardPngOnce({ templateId, data, options, zoom, ratio: null, format });
+              // 画幅硬合同：6 栏密排仍装不下 → 整卡等比 contain 缩进精确画幅（内容完整、输出严格 = 所选画幅，永不回落长图）
+              const containZoom = Math.min(1, (boxH * 0.995) / Math.max(1, H2));
+              page = renderStagePage(data, options, { zoom, ratio, fill: { compact: true, density: 2, auto: true }, finalZoom: containZoom });
+              await load(page);
+              win.setContentSize(page.width, page.height);
+              win.setBackgroundColor(page.bg);
+              await new Promise((r) => setTimeout(r, 150));
+              const img = await win.webContents.capturePage();
+              const pngC = format === 'jpeg' ? img.toJPEG(92) : img.toPNG();
+              if (pngC.length < 1000) throw new Error('卡片渲染结果为空');
+              return { base64: pngC.toString('base64'), width: page.width, height: page.height, truncated: false, format: format === 'jpeg' ? 'jpeg' : 'png' };
             }
           }
           if (!fill || !fill.cols) fill = { compact: true, density: 2 };

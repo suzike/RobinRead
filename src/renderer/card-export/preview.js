@@ -6,6 +6,7 @@
 import { t } from '../i18n.js';
 const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 import { CARD_TEMPLATES, KIND_BADGES, CARD_WIDTH, CARD_VARIANTS, COVER_FILTERS, DENSITY, FONT_PAIRS, renderFullPage, variantFilter, renderCard, renderCardFitted } from './templates.js';
+import { sceneLayout, renderSceneCard } from './scenes.js';
 
 const PREF_KEY = 'robinread.cardExport';
 const CARD_FAV_KEY = 'robinread.cardExport.favs';
@@ -250,7 +251,11 @@ export async function openCardExportModal({ data, link = '' }) {
   function renderPreview() {
     const seq = ++previewSeq;
     const ratio = RATIOS.find((x) => x.id === state.ratio)?.ratio ?? null;
-    if (ratio != null) return renderFittedPreview(ratio, seq);
+    // R-D7 场景排版：选定画幅即切换该画幅的专属版式（每尺寸独立排版脚本，不再是通用卡塞画幅）
+    if (ratio != null) {
+      if (sceneLayout(state.ratio)) return renderScenePreview(seq);
+      return renderFittedPreview(ratio, seq);
+    }
     const card = renderCard(data, cardOptions());
     const p = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.456;
     // R-D6：自适应路径同样消费配色变体（与导出端 renderFullPage 的 .xc-stage filter 同语义）——此前仅固定画幅路径生效
@@ -307,6 +312,31 @@ export async function openCardExportModal({ data, link = '' }) {
     capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${Math.round(naturalH) * state.zoom}px · ${t('高清输出')}${state.zoom}x${longHint}`;
   }
 
+  /** 场景版式预览（R-D7）：画幅专属排版，直接渲染进精确 stage——无 ladder、无回落。 */
+  function renderScenePreview(seq) {
+    requestAnimationFrame(() => {
+      if (seq !== previewSeq) return;
+      const sc = renderSceneCard(data, {
+        sceneId: state.ratio,
+        tplId: state.tpl,
+        variant: state.variant,
+        coverFilter: state.coverFilter,
+        qr: state.qr ? qrSvg : null,
+        watermark: state.watermark,
+        watermarkStyle: state.watermarkStyle,
+      });
+      const vf = variantFilter(state.variant);
+      const p = host.clientWidth ? Math.min(1, host.clientWidth / sc.boxW) : 0.5;
+      shadow.innerHTML = `<style>${sc.css}
+        .cardx-scale { zoom: ${p}; ${vf !== 'none' ? `filter:${vf}` : ''} }
+        .cardx-stage { overflow:hidden; background:${sc.bg}; border-radius: 8px; }
+        </style>
+        <div class="cardx-scale"><div class="cardx-stage" style="width:${sc.boxW}px; height:${sc.boxH}px">${sc.html}</div></div>`;
+      capEl.classList.add('cardx-editable-hint');
+      capEl.textContent = `${t('导出尺寸')} ${sc.boxW * state.zoom}×${sc.boxH * state.zoom}px · ${t('场景版式')}`;
+    });
+  }
+
   /** 固定画幅预览（与导出 fit-to-fill 同一渲染参数）：实测内容高 → 填充/紧凑注入 → 弹性铺满画幅。 */
   function renderFittedPreview(ratio, seq) {
     const measure = (html, css) => {
@@ -359,8 +389,8 @@ export async function openCardExportModal({ data, link = '' }) {
         const fa = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, auto: true } });
         const H2 = measure(fa.html, fa.css);
         // 多栏铺满 + 双杠杆 ladder（hero 高度 → 字号/间距）：
-        // 每档 auto+balance 测「每栏均衡高 colH」，选 colH≈画幅高（填满）的档，再锁高正式渲染；仍超回退 contain
-        const cols = Math.min(4, Math.max(2, Math.ceil(H2 / nat.boxH)));
+        // 每档 auto+balance 测「每栏均衡高 colH」，选 colH≈画幅高（填满）的档，再锁高正式渲染；仍超走 contain（画幅硬合同）
+        const cols = Math.min(6, Math.max(2, Math.ceil(H2 / nat.boxH)));
         const Hmax = Math.round(nat.boxH * 0.42);
         const ladder = [
           { boost: 1, heroH: 170 },
@@ -381,17 +411,19 @@ export async function openCardExportModal({ data, link = '' }) {
           const f3 = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, density: 2, cols, ...chosen } });
           paintCols(f3, cols);
         } else {
-          // 超载回落：自然高度长图（竖版流式、宽 750×zoom、内容完整字号正常）——同导出 ratio:null 通道
-          const natV = renderCardFitted(data, cardOptions(), {});
-          const p2 = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.4;
-          shadow.innerHTML = `<style>${natV.css}
-            .cardx-scale { zoom: ${p2}; }
-            .cardx-stage { width:${CARD_WIDTH}px; overflow:hidden; background:${natV.bg}; border-radius: 8px; }
+          // 画幅硬合同：6 栏密排仍装不下 → 整卡等比 contain 缩进精确画幅（与导出端同构，永不回落长图）
+          const containZoom = Math.min(1, (nat.boxH * 0.995) / Math.max(1, H2));
+          const fc = renderCardFitted(data, cardOptions(), { ratio, fill: { compact: true, density: 2, auto: true } });
+          const p2 = host.clientWidth ? host.clientWidth / nat.boxW : 0.4;
+          const vf2 = variantFilter(state.variant);
+          shadow.innerHTML = `<style>${fc.css}
+            .cardx-scale { zoom: ${p2}; ${vf2 !== 'none' ? `filter:${vf2}` : ''} }
+            .cardx-stage { width:${fc.boxW}px; height:${fc.boxH}px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:${fc.bg}; border-radius: 8px; }
+            .cardx-stage > .xc-card { width:${fc.boxW}px; flex:none; zoom:${containZoom} !important; }
             </style>
-            <div class="cardx-scale"><div class="cardx-stage">${natV.html}</div></div>`;
-          host.scrollTop = 0; // 回落长图重渲后回到顶部
+            <div class="cardx-scale"><div class="cardx-stage">${fc.html}</div></div>`;
           capEl.classList.add('cardx-editable-hint');
-          capEl.textContent = `${t('导出尺寸')} ${CARD_WIDTH * state.zoom}×${t('自然高度')}px · ${t('超载回落长图')}`;
+          capEl.textContent = `${t('导出尺寸')} ${nat.boxW * state.zoom}×${nat.boxH * state.zoom}px · ${t('内容超长已整体缩放进画幅')}`;
         }
       } else {
         paint(nat);
@@ -554,7 +586,7 @@ export async function openCardExportModal({ data, link = '' }) {
 
   const exportPng = async (format = 'png') => {
     const png = unwrap(await window.robin.renderCardPng({
-      templateId: state.tpl, data, options: cardOptions(), zoom: state.zoom,
+      templateId: state.tpl, data, options: { ...cardOptions(), sceneId: sceneLayout(state.ratio) ? state.ratio : null }, zoom: state.zoom,
       ratio: RATIOS.find((r) => r.id === state.ratio)?.ratio || null,
       format,
     }), '卡片渲染失败');

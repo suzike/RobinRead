@@ -65,6 +65,8 @@ const OFFLINE = [
   { file: 'scripts/diag-r48-details.js', runner: 'electron', desc: 'R48 收官：弹层出场/目录关闭/reduce-motion 覆盖（离线）' },
   { file: 'scripts/diag-kb-trendfit.js', runner: 'electron', desc: '知识中心趋势图适配：画布四缘落在卡片内容区（离线）' },
   { file: 'scripts/diag-cardx-variant.js', runner: 'electron', desc: '卡片配色变体/封面滤镜实效：自适应路径+模板覆盖（离线）' },
+  { file: 'scripts/diag-cardx-ratiohard.js', runner: 'electron', desc: '卡片画幅硬合同：超长文四档画幅精确生效（离线）' },
+  { file: 'scripts/diag-cardx-scenes.js', runner: 'electron', desc: '场景排版系统：六画幅专属版式+预设切换+IPC 精确（离线）' },
   { file: 'scripts/diag-r44-details.js', runner: 'electron', desc: 'R44 细节三连：滑轨键盘翻页/刻度 title/装载呼吸点（离线）' },
   { file: 'scripts/diag-r45-details.js', runner: 'electron', desc: 'R45 细节三连：chips 卫生/清除键 aria/批量条 toolbar（离线）' },
   { file: 'scripts/diag-r39-details.js', runner: 'electron', desc: 'R39 细节三连：时间/来源悬停全量+清除键命中区（离线）' },

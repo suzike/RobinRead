@@ -1,0 +1,104 @@
+'use strict';
+/**
+ * diag-cardx-scenes.js — 场景排版系统探针（run-all OFFLINE 集）
+ * 用户提案：每个尺寸一套独立排版脚本。断言：
+ * ① 预览：切画幅后 .sp-card 换上该场景专属类（sp-square/tall/slide/poster/cinema/classic），结构特征随场景变化；
+ * ② 场景预设 chips 一键切换（小红书 3:4 → sp-tall）；
+ * ③ 导出：renderScenePage 六画幅输出尺寸精确（750×750 / 750×1000 / 750×1333 / 1000×750 / 1333×750 / 1763×750）；
+ * ④ 真 IPC：card:renderPng sceneId 走场景页（16:9 → 2666×1500 @zoom2 精确）。
+ */
+const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
+const { app, BrowserWindow, ipcMain } = require('electron');
+app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'robinread-scn-')));
+setTimeout(() => { console.error('WATCHDOG'); app.exit(3); }, 240 * 1000).unref();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let failed = 0;
+const ok = (c, l) => { if (c) console.log('PASS ' + l); else { failed += 1; console.error('FAIL ' + l); } };
+const ROOT = path.join(__dirname, '..');
+
+app.whenReady().then(async () => {
+  try {
+    // ③ 纯函数层：六画幅精确尺寸 + 场景标记
+    const scenes = await import(pathToFileURL(path.join(ROOT, 'src/renderer/card-export/scenes.js')).href);
+    const data = {
+      kind: 'deepRead', title: '场景排版系统上线：每个尺寸都有专属版式', feedTitle: '知更实验室', date: '2026-09-30',
+      lead: '选定画幅即切换该画幅的专属排版，构图、模块取舍与字号节奏随场景变化。',
+      steps: [{ t: 'square', d: '1:1 中轴对称' }, { t: 'tall', d: '3:4 顶图信息流' }, { t: 'slide', d: '16:9 左右分区' }],
+      concepts: ['1:1', '3:4', '16:9'], stats: [{ v: '6', l: '场景版式' }, { v: '0', l: '回落' }],
+    };
+    const want = { '1:1': [750, 750, 'sp-square'], '3:4': [750, 1000, 'sp-tall'], '9:16': [750, 1333, 'sp-poster'], '4:3': [1000, 750, 'sp-classic'], '16:9': [1333, 750, 'sp-slide'], '2.35:1': [1763, 750, 'sp-cinema'] };
+    for (const [id, [w, h, cls]] of Object.entries(want)) {
+      const pg = scenes.renderScenePage(data, { sceneId: id, tplId: 'paper' }, 2);
+      ok(pg.width === w * 2 && pg.height === h * 2 && pg.html.includes(cls), `导出页 ${id} → ${w * 2}×${h * 2} 精确（${pg.width}×${pg.height}，${cls}）`);
+    }
+    const struct = scenes.renderSceneCard(data, { sceneId: '16:9', tplId: 'paper' });
+    ok(struct.html.includes('sp-left') && struct.html.includes('sp-right'), '16:9 结构：左右分区（sp-left/sp-right）');
+    const struct916 = scenes.renderSceneCard(data, { sceneId: '9:16', tplId: 'paper' });
+    ok(struct916.html.includes('sp-hero'), '9:16 结构：hero 压图（sp-hero）');
+    ok(struct.css.includes('-webkit-line-clamp'), '长文截断：line-clamp 在册（精选海报语义）');
+
+    // ①② 真实弹窗：切画幅/预设 → 场景类切换
+    const win = new BrowserWindow({
+      show: false, width: 1280, height: 900,
+      webPreferences: { contextIsolation: true, backgroundThrottling: false, preload: path.join(ROOT, 'src', 'main', 'preload.js') },
+    });
+    await win.loadFile(path.join(ROOT, 'src', 'renderer', 'index.html'));
+    await sleep(900);
+    const a = await win.webContents.executeJavaScript(`(async () => {
+      const data = ${JSON.stringify({ ...data, cover: null })};
+      const { openCardExportModal } = await import('./card-export/preview.js');
+      await openCardExportModal({ data, link: 'https://example.com/1' });
+      const modal = document.querySelector('.modal-overlay .cardx-modal');
+      const host = modal.querySelector('.cardx-host');
+      const cardCls = () => host.shadowRoot.querySelector('.sp-card')?.className || '';
+      const stageW = () => { const m = (host.shadowRoot.querySelector('.cardx-stage')?.getAttribute('style') || '').match(/width:\\s*(\\d+)px/); return m ? Number(m[1]) : 0; };
+      const pickRatio = async (label, wantW) => {
+        const b = [...modal.querySelectorAll('.cardx-ratio button')].find(x => x.textContent.trim() === label);
+        if (!b) return { clicked: false };
+        b.click();
+        const t0 = Date.now();
+        while (Date.now() - t0 < 8000) { await new Promise(r => setTimeout(r, 150)); if (stageW() === wantW) { await new Promise(r => setTimeout(r, 200)); break; } }
+        return { clicked: true, cls: cardCls(), w: stageW() };
+      };
+      const pickPreset = async (label) => {
+        const b = [...modal.querySelectorAll('.cardx-preset-chip')].find(x => x.textContent.trim() === label);
+        if (!b) return { clicked: false };
+        b.click();
+        await new Promise(r => setTimeout(r, 700));
+        return { clicked: true, cls: cardCls(), w: stageW(), cap: (modal.querySelector('[class*=cap]')?.textContent || '').slice(0, 40) };
+      };
+      const out = {};
+      out.s11 = await pickRatio('1:1', 750);
+      out.s169 = await pickRatio('16:9', 1333);
+      out.s916 = await pickRatio('9:16', 750);
+      out.preset = await pickPreset('小红书 3:4');
+      modal.querySelector('.cardx-close')?.click();
+      return out;
+    })()`);
+    if (a.__err) throw new Error('scenes: ' + a.__err);
+    ok(a.s11.clicked && a.s11.cls.includes('sp-square') && a.s11.w === 750, `1:1 预览 → sp-square（${a.s11.cls.slice(0, 30)} / ${a.s11.w}px）`);
+    ok(a.s169.clicked && a.s169.cls.includes('sp-slide') && a.s169.w === 1333, `16:9 预览 → sp-slide 左右分区（${a.s169.cls.slice(0, 30)} / ${a.s169.w}px）`);
+    ok(a.s916.clicked && a.s916.cls.includes('sp-poster') && a.s916.w === 750, `9:16 预览 → sp-poster 海报（${a.s916.cls.slice(0, 30)} / ${a.s916.w}px）`);
+    ok(a.preset.clicked && a.preset.cls.includes('sp-tall') && a.preset.w === 750, `预设「小红书 3:4」→ sp-tall 信息流（${a.preset.cls.slice(0, 30)} / ${a.preset.w}px）`);
+    ok(String(a.preset.cap).includes('场景版式'), `caption 标注场景版式（${a.preset.cap}）`);
+
+    // ④ 真 IPC：sceneId 走场景页（16:9 @zoom2 → 2666×1500）
+    const { registerIPCHandlers } = require(path.join(ROOT, 'src', 'main', 'ipc'));
+    const fakeStore = { on: () => {}, snapshot: () => ({ sidebarCounts: {}, refreshStatus: {} }), preferences: { get: () => null, set: () => {}, flushSync: () => {} } };
+    registerIPCHandlers(fakeStore, win);
+    const r = await win.webContents.executeJavaScript(`(async () => {
+      const res = await window.robin.renderCardPng({ templateId: 'paper', data: ${JSON.stringify(data)}, options: { templateId: 'paper', sceneId: '16:9', qr: null }, zoom: 2, ratio: 9 / 16 });
+      return res && res.ok ? { w: res.data.width, h: res.data.height, len: res.data.base64.length } : { err: res && res.error };
+    })()`);
+    ok(r.w === 2666 && r.h === 1500 && r.len > 20000, `IPC 场景 16:9 → 2666×1500 精确（${r.w}×${r.h}）`);
+
+    if (failed) { console.error(failed + ' 项失败'); app.exit(1); }
+    else { console.log('ALL PASSED'); app.exit(0); }
+  } catch (e) {
+    console.error('ERR', String(e && e.stack || e).slice(0, 900));
+    app.exit(1);
+  }
+});
+function pathToFileURL(p) { return require('node:url').pathToFileURL(p); }
