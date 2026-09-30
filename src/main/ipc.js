@@ -345,6 +345,7 @@ function registerIPCHandlers(store, window) {
   const { i18n } = require('./I18N');
   const onStateChanged = () => send('state:changed', {
     ...store.snapshot(),
+    version: app.getVersion(), // R-D2：推送快照也带版本（关于页/设置在任意推送后仍可显示）
     language: i18n.language,
     prefersDark: nativeTheme.shouldUseDarkColors,
     customTheme: store.preferences.get('RobinRead.customTheme', null),
@@ -400,7 +401,7 @@ function registerIPCHandlers(store, window) {
   // 系统主题变化 → 同步推送到渲染层（含非 createMainWindow 创建的窗口）
   nativeTheme.on('updated', () => {
     send('theme:changed', { shouldUseDarkColors: nativeTheme.shouldUseDarkColors });
-    send('state:changed', { ...store.snapshot(), language: i18n.language, prefersDark: nativeTheme.shouldUseDarkColors, customTheme: store.preferences.get('RobinRead.customTheme', null) });
+    send('state:changed', { ...store.snapshot(), version: app.getVersion(), language: i18n.language, prefersDark: nativeTheme.shouldUseDarkColors, customTheme: store.preferences.get('RobinRead.customTheme', null) });
   });
 
   const handle = (channel, fn) => {
@@ -499,6 +500,11 @@ function registerIPCHandlers(store, window) {
 
   // MARK: 正文提取
   handle('extract:run', (entryID) => store.extractArticle(entryID));
+  // R-D3：任意 URL → 精读（不落库，供链接精读/出图流程）
+  handle('extract:url', async (url) => {
+    if (!/^https?:\/\//i.test(String(url || ''))) throw new Error('仅支持 http(s) 链接');
+    return ArticleExtractor.extract(String(url), { priority: 'user' });
+  });
 
   // MARK: 存储治理（保留期限 + 立即清理）
   handle('maintenance:get', () => store.getMaintenance());

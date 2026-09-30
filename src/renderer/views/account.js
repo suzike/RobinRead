@@ -238,6 +238,25 @@ function renderCenterInto(modal, ctx) {
       </div>`;
     identity.querySelector('.acct-identity-name').textContent = user.nickname || t('微信用户');
     identity.querySelector('.acct-identity-status').textContent = memberStatusLabel(user);
+    // R-D1：个人资料头像可直接点击更换（与 设置→账号 同通路）
+    const avatarEl = identity.querySelector('.acct-identity-avatar');
+    avatarEl.style.cursor = 'pointer';
+    avatarEl.title = t('更换头像');
+    avatarEl.addEventListener('click', async () => {
+      try {
+        const dataURL = await window.robin.accountPickAvatar();
+        if (!dataURL) return;
+        await window.robin.accountUpdateProfile({ avatar_url: dataURL });
+        const fresh = await window.robin.accountMe(false).catch(() => null);
+        const url = fresh && fresh.ok ? fresh.data?.user?.avatar_url : dataURL;
+        const nextHTML = url
+          ? `<img class="acct-identity-avatar" src="${attr(url)}" referrerpolicy="no-referrer"/>`
+          : `<span class="acct-identity-avatar acct-identity-ph">${escapeHTML(letter)}</span>`;
+        avatarEl.outerHTML = nextHTML;
+      } catch (err) {
+        await alertBox(t('更换头像失败'), String(err.error || err.message || err));
+      }
+    });
     if (user.grace) {
       const grace = document.createElement('div');
       grace.className = 'acct-grace';

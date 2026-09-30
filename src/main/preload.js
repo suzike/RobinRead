@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('robin', {
 
   // 正文提取
   extractArticle: (entryID) => invoke('extract:run', entryID),
+  extractUrl: (url) => invoke('extract:url', url),
 
   // 存储治理
   getMaintenance: () => invoke('maintenance:get'),

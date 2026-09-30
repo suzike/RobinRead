@@ -152,7 +152,10 @@ export async function openCardExportModal({ data, link = '' }) {
   modal.innerHTML = `
     <div class="cardx-head">
       <h3>${t('导出精读卡片图')}</h3>
-      <button class="cardx-close" title="${t('关闭')}">✕</button>
+      <div class="cardx-head-btns">
+        <button class="cardx-full" title="${t('全屏 / 还原')}">⛶</button>
+        <button class="cardx-close" title="${t('关闭')}">✕</button>
+      </div>
     </div>
     <div class="cardx-body">
       <div class="cardx-side">
@@ -203,6 +206,18 @@ export async function openCardExportModal({ data, link = '' }) {
       <button class="btn primary cardx-save">${t('保存图片')}</button>
     </div>`;
   modal.querySelector('.cardx-close').addEventListener('click', dismiss);
+  // R-D5：全屏 / 还原切换（inline style 强制生效：内联优先级高于任何样式表层叠）
+  modal.querySelector('.cardx-full').addEventListener('click', () => {
+    const maxed = modal.classList.toggle('maximized');
+    if (maxed) {
+      modal.dataset.prevStyle = modal.style.cssText;
+      modal.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;margin:0;z-index:20;';
+    } else {
+      modal.style.cssText = modal.dataset.prevStyle || '';
+    }
+    const b = modal.querySelector('.cardx-full');
+    if (b) b.title = maxed ? t('还原') : t('全屏 / 还原');
+  });
 
   const host = modal.querySelector('.cardx-host');
   const capEl = modal.querySelector('.cardx-cap');
@@ -401,6 +416,37 @@ export async function openCardExportModal({ data, link = '' }) {
   function renderSidebar() {
     const tplBox = modal.querySelector('.cardx-tpls');
     const sideEl = tplBox.parentElement;
+    // R-D4：场景预设（一键套用 板式+画幅+风格 组合）
+    let presetBox = modal.querySelector('.cardx-presets');
+    if (!presetBox) {
+      presetBox = document.createElement('div');
+      presetBox.className = 'cardx-presets';
+      const head = modal.querySelector('.cardx-side-h');
+      sideEl.insertBefore(presetBox, head.nextSibling);
+      const ph = document.createElement('div');
+      ph.className = 'cardx-side-h';
+      ph.textContent = t('场景预设');
+      ph.style.marginTop = '12px';
+      sideEl.insertBefore(ph, presetBox);
+    }
+    const SCENE_PRESETS = [
+      { label: '朋友圈 1:1', set: { tpl: 'paper', ratio: '1:1', density: 'standard', lengthMode: 'standard' } },
+      { label: '小红书 3:4', set: { tpl: 'note', ratio: '3:4', density: 'standard' } },
+      { label: '幻灯片 16:9', set: { tpl: 'ink', ratio: '16:9', density: 'airy', lengthMode: 'short' } },
+      { label: '手机全屏 9:16', set: { tpl: 'aurora', ratio: '9:16', density: 'standard' } },
+      { label: '影院横幅 2.35:1', set: { tpl: 'news', ratio: '2.35:1', density: 'compact', lengthMode: 'short' } },
+      { label: '青瓷收藏 4:3', set: { tpl: 'jade', ratio: '4:3', density: 'standard' } },
+    ];
+    presetBox.innerHTML = '';
+    for (const p of SCENE_PRESETS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = t(p.label);
+      b.className = 'cardx-preset-chip';
+      b.addEventListener('click', () => { Object.assign(state, p.set); persist(); renderSidebar(); renderPreview(); });
+      presetBox.appendChild(b);
+    }
+    const sideEl2 = tplBox.parentElement;
     tplBox.innerHTML = '';
     const favs0 = loadFavs();
     const orderedTpls = [...CARD_TEMPLATES].sort((x, y) => (favs0.includes(y.id) ? 1 : 0) - (favs0.includes(x.id) ? 1 : 0));

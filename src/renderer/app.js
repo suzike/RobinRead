@@ -620,6 +620,7 @@ function buildPaletteCommands() {
     { label: t('AI 热点'), keywords: 'aihot 热点 趋势 open', icon: 'flame', action: openAihotView },
     { label: t('知识库'), keywords: 'knowledge 知识 高亮 复习 open', icon: 'bookOpen', hint: 'Ctrl+K', action: openKnowledgeCenter },
     { label: t('搜索正文'), keywords: 'find search 搜索 正文 查找', icon: 'search', hint: 'Ctrl+F', action: () => { if (!state.selectedEntryID) { showToast(t('先打开一篇文章')); return; } views.reader?.articleSearch?.open(); } },
+    { label: t('从链接精读…'), keywords: 'url link 链接 精读 extract openUrl', icon: 'globe', action: () => readFromUrlPrompt() },
     { label: t('设置'), keywords: 'settings 设置 preference open', icon: 'gear', action: () => showSettings('appearance') },
     { label: t('刷新全部订阅'), keywords: 'refresh 刷新 订阅', icon: 'refresh', action: () => window.robin.refresh() },
     { label: t('增大字号'), keywords: 'font size larger 字号 增大', icon: 'textLarger', action: () => adjustFontSize(1) },
@@ -1895,8 +1896,17 @@ function showFeedTypographyDialog(feed) {
   document.body.appendChild(overlay);
 }
 
-function showSettings(section = 'appearance') {
-  if (settingsView) settingsView.dismiss();
+/** R-D3：任意链接 → 精读（抓取+提取后在阅读器渲染，翻译/摘要/划词/导出卡片图全可用）。 */
+async function readFromUrlPrompt() {
+  const url = await promptBox(t('从链接精读'), { message: t('粘贴文章链接，将抓取正文并生成精读视图（可再导出卡片图）。'), placeholder: 'https://…' });
+  if (!url) return;
+  const ok = await views.reader.openExternalUrl(String(url).trim());
+  if (ok) {
+    views.reader.scrollEl.scrollTop = 0;
+  }
+}
+
+function showSettings(section = 'appearance') {  if (settingsView) settingsView.dismiss();
   settingsView = new SettingsView({
     state,
     views,

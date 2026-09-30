@@ -1346,6 +1346,21 @@ const STRINGS = {
   "批量区间选择": { zh: "批量区间选择", en: "Range pick" },
   "取消选择 / 关闭": { zh: "取消选择 / 关闭", en: "Clear selection / close" },  "在浏览器打开外部链接": { zh: "在浏览器打开外部链接", en: "Open external link in browser" },
   "清除搜索内容": { zh: "清除搜索内容", en: "Clear search" },
+  "更换头像失败": { zh: "更换头像失败", en: "Failed to update avatar" },
+  "场景预设": { zh: "场景预设", en: "Scene presets" },
+  "朋友圈 1:1": { zh: "朋友圈 1:1", en: "Moments 1:1" },
+  "小红书 3:4": { zh: "小红书 3:4", en: "RED 3:4" },
+  "幻灯片 16:9": { zh: "幻灯片 16:9", en: "Slides 16:9" },
+  "手机全屏 9:16": { zh: "手机全屏 9:16", en: "Phone 9:16" },
+  "影院横幅 2.35:1": { zh: "影院横幅 2.35:1", en: "Cinema 2.35:1" },
+  "青瓷收藏 4:3": { zh: "青瓷收藏 4:3", en: "Celadon 4:3" },
+  "从链接精读…": { zh: "从链接精读…", en: "Read from link…" },
+  "从链接精读": { zh: "从链接精读", en: "Read from link" },
+  "粘贴文章链接，将抓取正文并生成精读视图（可再导出卡片图）。": { zh: "粘贴文章链接，将抓取正文并生成精读视图（可再导出卡片图）。", en: "Paste an article link to fetch and render a deep-read view (card export available)." },
+  "请输入以 http(s):// 开头的文章链接": { zh: "请输入以 http(s):// 开头的文章链接", en: "Enter a link starting with http(s)://" },
+  "正在抓取链接并生成精读…": { zh: "正在抓取链接并生成精读…", en: "Fetching link for deep-read…" },
+  "链接精读完成（翻译 / 摘要 / 划词 / 导出卡片图全可用）": { zh: "链接精读完成（翻译 / 摘要 / 划词 / 导出卡片图全可用）", en: "Link deep-read ready (translate / summarize / select / card export available)" },
+  "链接精读失败（站点限制或需要登录），请稍后重试或在浏览器打开。": { zh: "链接精读失败（站点限制或需要登录），请稍后重试或在浏览器打开。", en: "Link deep-read failed (site restriction or login required). Try again later or open in browser." },
 
 };
 

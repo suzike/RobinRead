@@ -5259,3 +5259,41 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
   .er-sel-popover { animation: none; }
   .er-toc, .er-toc.closing { transition: none; }
 }
+
+/* R-D1：个人资料头像可点暗示 */
+.acct-identity-avatar { transition: box-shadow var(--dur-fast) var(--ease-out); }
+.acct-identity-avatar:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* ===== R-D4 场景预设 chips ===== */
+.cardx-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cardx-preset-chip {
+  appearance: none; border: 1px solid var(--note-border); background: var(--note-background);
+  color: var(--text-secondary); font-size: 11.5px; font-weight: 600;
+  padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.cardx-preset-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== R-D5 卡片导出弹窗全屏 ===== */
+.cardx-head-btns { display: flex; align-items: center; gap: 4px; }
+.cardx-full, .cardx-close {
+  appearance: none; border: none; background: transparent;
+  color: var(--text-secondary); font-size: 14px;
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.cardx-full:hover, .cardx-close:hover { background: var(--row-hover); color: var(--text-primary); }
+.modal.cardx-modal.maximized {
+  position: fixed;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+}
+.modal.cardx-modal.maximized .cardx-body { flex: 1 1 auto; min-height: 0; }
+
+/* R-D5 打回：全屏态预览垂直居中 + 去残影 */
+.modal.cardx-modal.maximized .cardx-preview { align-items: center; }
+.modal.cardx-modal.maximized { box-shadow: none !important; }

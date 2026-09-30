@@ -270,6 +270,56 @@ export class ReaderView {
    * 应用内原文精读：抓取原网页 → 提取正文 → 版面重排 → 在阅读器渲染。
    * 翻译/摘要/划词/高亮等全部功能对新内容自动可用（同一管线）。
    */
+  /**
+   * R-D3：任意链接精读——抓取 URL → 提取正文 → 同一精读管线渲染。
+   * 翻译/摘要/划词/导出卡片图全部可用；合成 entry 不落库（会话级文章）。
+   */
+  async openExternalUrl(rawUrl) {
+    const url = String(rawUrl || '').trim();
+    if (!/^https?:\/\//i.test(url)) {
+      this.handlers.onFeedback?.(t('请输入以 http(s):// 开头的文章链接'));
+      return false;
+    }
+    let host = '';
+    try { host = new URL(url).hostname; } catch (_) { host = url; }
+    this.handlers.onFeedback?.(t('正在抓取链接并生成精读…'));
+    this._showLoading();
+    try {
+      const result = await window.robin.extractUrl(url);
+      if (!result?.ok || !result.data?.html || plainLen(result.data.html) < 40) {
+        this.handlers.onFeedback?.(t('链接精读失败（站点限制或需要登录），请稍后重试或在浏览器打开。'));
+        return false;
+      }
+      const extracted = result.data;
+      this.entryID = `ext:${url}`;
+      this.entry = { id: this.entryID, url, title: extracted.title || host, summary: extracted.excerpt || '' };
+      this.feed = { title: host };
+      // 内容态复位（同 openOriginal 语义）
+      this.html = removingDuplicateLeadingHeading(extracted.html, this.entry.title);
+      this.segments = [];
+      this.failedIDs.clear();
+      this.pendingIDs.clear();
+      this.visibleIDs = [];
+      this._translateAll = false;
+      this._translateMode = 'off';
+      this.bilingualActive = false;
+      this.summary = { expanded: false, artifact: null, generating: false, streaming: '', error: null };
+      this.annotations = [];
+      this.highlights = [];
+      this.notes = [];
+      this._render();
+      this.handlers.onFeedback?.(t('链接精读完成（翻译 / 摘要 / 划词 / 导出卡片图全可用）'));
+      const llm = window.__robinLLM || {};
+      if (llm.automaticallyGenerateSummary && this._articleText().length > 0) this.generateSummary(false);
+      return true;
+    } catch (err) {
+      this.handlers.onFeedback?.(t('链接精读失败（站点限制或需要登录），请稍后重试或在浏览器打开。'));
+      return false;
+    } finally {
+      this._hideLoading();
+    }
+  }
+
   async openOriginal() {
     if (!this.entryID || !this.entry?.url) {
       this.handlers.onFeedback?.(t('这篇文章没有原文链接。'));
