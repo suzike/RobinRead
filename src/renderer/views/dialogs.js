@@ -80,11 +80,16 @@ export class SettingsView {
     for (const section of SECTIONS) {
       const item = document.createElement('div');
       item.className = `modal-nav-item ${section.id === this.section ? 'active' : ''}`;
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0'); // R52：设置导航纳入 Tab 序（此前 div 不可达，键盘用户跳不进设置分区）
       item.innerHTML = `<span class="nav-icon">${icon(section.icon)}</span><span></span>`;
       item.querySelector('span:last-child').textContent = t(section.title);
       item.addEventListener('click', () => {
         this.section = section.id;
         this.render();
+      });
+      item.addEventListener('keydown', (e) => { // Enter/空格即选中（role=button 语义）
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.section = section.id; this.render(); }
       });
       sidebar.appendChild(item);
     }

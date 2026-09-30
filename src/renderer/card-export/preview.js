@@ -27,45 +27,43 @@ const TEMPLATE_SWATCH = {
 };
 
 const STYLE_CSS = `
-.cardx-modal { width: min(960px, calc(100vw - 72px)); height: min(700px, calc(100vh - 72px)); flex-direction: column; display: flex; }
-.cardx-head { display: flex; align-items: center; padding: 14px 20px 12px; border-bottom: 1px solid var(--separator); }
-.cardx-head h3 { font-size: 14px; font-weight: 700; flex: 1; margin: 0; }
+.cardx-modal { width: min(1100px, calc(100vw - 56px)); height: min(760px, calc(100vh - 56px)); flex-direction: column; display: flex; }
+.cardx-head { display: flex; align-items: center; padding: 14px 20px 12px; border-bottom:  1px solid var(--separator); }
+.cardx-head h3 { font-size: 15px; font-weight: 700; flex: 1; margin: 0; }
 .cardx-close { border: 0; background: none; color: var(--text-tertiary); cursor: pointer; padding: 4px; border-radius: 6px; }
 .cardx-close:hover { color: var(--text-primary); background: var(--row-hover); }
 .cardx-body { flex: 1; display: flex; min-height: 0; }
-.cardx-side { width: 216px; flex-shrink: 0; background: var(--sidebar-background); border-right: 1px solid var(--separator);
+.cardx-side { width: 236px; flex-shrink: 0; background: var(--sidebar-background); border-right: 1px solid var(--separator);
   overflow-y: auto; padding: 14px 10px; scrollbar-width: thin; }
-.cardx-side-h { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--text-tertiary); padding: 4px 8px 8px; }
-.cardx-tpl { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 8px; cursor: default; }
+.cardx-side-h { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--text-tertiary); padding: 4px 8px 8px; }
+.cardx-tpl { display: flex; align-items: center; gap: 10px; padding: 8px 9px; border-radius: 8px; cursor: default; }
 .cardx-tpl:hover { background: var(--row-hover); }
 .cardx-tpl.active { background: var(--row-selected); }
-.cardx-swatch { flex: none; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--note-border);
+.cardx-swatch { flex: none; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--note-border);
   display: flex; align-items: center; justify-content: center; }
-.cardx-swatch i { display: block; width: 10px; height: 10px; border-radius: 50%; }
-.cardx-tpl-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.cardx-swatch i { display: block; width: 12px; height: 12px; border-radius: 50%; }
+.cardx-tpl-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .cardx-tpl.active .cardx-tpl-name { color: var(--accent); }
-.cardx-tpl-hint { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
+.cardx-tpl-hint { font-size: 11.5px; color: var(--text-tertiary); margin-top: 1px; }
 .cardx-optgroup { border-top: 1px solid var(--separator); margin-top: 10px; padding-top: 10px; }
 .cardx-seg { display: flex; gap: 4px; padding: 0 8px 6px; }
 .cardx-seg button { flex: 1; border: 1px solid var(--note-border); background: transparent; color: var(--text-secondary);
-  font-size: 11.5px; padding: 4px 0; border-radius: 6px; cursor: pointer; }
+  font-size: 12.5px; padding: 5px 0; border-radius: 6px; cursor: pointer; }
 .cardx-seg button.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.cardx-check { display: flex; align-items: center; gap: 8px; padding: 5px 10px; font-size: 12.5px;
+.cardx-check { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13.5px;
   color: var(--text-secondary); cursor: default; border-radius: 6px; }
 .cardx-check:hover { background: var(--row-hover); }
 .cardx-check input { accent-color: var(--accent); }
 .cardx-preview-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--chrome-background); }
-.cardx-preview { flex: 1; overflow: auto; padding: 18px; display: flex; justify-content: center; align-items: flex-start; }
-.cardx-preview::-webkit-scrollbar { width: 8px; }
-.cardx-preview::-webkit-scrollbar-thumb { background: var(--separator); border-radius: 4px; }
-.cardx-host { width: 342px; flex: none; }
-.cardx-cap { text-align: center; font-size: 11px; color: var(--text-tertiary); padding: 8px 0 10px; }
+.cardx-preview { flex: 1; overflow: auto; padding: 22px; display: flex; justify-content: center; align-items: flex-start; }
+.cardx-host { width: min(100%, 620px); flex: none; }
+.cardx-cap { text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 8px 0 10px; }
 .cardx-foot { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--separator); }
 .cardx-status { flex: 1; font-size: 12.5px; color: var(--text-secondary); }
 .cardx-status.err { color: #c93b3b; }
 .cardx-foot .btn { min-width: 96px; }
 .cardx-more { border-top: 1px solid var(--separator); margin-top: 12px; padding-top: 10px; }
-.cardx-more summary { list-style: none; cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: 2px;
+.cardx-more summary { list-style: none; cursor: pointer; font-size: 12px; font-weight: 700; letter-spacing: 2px;
   color: var(--text-tertiary); padding: 4px 8px 8px; display: flex; align-items: center; gap: 6px; }
 .cardx-more summary::-webkit-details-marker { display: none; }
 .cardx-more summary::before { content: '▸'; font-size: 10px; transition: transform var(--dur-fast) var(--ease-out); }
@@ -75,9 +73,9 @@ const STYLE_CSS = `
 .cardx-more .cardx-side-h:first-child { margin-top: 2px; }
 .cardx-side-h.cardx-variant-h { margin-top: 12px; }
 .cardx-seg { flex-wrap: wrap; }
-.cardx-seg button { white-space: nowrap; flex: 1 1 auto; min-width: 44px; padding: 4px 8px; }
+.cardx-seg button { white-space: nowrap; flex: 1 1 auto; min-width: 46px; padding: 5px 9px; }
 .cardx-fav { width: 100%; margin: 8px 0 2px; padding: 6px 9px; border: 1px dashed var(--note-border); border-radius: 8px;
-  background: transparent; color: var(--text-tertiary); font-size: 11.5px; cursor: pointer; text-align: left; }
+  background: transparent; color: var(--text-tertiary); font-size: 12.5px; cursor: pointer; text-align: left; }
 .cardx-fav:hover { color: var(--accent); border-color: var(--accent); }
 .cardx-fav.on { color: var(--accent); border-style: solid; font-weight: 600; }
 `;

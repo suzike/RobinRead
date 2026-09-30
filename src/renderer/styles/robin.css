@@ -1631,6 +1631,9 @@ body.dark .robin-summary-card { background: color-mix(in srgb, #302d28 97%, tran
   font-size: 13px; color: var(--text-secondary); cursor: default;
 }
 .modal-nav-item:hover { background: var(--row-hover); color: var(--text-primary); }
+/* R52：设置导航细节三连——hover 图标染主题色 / 键盘焦点环 */
+.modal-nav-item:hover .nav-icon { color: var(--accent); }
+.modal-nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .modal-nav-item.active { background: var(--row-selected); color: var(--text-primary); font-weight: 600; }
 .nav-icon { width: 16px; height: 16px; display: inline-flex; color: var(--text-tertiary); }
 .modal-nav-item.active .nav-icon { color: var(--accent); }
@@ -1639,8 +1642,10 @@ body.dark .robin-summary-card { background: color-mix(in srgb, #302d28 97%, tran
 .modal-header { display: flex; align-items: center; padding: 14px 20px 10px; border-bottom: 1px solid var(--separator); }
 .modal-header h3 { font-size: 14px; font-weight: 700; flex: 1; }
 .modal-scroll { flex: 1; overflow-y: auto; padding: 18px 20px 26px; min-height: 0; }
-.modal-scroll::-webkit-scrollbar { width: 8px; }
-.modal-scroll::-webkit-scrollbar-thumb { background: var(--separator); border-radius: var(--radius-xs); }
+/* R52：内容区滚动条主题化（8px 常驻灰条 → 5px 悬停显主题色，与 cardx/modal-sidebar 同语言） */
+.modal-scroll::-webkit-scrollbar { width: 5px; }
+.modal-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: var(--radius-full); transition: background var(--dur-mid) var(--ease-out); }
+.modal-scroll:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 24%, transparent); }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--separator); }
 
 /* 设置分组（settingsGroup） */
@@ -5281,8 +5286,8 @@ body.dark .list-scroll.nj-mag-kraft .list-search { background: rgba(255, 255, 25
 .cardx-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .cardx-preset-chip {
   appearance: none; border: 1px solid var(--note-border); background: var(--note-background);
-  color: var(--text-secondary); font-size: 11.5px; font-weight: 600;
-  padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  color: var(--text-secondary); font-size: 12.5px; font-weight: 600;
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 .cardx-preset-chip:hover { border-color: var(--accent); color: var(--accent); }
