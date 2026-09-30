@@ -8,22 +8,123 @@ app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'robinread-scn2-')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const SPARSE = {
-  kind: 'summary', title: '本周值得一读的三件事', feedTitle: '知更观察', date: '2026-09-30',
-  lead: '没有 AI 精读结构的普通文章也能出漂亮的场景卡——排版引擎会自动用正文段落填满版面。',
-  content: '第一段：这是订阅源里的一篇普通文章，只有标题、摘要和正文，没有任何结构化的精读数据。场景排版引擎检测到数据稀疏后，自动把正文段落作为主内容流放进画幅，封面图弹性放大补足视觉重量。\n\n第二段：所有内容都完整保留在卡片里，没有任何截断；画幅严格保持所选比例，内容放不下时画布等比放大。',
+ "kind": "deepRead",
+ "title": "推理成本下降 90% 背后的三场战役",
+ "feedTitle": "机器之心",
+ "date": "2026-09-30",
+ "lead": "当所有人盯着训练集群的规模竞赛时，真正决定大模型商业化的推理成本正在被系统性压低。",
+ "steps": [
+  {
+   "t": "KV Cache 压缩",
+   "d": "把注意力缓存压掉一个量级，长文本首 token 延迟随之骤降。"
+  },
+  {
+   "t": "投机解码",
+   "d": "小模型起草、大模型校验，一次前向出多 token。"
+  },
+  {
+   "t": "算子融合",
+   "d": "把碎片 kernel 拼成大块，显存带宽不再空转。"
+  }
+ ],
+ "prose": [
+  "第一段：十八个月内主流 API 千 token 价格下降约九成，这不是补贴，而是单位成本的真实坍缩。",
+  "第二段：成本曲线的每一次下移，都对应一类此前不可行的应用忽然成立：实时语音、长文档审阅、Agent 循环。",
+  "第三段：训练竞赛决定谁有入场券，推理竞赛决定谁能活到终局。"
+ ],
+ "concepts": [
+  "KV Cache",
+  "投机解码",
+  "算子融合",
+  "单位经济"
+ ],
+ "stats": [
+  {
+   "v": "-90%",
+   "l": "千token成本"
+  },
+  {
+   "v": "3.2×",
+   "l": "长文本吞吐"
+  },
+  {
+   "v": "18月",
+   "l": "时间窗"
+  }
+ ],
+ "quotes": [
+  "推理成本的下降速度，第一次超过了模型能力的增长速度。"
+ ],
+ "counter": "未讨论量化精度损失的累积效应，长上下文场景可能放大该风险。",
+ "actions": [
+  "用开源量化模型复测成本基线",
+  "把长上下文从可选实验改为默认架构"
+ ],
+ "conclusion": "把长上下文从可选实验变为默认架构，是这轮成本红利最直接的兑现方式。"
 };
 const LONG = {
-  kind: 'deepRead', title: '超长文的完整呈现：比例合同下的画布放大',
-  feedTitle: '知更实验室', date: '2026-09-30',
-  lead: '十四段长文全部进卡，字号不变，画布放大，比例恒定。',
-  steps: [
-    { t: '求解器', d: '基准宽渲染测自然高，超比例即放大画布重排，三轮内收敛。' },
-    { t: '零截断', d: '标题导语正文步骤标签全量渲染，绝不省略。' },
-    { t: '比例恒定', d: '输出宽高比严格等于所选画幅，误差小于百分之一。' },
-  ],
-  content: Array.from({ length: 14 }, (_, i) => `第${i + 1}段：比例合同的排版引擎把所有内容放进约定横纵比的画幅。字号保持基准，画布等比放大，文字重新回流后行数减少，求解器在极数轮内收敛到稳定尺寸。内容多长卡就多大，比例永远不变，这是对「画幅」一词的重新定义：不是尺寸的枷锁，而是比例的承诺。`).join('\n\n'),
-  concepts: ['比例合同', '画布放大', '零截断', '求解器'],
-  stats: [{ v: '14', l: '段正文' }, { v: '0', l: '截断' }],
+ "kind": "deepRead",
+ "title": "失败清单是最被低估的资产",
+ "feedTitle": "DEV Community",
+ "date": "2026-09-30",
+ "lead": "失败具有可复现、可证伪、可复利的特性，公开发布失败清单本身就是建立信任的商业策略。",
+ "steps": [
+  {
+   "t": "收集",
+   "d": "三周时间收集十七个死掉项目的完整死因。"
+  },
+  {
+   "t": "归类",
+   "d": "归纳出十余个可复用的死因模式。"
+  },
+  {
+   "t": "反用",
+   "d": "把死因清单变成新项目的立项检查表。"
+  }
+ ],
+ "prose": [
+  "第1段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第2段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第3段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第4段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第5段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第6段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第7段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第8段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第9段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。",
+  "第10段：失败不是噪音而是信号。每一个死掉的项目都精确标注了一类边界条件：需求不存在、渠道不通、单位经济不成立、时机过早。把这些边界条件汇总成清单，等于拿到了一张反向地图——上面画着所有不能走的路。公开这份地图，反而是最快建立专业信任的方式，因为成功可以靠运气，失败只能靠真相。"
+ ],
+ "concepts": [
+  "失败清单",
+  "反向地图",
+  "单位经济",
+  "可证伪性",
+  "401"
+ ],
+ "stats": [
+  {
+   "v": "17",
+   "l": "死掉项目"
+  },
+  {
+   "v": "10+",
+   "l": "死因归纳"
+  },
+  {
+   "v": "3",
+   "l": "共性模式"
+  }
+ ],
+ "quotes": [
+  "成功可以靠运气，失败只能靠真相。",
+  "公开失败是最快的信任建设。"
+ ],
+ "counter": "幸存者偏差：能被写成清单的失败，都是作者已经走出来的失败。",
+ "actions": [
+  "为自己的项目维护一份死因台账",
+  "每次立项先过一遍反向地图"
+ ],
+ "conclusion": "把失败当作可检索的资产来经营，而不是当作需要掩埋的耻辱。"
 };
 
 app.whenReady().then(async () => {
@@ -48,15 +149,15 @@ app.whenReady().then(async () => {
     // 卡 1-2：稀疏文章 4:3 与 9:16（旧版空白问题场景）
     // 卡 3-4：超长文 4:3 与 3:4（放大+比例恒定）
     const jobs = [
-      ['4:3', SPARSE, 380], ['9:16', SPARSE, 300], ['4:3', LONG, 460], ['3:4', LONG, 330],
+      ['1:1', SPARSE, 330], ['4:3', SPARSE, 420], ['16:9', LONG, 560], ['3:4', LONG, 340],
     ];
     for (const [id, data, w] of jobs) {
       const cell = document.createElement('div');
       cell.style.cssText = 'flex:none;'; // 禁 flex 收缩：测量宽度失真会让求解器提前锁定
       const sh = cell.attachShadow({ mode: 'open' });
       host.appendChild(cell); // 必须先挂载再测量：detached 节点 getBoundingClientRect 恒 0（上一版 bug 源）
-      const R = { '4:3': 3/4, '9:16': 16/9, '3:4': 4/3 }[id];
-      let W = { '4:3': 1000, '9:16': 750, '3:4': 750 }[id];
+      const R = { '4:3': 3/4, '9:16': 16/9, '3:4': 4/3, '1:1': 1, '16:9': 9/16 }[id];
+      let W = { '4:3': 1000, '9:16': 750, '3:4': 750, '1:1': 750, '16:9': 1333 }[id];
       let final = null;
       for (let round = 0; round < 4; round++) {
         const sc = renderSceneCard(data, { sceneId: id, tplId: 'paper', width: W });
@@ -72,6 +173,8 @@ app.whenReady().then(async () => {
       sh.innerHTML = '<style>' + final.css + '.cardx-stage{overflow:hidden;border-radius:8px;box-shadow:0 6px 24px rgba(30,26,18,.16)}</style>'
         + '<div style="zoom:' + s + ';width:' + final.boxW + 'px"><div class="cardx-stage" style="width:' + final.boxW + 'px;height:' + Math.round(W * R) + 'px">' + final.html + '</div></div>';
       cell.style.cssText = 'flex:none;height:' + Math.round(W * R * s) + 'px;';
+      SOLVE_LOG.push('RECT ' + id + ' cell=' + Math.round(cell.getBoundingClientRect().width) + 'x' + Math.round(cell.getBoundingClientRect().height) + ' card=' + sh.querySelector('.sp-card').className.split(' ').slice(0,2).join('.') + ' stageInline=' + sh.querySelector('.cardx-stage').getAttribute('style').replace(/;/g,'|'));
+      SOLVE_LOG.push(id + ' LOCKED ' + final.boxW + 'x' + Math.round(W * R) + ' blocks: steps=' + sh.querySelectorAll('.sp-step').length + ' prose=' + sh.querySelectorAll('.sp-prose p').length + ' counter=' + sh.querySelectorAll('.sp-counter').length + ' quotes=' + sh.querySelectorAll('.sp-quotes blockquote').length + ' actions=' + sh.querySelectorAll('.sp-action').length + ' conclusion=' + sh.querySelectorAll('.sp-conclusion').length + ' chips=' + sh.querySelectorAll('.sp-chips span').length + ' stats=' + sh.querySelectorAll('.sp-stats b').length + ' foot=' + sh.querySelectorAll('.sp-foot .sp-wm').length);
     }
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     await new Promise(r => setTimeout(r, 350));
@@ -82,7 +185,7 @@ app.whenReady().then(async () => {
   const solveLog = await win.webContents.executeJavaScript('window.__solveLog || []');
   console.log('SOLVE', JSON.stringify(solveLog));
   const img = await win.webContents.capturePage();
-  fs.writeFileSync(path.join(__dirname, '..', '.tmp-shots', 'scenes-2-v2.png'), img.toPNG());
+  fs.writeFileSync(path.join(__dirname, '..', '.tmp-shots', 'scenes-3-v21.png'), img.toPNG());
   console.log('shot scenes-2-v2.png');
   app.exit(0);
 });

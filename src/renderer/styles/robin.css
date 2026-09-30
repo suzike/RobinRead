@@ -457,6 +457,16 @@ body.zen .list-top-inset { display: none; }
   align-items: flex-start;
 }
 .entry-row:hover { background: var(--row-hover); }
+/* R51 细节三连（列表） */
+.entry-row .entry-time { transition: color var(--dur-fast) var(--ease-out); }
+.entry-row:hover .entry-time { color: var(--accent); }
+.entry-row .star-mini { animation: star-pop 0.28s var(--ease-out); transform-origin: center; }
+@keyframes star-pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.3); opacity: 1; } 100% { transform: scale(1); } }
+.entry-row.starred::before {
+  content: ''; position: absolute; left: 0; top: 18%; bottom: 18%;
+  width: 3px; border-radius: 0 2px 2px 0; background: var(--warm-accent);
+  opacity: 0.75; pointer-events: none;
+}
 .entry-row.selected { background: var(--row-selected); }
 
 .entry-unread-dot {

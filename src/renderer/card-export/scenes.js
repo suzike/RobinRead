@@ -58,15 +58,19 @@ function prepData(d) {
     : (Array.isArray(d.points) && d.points.length
       ? d.points.map((p) => ({ t: '', dd: stripHtml(typeof p === 'string' ? p : p.t) }))
       : null);
-  const paras = String(d.content || d.sections || '')
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .split(/\n{2,}|<\/p>/i)
-    .map(stripHtml)
-    .filter((p) => p.length > 8);
-  if (!steps && paras.length === 0 && d.lead) paras.push(stripHtml(d.lead));
+  // 正文段落流：真实精读数据在 prose（parseArtifactToCard 产物）；content/sections 兜底（链接精读等直传场景）
+  let paras = Array.isArray(d.prose) && d.prose.length
+    ? d.prose.map(stripHtml).filter(Boolean)
+    : String(d.content || d.sections || '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .split(/\n{2,}|<\/p>/i)
+      .map(stripHtml)
+      .filter((p) => p.length > 8);
+  if (!paras.length && d.lead) paras = [stripHtml(d.lead)];
   const cappedSteps = steps ? cap(steps, 32, '条要点') : null;
   const cappedParas = cap(paras, 64, '段');
   const concepts = cap((d.concepts || []).map((c) => stripHtml(typeof c === 'string' ? c : c.t)).filter(Boolean), 24, '个标签');
+  const actions = cap((d.actions || []).map(stripHtml).filter(Boolean), 12, '条行动');
   return {
     badge: KIND_BADGE[d.kind] || '阅读笔记',
     title: String(d.title || ''),
@@ -77,9 +81,11 @@ function prepData(d) {
     steps: cappedSteps,
     paras: cappedParas,
     concepts,
+    actions,
+    counter: stripHtml(d.counter),
+    conclusion: stripHtml(d.conclusion),
     stats: Array.isArray(d.stats) ? d.stats.slice(0, 6) : [],
     quotes: Array.isArray(d.quotes) ? d.quotes.map(stripHtml).filter(Boolean) : [],
-    conclusion: stripHtml(d.conclusion),
   };
 }
 
@@ -92,11 +98,37 @@ const stepsHtml = (p) => {
   return `<div class="sp-steps">${items}</div>${p.steps.more ? `<div class="sp-more">…另有 ${p.steps.more} ${p.steps.label}，见原文</div>` : ''}`;
 };
 
-const proseHtml = (p) => {
+const proseHtml = (p, opts = {}) => {
   if (!p.paras.list.length) return '';
-  const items = p.paras.list.map((x) => `<p>${esc(x)}</p>`).join('');
-  return `<div class="sp-prose">${items}</div>${p.paras.more ? `<div class="sp-more">…另有 ${p.paras.more} ${p.paras.label}，见原文</div>` : ''}`;
+  const cls = opts.cols === 2 ? ' sp-flow-cols' : '';
+  const items = p.paras.list.map((x, i) => `<p${i === 0 && !p.lead ? ' class="sp-first"' : ''}>${esc(x)}</p>`).join('');
+  const orn = p.paras.list.length >= 3 && !opts.noOrn ? `<div class="sp-orn">❦</div>` : '';
+  return `<div class="sp-prose${cls}">${items}</div>${orn}${p.paras.more ? `<div class="sp-more">…另有 ${p.paras.more} ${p.paras.label}，见原文</div>` : ''}`;
 };
+
+const counterHtml = (p) => (p.counter
+  ? `<div class="sp-counter"><span class="sp-counter-h">另一面</span><p>${esc(p.counter)}</p></div>`
+  : '');
+
+const actionsHtml = (p) => (p.actions.list.length
+  ? `<div class="sp-actions"><span class="sp-actions-h">读后行动</span>${p.actions.list.map((a) => `<span class="sp-action"><i>✓</i>${esc(a)}</span>`).join('')}</div>${p.actions.more ? `<div class="sp-more">+${p.actions.more} ${p.actions.label}</div>` : ''}`
+  : '');
+
+const conclusionHtml = (p) => (p.conclusion
+  ? `<div class="sp-conclusion"><div class="sp-orn">❦</div><p>${esc(p.conclusion)}</p></div>`
+  : '');
+
+/** 内容主通道（全字段结构化杂志流）：导语→步骤→正文→另一面→金句→行动→结论→数据/标签。 */
+const flowHtml = (p, opts = {}) => `
+  ${p.lead ? `<p class="sp-lead">${esc(p.lead)}</p>` : ''}
+  ${stepsHtml(p)}
+  ${proseHtml(p, opts)}
+  ${counterHtml(p)}
+  ${quotesHtml(p, 2)}
+  ${actionsHtml(p)}
+  ${conclusionHtml(p)}
+  ${statsHtml(p)}
+  ${chipsHtml(p)}`;
 
 const chipsHtml = (p) => (p.concepts.list.length
   ? `<div class="sp-chips">${p.concepts.list.map((c) => `<span>${esc(c)}</span>`).join('')}</div>${p.concepts.more ? `<div class="sp-more">+${p.concepts.more} ${p.concepts.label}</div>` : ''}`
@@ -115,7 +147,7 @@ const qrOf = (o) => (o.qr ? `<div class="sp-qr">${o.qr}</div>` : '');
 
 /* ───────── 六个排版引擎（每个比例独立构图；区块全弹性，可任意高拉伸） ───────── */
 
-/** 1:1 方形卡：中轴对称。媒体区与文字区弹性分配，内容多则画布放大后文字流自然加长。 */
+/** 1:1 方形卡：中轴对称头区 + 全量内容流（长文时对称让位于杂志流）。 */
 function square(p, o) {
   return `
   <div class="sp-card sp-square">
@@ -125,16 +157,20 @@ function square(p, o) {
       <h1 class="sp-title">${esc(p.title)}</h1>
       <i class="sp-rule"></i>
       ${p.lead ? `<p class="sp-lead">${esc(p.lead)}</p>` : ''}
-      ${proseHtml(p)}
       ${stepsHtml(p)}
-      ${statsHtml(p)}
+      ${proseHtml(p)}
+      ${counterHtml(p)}
       ${quotesHtml(p, 1)}
+      ${statsHtml(p)}
+      ${actionsHtml(p)}
+      ${conclusionHtml(p)}
+      ${chipsHtml(p)}
       <div class="sp-foot">${esc(p.date)}${qrOf(o)}${wmOf(o)}</div>
     </div>
   </div>`;
 }
 
-/** 3:4 竖版信息流：顶部媒体 + 连续信息流（标题/导语/标签/步骤或正文）。 */
+/** 3:4 竖版信息流：顶部媒体 + 全量结构化杂志流。 */
 function tall(p, o) {
   return `
   <div class="sp-card sp-tall">
@@ -145,17 +181,20 @@ function tall(p, o) {
       <div class="sp-kicker"><span class="sp-badge">${esc(p.badge)}</span><span>${esc(p.feed)}</span></div>
       <h1 class="sp-title">${esc(p.title)}</h1>
       ${p.lead ? `<p class="sp-lead">${esc(p.lead)}</p>` : ''}
-      ${chipsHtml(p)}
       ${stepsHtml(p)}
       ${proseHtml(p)}
+      ${counterHtml(p)}
       ${quotesHtml(p, 2)}
       ${statsHtml(p)}
+      ${actionsHtml(p)}
+      ${conclusionHtml(p)}
+      ${chipsHtml(p)}
       <div class="sp-foot">${esc(p.date)}${qrOf(o)}${wmOf(o)}</div>
     </div>
   </div>`;
 }
 
-/** 9:16 全屏海报：hero 压标题 + 数据 + 步骤/正文 + 金句。 */
+/** 9:16 全屏海报：hero 压标题 + 全量内容流。 */
 function poster(p, o) {
   return `
   <div class="sp-card sp-poster">
@@ -168,17 +207,21 @@ function poster(p, o) {
       </div>
     </div>
     <div class="sp-main">
+      ${p.lead ? `<p class="sp-lead">${esc(p.lead)}</p>` : ''}
       ${statsHtml(p)}
       ${stepsHtml(p)}
       ${proseHtml(p)}
+      ${counterHtml(p)}
       ${quotesHtml(p, 2)}
+      ${actionsHtml(p)}
+      ${conclusionHtml(p)}
       ${chipsHtml(p)}
       <div class="sp-foot">${esc(p.date)}${qrOf(o)}${wmOf(o)}</div>
     </div>
   </div>`;
 }
 
-/** 4:3 经典卡：题头 + 媒体 + 双栏（左主文流 / 右辅助数据标签）。 */
+/** 4:3 经典卡：题头 + 媒体 + 双栏杂志流（左主文流 / 右辅助数据标签）。 */
 function classic(p, o) {
   const right = statsHtml(p) + chipsHtml(p) + quotesHtml(p, 1);
   return `
@@ -186,20 +229,19 @@ function classic(p, o) {
     <div class="sp-head">
       <div class="sp-kicker"><span class="sp-badge">${esc(p.badge)}</span><span>${esc(p.feed)} · ${esc(p.date)}</span></div>
       <h1 class="sp-title">${esc(p.title)}</h1>
-      ${p.lead ? `<p class="sp-lead">${esc(p.lead)}</p>` : ''}
     </div>
     ${p.cover
     ? `<div class="sp-media"><img src="${esc(p.cover)}" alt=""/></div>`
     : `<div class="sp-media sp-gen"><b>${esc(p.title.slice(0, 3))}</b></div>`}
     <div class="sp-cols${right ? '' : ' single'}">
-      <div class="sp-col-l">${stepsHtml(p)}${proseHtml(p)}</div>
+      <div class="sp-col-l">${p.lead ? `<p class="sp-lead">${esc(p.lead)}</p>` : ''}${stepsHtml(p)}${proseHtml(p)}${counterHtml(p)}${actionsHtml(p)}${conclusionHtml(p)}</div>
       ${right ? `<div class="sp-col-r">${right}</div>` : ''}
     </div>
     <div class="sp-foot">${qrOf(o)}${wmOf(o)}</div>
   </div>`;
 }
 
-/** 16:9 幻灯片：左题区（媒体底）+ 右内容流。内容长则右侧流加长 → 画布放大 → 右流重排变矮，天然收敛。 */
+/** 16:9 幻灯片：左题区（媒体底）+ 右双栏杂志流。 */
 function slide(p, o) {
   return `
   <div class="sp-card sp-slide">
@@ -214,9 +256,12 @@ function slide(p, o) {
     </div>
     <div class="sp-right">
       ${stepsHtml(p)}
-      ${proseHtml(p)}
-      ${statsHtml(p)}
+      ${proseHtml(p, { cols: 2 })}
+      ${counterHtml(p)}
       ${quotesHtml(p, 1)}
+      ${actionsHtml(p)}
+      ${conclusionHtml(p)}
+      ${statsHtml(p)}
       ${chipsHtml(p)}
       <div class="sp-foot">${qrOf(o)}${wmOf(o)}</div>
     </div>
@@ -263,7 +308,7 @@ function sceneCss(ratioId, k) {
   .sp-lead{margin:0;color:${sub};line-height:1.8;font-size:15px;}
   .sp-rule{display:block;width:34px;height:3px;background:${k.accent};border-radius:2px;flex:none;}
   .sp-media{position:relative;overflow:hidden;flex:none;}
-  .sp-media img{width:100%;height:100%;object-fit:cover;display:block;}
+  .sp-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
   .sp-gen{background:linear-gradient(140deg,${k.accent} 0%,${k.bg} 135%);display:flex;align-items:flex-end;height:100%;}
   .sp-gen b{color:${k.dark ? 'rgba(242,237,225,.24)' : 'rgba(38,34,26,.14)'};font-size:110px;line-height:.82;padding:16px 26px;letter-spacing:.04em;}
   .sp-chips{display:flex;flex-wrap:wrap;gap:8px;}
@@ -275,6 +320,18 @@ function sceneCss(ratioId, k) {
   .sp-step p{margin:2px 0 0;font-size:13.5px;line-height:1.66;color:${sub};text-align:justify;}
   .sp-prose p{margin:0 0 12px;font-size:14px;line-height:1.82;color:${sub};text-align:justify;}
   .sp-prose p:last-child{margin-bottom:0;}
+  .sp-prose.sp-flow-cols{columns:2;column-gap:34px;column-rule:1px solid ${line};}
+  .sp-prose.sp-flow-cols p{break-inside:avoid-column;}
+  .sp-orn{text-align:center;color:${k.accent};opacity:.55;font-size:15px;margin:14px 0 4px;}
+  .sp-counter{border-left:3px solid ${k.accent};padding:2px 0 2px 14px;margin:2px 0;}
+  .sp-counter-h{display:block;font-size:11.5px;font-weight:700;letter-spacing:.14em;color:${k.accent};margin-bottom:4px;}
+  .sp-counter p{margin:0;font-size:13.5px;line-height:1.7;color:${sub};font-style:italic;}
+  .sp-actions{display:flex;flex-direction:column;gap:8px;}
+  .sp-actions-h{font-size:11.5px;font-weight:700;letter-spacing:.14em;color:${k.accent};}
+  .sp-action{display:flex;gap:9px;align-items:baseline;font-size:13.5px;color:${sub};}
+  .sp-action i{flex:none;font-style:normal;color:${k.accent};font-weight:800;font-size:12px;}
+  .sp-conclusion{margin-top:2px;}
+  .sp-conclusion p{margin:6px 0 0;font-size:14.5px;line-height:1.78;text-align:justify;}
   .sp-more{margin-top:8px;font-size:12px;color:${sub};letter-spacing:.04em;}
   .sp-stats{display:flex;flex-wrap:wrap;gap:14px 26px;}
   .sp-stats b{display:block;font-size:23px;font-weight:800;color:${k.accent};font-variant-numeric:tabular-nums;}
