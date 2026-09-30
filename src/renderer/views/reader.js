@@ -2354,6 +2354,14 @@ export class ReaderView {
         if (!popover.contains(event.target)) this._dismissPopover();
       };
       document.addEventListener('mousedown', this._popoverDismissHandler);
+      // R50：Esc 关闭划词弹层（键盘路径；弹层生命周期内挂载，关闭即卸载）
+      this._popoverEscHandler = (event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          this._dismissPopover();
+        }
+      };
+      document.addEventListener('keydown', this._popoverEscHandler, true);
     }, 0);
   }
 
@@ -2415,6 +2423,10 @@ export class ReaderView {
     if (this._popoverDismissHandler) {
       document.removeEventListener('mousedown', this._popoverDismissHandler);
       this._popoverDismissHandler = null;
+    }
+    if (this._popoverEscHandler) {
+      document.removeEventListener('keydown', this._popoverEscHandler, true);
+      this._popoverEscHandler = null;
     }
     this._popoverRun = null;
     this._popoverPayload = null;

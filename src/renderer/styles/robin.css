@@ -1411,6 +1411,9 @@ body.dark .robin-summary-card { background: color-mix(in srgb, #302d28 97%, tran
   align-items: center; justify-content: center;
 }
 .nj-explanation-header .close-btn:hover { background: var(--row-hover); color: var(--text-primary); }
+.nj-explanation-header .close-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* R50：正文图片 hover 提亮（zoom-in 光标之上的进阶灯箱暗示） */
+.reader-article img.nj-img:not(.nj-img-failed):hover { filter: brightness(1.03); }
 .nj-explanation-body {
   padding: 12px 16px 14px;
   font-size: 13px; line-height: 1.65;
