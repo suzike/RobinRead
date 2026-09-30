@@ -1632,7 +1632,7 @@ export function renderCard(data, options = {}) {
   return {
     html: `<div class="xc-card xc-t-${tpl.id}${options.orientation === 'landscape' ? ' landscape' : ''}${options.verticalTitle && !d0Cover && tpl.id !== 'min' && tpl.id !== 'note' ? ' xc-vtitle' : ''}" style="zoom:${densityZoom(options.density)}">${tpl.html(data, o)}</div>`,
     css: BASE_CSS + tpl.css + (TEMPLATE_UPGRADES[tpl.id] || '')
-      + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)}}` : '')
+      + (options.coverFilter && options.coverFilter !== 'original' ? `.xc-cover img,.xc-hero-img{filter:${coverFilter(options.coverFilter)} !important}` : '')
       + fontPairCss(options.fontPair)
       + (options.accentColor ? `.xc-card{border-bottom:6px solid ${options.accentColor}}` : '')
             + (options.orientation === 'landscape' ? `

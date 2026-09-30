@@ -253,8 +253,10 @@ export async function openCardExportModal({ data, link = '' }) {
     if (ratio != null) return renderFittedPreview(ratio, seq);
     const card = renderCard(data, cardOptions());
     const p = host.clientWidth ? host.clientWidth / CARD_WIDTH : 0.456;
+    // R-D6：自适应路径同样消费配色变体（与导出端 renderFullPage 的 .xc-stage filter 同语义）——此前仅固定画幅路径生效
+    const vf = variantFilter(state.variant);
     shadow.innerHTML = `<style>${card.css}
-      .cardx-scale { zoom: ${p}; }</style>
+      .cardx-scale { zoom: ${p}; ${vf !== 'none' ? `filter:${vf}` : ''} }</style>
       <div class="cardx-scale">${card.html}</div>`;
     const cardEl = shadow.querySelector('.xc-card');
     // 取色（C4）：有封面时提取主色做卡片底部色带
