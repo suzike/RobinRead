@@ -892,6 +892,24 @@ body.rp-focus .reader-article .robin-summary-card { opacity: 0.55; transition: o
 .cmd-item .cmd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95em; }
 .cmd-item .cmd-hint { font-size: 0.75em; color: var(--text-secondary); flex-shrink: 0; }
 .cmd-empty { padding: 22px; text-align: center; color: var(--text-secondary); font-size: 0.9em; }
+/* R53 收官细节三连（命令面板）：空态出路 / 最近徽标 / 滚动条统一 */
+.cmd-empty-reset {
+  display: block; margin: 0 auto 16px; appearance: none;
+  border: 1px solid var(--note-border); background: var(--note-background);
+  color: var(--text-secondary); font-size: 12px; padding: 6px 14px;
+  border-radius: 999px; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.cmd-empty-reset:hover { border-color: var(--accent); color: var(--accent); }
+.cmd-recent-tag {
+  flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px; padding: 1px 7px;
+}
+.cmd-palette-list { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.cmd-palette-list::-webkit-scrollbar { width: 5px; }
+.cmd-palette-list::-webkit-scrollbar-thumb { background: transparent; border-radius: var(--radius-full); transition: background var(--dur-mid) var(--ease-out); }
+.cmd-palette-list:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 24%, transparent); }
 /* 分组小节头（R21）：统一上缘发丝线（首组除外），两实例同款 */
 .cmd-group-head {
   padding: 9px 10px 5px; margin-top: 3px;

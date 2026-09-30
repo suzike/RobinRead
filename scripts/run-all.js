@@ -71,6 +71,7 @@ const OFFLINE = [
   { file: 'scripts/diag-r50-details.js', runner: 'electron', desc: 'R50 细节三连：Esc 关弹层/关闭键焦点环/图 hover 提亮（离线）' },
   { file: 'scripts/diag-r51-details.js', runner: 'electron', desc: 'R51 细节三连：列表 hover 时间/星标回弹/书签色条（离线）' },
   { file: 'scripts/diag-r52-details.js', runner: 'electron', desc: 'R52 细节三连：设置导航可达性/图标染色/滚动条（离线）' },
+  { file: 'scripts/diag-r53-details.js', runner: 'electron', desc: 'R53 收官：面板空态出路/最近徽标/滚动条（离线）' },
   { file: 'scripts/diag-r44-details.js', runner: 'electron', desc: 'R44 细节三连：滑轨键盘翻页/刻度 title/装载呼吸点（离线）' },
   { file: 'scripts/diag-r45-details.js', runner: 'electron', desc: 'R45 细节三连：chips 卫生/清除键 aria/批量条 toolbar（离线）' },
   { file: 'scripts/diag-r39-details.js', runner: 'electron', desc: 'R39 细节三连：时间/来源悬停全量+清除键命中区（离线）' },

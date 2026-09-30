@@ -95,11 +95,12 @@ export class CommandPalette {
   }
 
   _filter(query) {
+    this.query = query; // R53：空态出路按钮据此判断「有无搜索词」
     const q = String(query || '').trim().toLowerCase();
     if (!q) {
       // 空查询：最近使用置顶，其余保持注册序
-      const recentSet = new Set(this.recent);
-      this.filtered = [...this.items.filter((c) => recentSet.has(c.label)), ...this.items.filter((c) => !recentSet.has(c.label))];
+      this.recentSet = new Set(this.recent); // R53：挂实例供 _render 打「最近」徽标
+      this.filtered = [...this.items.filter((c) => this.recentSet.has(c.label)), ...this.items.filter((c) => !this.recentSet.has(c.label))];
       this.activeIndex = 0;
       this._render();
       return;
@@ -163,6 +164,20 @@ export class CommandPalette {
       empty.className = 'cmd-empty';
       empty.textContent = t('没有匹配的命令');
       this.listHost.appendChild(empty);
+      // R53：空态给一条出路——清空输入回到全量命令（而非让用户自己发现要手动删字）
+      if (String(this.query || '').trim()) {
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'cmd-empty-reset';
+        reset.textContent = t('清空搜索，显示全部命令');
+        reset.addEventListener('click', () => {
+          this.query = '';
+          if (this.inputEl) this.inputEl.value = '';
+          this.activeIndex = 0;
+          this._filter();
+        });
+        this.listHost.appendChild(reset);
+      }
       return;
     }
     // 分组小节头（R21）：相邻同组命令前插入组名行；键盘导航越过组头行
@@ -187,6 +202,13 @@ export class CommandPalette {
       label.className = 'cmd-label';
       label.textContent = cmd.label;
       item.append(iconEl, label);
+      // R53：最近使用过的命令带小徽标（解释它为何排在最前）
+      if (this.recentSet?.has(cmd.label)) {
+        const tag = document.createElement('span');
+        tag.className = 'cmd-recent-tag';
+        tag.textContent = t('最近');
+        item.appendChild(tag);
+      }
       if (cmd.hint) {
         const hint = document.createElement('span');
         hint.className = 'cmd-hint';
