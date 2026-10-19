@@ -28,4 +28,7 @@
 
 ## 校验和
 
-<!-- SHA256 -->
+| 文件 | SHA-256 |
+| --- | --- |
+| RobinRead-2.16.7-setup.exe | `25ce22acfb03b55fb1ad4a1408aade1e074bdf4daf9e0dc92566c61f69f04551` |
+| RobinRead-2.16.7-portable.exe | `47fa7f1eb0acb400e633195512c0815431c60414ed1e031cd28d9aa93aea9bbb` |
