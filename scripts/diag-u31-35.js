@@ -338,7 +338,7 @@ async function uiProbe(store, win, seeded) {
     out.badgeNo999 = out.badgeTexts.every((t) => !t.includes('999'));
     out.ninePlus = out.badgeTexts.includes('9+');
     out.zeroHidden = [...document.querySelectorAll('.sidebar-row .sidebar-count')].filter((el) => !el.textContent).every((el) => getComputedStyle(el).visibility === 'hidden');
-    // 实机反馈收敛：底栏一行 7 键常驻 +「更多」展开行 6 键（默认收起，开合 + 记账实测）
+    // 实机反馈收敛：底栏一行 7 键常驻 +「更多」展开行 7 键（R121 订阅管理入列；默认收起，开合 + 记账实测）
     out.rowBtns = document.querySelectorAll('.footer-nav:not(.footer-nav-more) > .footer-nav-btn').length;
     const moreBtn = document.querySelector('.footer-more-btn');
     out.moreBtn = Boolean(moreBtn);
@@ -653,8 +653,8 @@ app.whenReady().then(async () => {
     ok(ui.u33a.zeroHidden, label(ui.u33a.zeroHidden, 'C U33 零值徽标统一隐藏（visibility）'));
     ok(ui.u33a.rowBtns === 7 && ui.u33a.moreBtn && ui.u33a.moreClosedDefault,
       label({ row: ui.u33a.rowBtns, more: ui.u33a.moreBtn }, 'C U33 实机反馈收敛：底栏一行 7 键 +「更多」默认收起（visibility/aria 同步）'));
-    ok(ui.u33a.moreOpened && ui.u33a.moreBtns === 6 && ui.u33a.persistedOpen,
-      label({ btns: ui.u33a.moreBtns, persisted: ui.u33a.persistedOpen }, 'C U33「更多」展开 6 键可见（aria-expanded=true）+ localStorage 记账'));
+    ok(ui.u33a.moreOpened && ui.u33a.moreBtns === 7 && ui.u33a.persistedOpen,
+      label({ btns: ui.u33a.moreBtns, persisted: ui.u33a.persistedOpen }, 'C U33「更多」展开 7 键可见（aria-expanded=true）+ localStorage 记账（R121 订阅管理入列）'));
     ok(ui.u33a.toggledBack, label(ui.u33a.toggledBack, 'C U33「更多」再点收起 + 记账回 0'));
     ok(ui.u33b.folderFound && ui.u33b.collapsedBefore && ui.u33b.pendingMarked && ui.u33b.autoExpanded && ui.u33b.pendingCleared,
       label({ found: ui.u33b.folderFound, collapsed: ui.u33b.collapsedBefore, pending: ui.u33b.pendingMarked, expanded: ui.u33b.autoExpanded, cleared: ui.u33b.pendingCleared },

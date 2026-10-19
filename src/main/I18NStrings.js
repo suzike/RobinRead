@@ -2634,7 +2634,6 @@ const STRINGS = {
   "只看未读": { zh: "只看未读", en: "Unread Only" },
   "这里什么都没有——换一页或清掉未读过滤看看。": { zh: "这里什么都没有——换一页或清掉未读过滤看看。", en: "Nothing here — try another page or clear the unread filter." },
   "列表": { zh: "列表", en: "List" },
-  "标为已读": { zh: "标为已读", en: "Mark as Read" },
   "已标为已读": { zh: "已标为已读", en: "Marked as read" },
   "这篇文章没有可提取的正文。": { zh: "这篇文章没有可提取的正文。", en: "No extractable body for this article." },
   "开启口袋知更": { zh: "开启口袋知更", en: "Enable Pocket Robin" },
@@ -2928,6 +2927,21 @@ const STRINGS = {
   "导出失败：": { zh: "导出失败：", en: "Export failed: " },
   "请重试": { zh: "请重试", en: "please retry" },
   "暂停/继续": { zh: "暂停/继续", en: "Pause / Resume" },
+  /* R121 批量订阅管理（feed-manager）：键齐 zh/en */
+  "订阅管理": { zh: "订阅管理", en: "Manage Feeds" },
+  "搜索订阅（标题 / 链接）": { zh: "搜索订阅（标题 / 链接）", en: "Search feeds (title / URL)" },
+  "全选": { zh: "全选", en: "Select All" },
+  "全不选": { zh: "全不选", en: "Select None" },
+  "反选": { zh: "反选", en: "Invert Selection" },
+  "没有匹配的订阅": { zh: "没有匹配的订阅", en: "No matching feeds" },
+  "未分类": { zh: "未分类", en: "Uncategorized" },
+  "移入文件夹": { zh: "移入文件夹", en: "Move to Folder" },
+  "移除所选": { zh: "移除所选", en: "Remove Selected" },
+  "已选 %lld 项": { zh: "已选 %lld 项", en: "%lld selected" },
+  "批量管理订阅…": { zh: "批量管理订阅…", en: "Bulk Manage Feeds…" },
+  "已移除 %lld 个订阅": { zh: "已移除 %lld 个订阅", en: "Removed %lld feeds" },
+  "已移动 %lld 个订阅": { zh: "已移动 %lld 个订阅", en: "Moved %lld feeds" },
+  "已将 %lld 个订阅标为已读": { zh: "已将 %lld 个订阅标为已读", en: "Marked %lld feeds as read" },
 };
 
 module.exports = { STRINGS };

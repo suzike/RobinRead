@@ -190,11 +190,14 @@ if (!IS_PROBE) {
     createTray();
 
     // 启动时自动刷新（默认开启）
+    // R120：800ms → 10s——启动瞬间渲染层正在首拉列表/字体/侧栏，此刻再叠加批量
+    // 抓取与灌库会让用户一打开就面对卡死的界面（实报「启动就卡」）。让首屏完全
+    // 稳定后再后台起刷；灌库本身已分片让行（AppStore._applyParsedEntries）。
     const refreshOnLaunch = store.preferences.get('RobinRead.refreshOnLaunch', true);
     if (refreshOnLaunch) {
       setTimeout(() => {
         store.refresh('launch').catch(() => { /* 状态已在内部记录 */ });
-      }, 800);
+      }, 10000);
     }
 
     // 预热正文提取 worker：消除首次「阅读原文/正文补全」的进程冷启动延迟

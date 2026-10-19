@@ -31,6 +31,7 @@ import {
 } from './views/theme-engine.js';
 import { ThemeProposer, ThemeDesigner } from './views/theme-designer.js';
 import { FeedStore } from './views/feed-store.js';
+import { FeedManager } from './views/feed-manager.js'; // R121 批量订阅管理浮层
 import { KnowledgeCenter } from './views/knowledge.js';
 import { EvolutionView } from './views/evolution-view.js';
 import { AihotView } from './views/aihot-view.js';
@@ -69,6 +70,7 @@ const state = {
   // 状态推送瘦身：主进程修订号与结构签名（增量补丁，免全量重拉）
   entryStateRev: 0,
   listSetRev: 0,
+  listPullPending: false,        // R120：刷新中被合批推迟的列表重拉（结束时立即补拍）
   sidebarSignature: null,
 };
 
@@ -142,6 +144,7 @@ async function bootstrap() {
     onDeleteFeeds: confirmDeleteFeeds,
     onOpenSettings: () => showSettings(),
     onOpenStore: () => openFeedStore(),
+    onOpenManageFeeds: () => openFeedManager(), // R121 批量订阅管理（多选/一键移除）
     onOpenKnowledge: () => openKnowledgeCenter(),
     onOpenEvolution: () => openEvolutionView(),
     onOpenAihot: () => openAihotView(),
@@ -2284,6 +2287,7 @@ async function onFeedContext(event, { feed, selectedFeedIDs }) {
     { type: 'separator' },
     { label: t('移动到文件夹'), icon: 'folder', children: folderMenuItems([feed.id], feedFolderName(feed)) },
     { label: t('加入文集'), icon: 'books', children: await addToBookMenuItems([feed.id]) },
+    { label: t('批量管理订阅…'), icon: 'checkAll', onClick: () => openFeedManager() },
     { type: 'separator' },
     { label: t('删除订阅'), icon: 'trash', destructive: true, onClick: () => confirmDeleteFeeds([feed], 1) },
   ]);
@@ -2968,6 +2972,16 @@ function openFeedStore() {
   store.present();
 }
 
+/** R121 批量订阅管理：复选框多选 + 一键移除/移入文件夹/标已读（侧栏「更多」与右键菜单入口）。 */
+function openFeedManager() {
+  const manager = new FeedManager({
+    unreadByFeed: state.snapshot?.sidebarCounts?.unreadByFeed || {},
+    folderNames: collectFolders().map((f) => f.name),
+    onFeedsChanged: () => { reloadAll().catch(() => {}); },
+  });
+  manager.present();
+}
+
 let settingsView = null;
 
 const FEED_TYPO_FONTS = [['global', '跟随全局'], ['serif', '衬线'], ['sans', '无衬线'], ['wenkai', '霞鹜文楷']];
@@ -3132,35 +3146,71 @@ function bindEvents() {
     // P1-4：搜索/智能文件夹结果展示中（searchMode）跳过按视野重拉——
     // 否则任何状态推送都会把搜索结果替换成视野列表，而搜索框仍显示在搜（假象）；
     // 搜索取消/清空时经 runSearch('') → reloadList 自然恢复视野列表
+    // R120：批量刷新进行中（refreshing）行集变化的重拉合批为尾沿 1.2s 一次——
+    // 原先每拍快照都全量拉列表+重建 DOM，灌文高峰渲染层被打成重绘风暴（卡死感的
+    // 渲染层一半）。刷新结束时立即补一拍，保证最终一致。
+    const refreshingNow = snapshot.refreshStatus?.state === 'refreshing';
     if (!state.searchMode) {
-      const seq = ++listReqSeq; // P1-8：与 reloadList 同一序号空间，互相竞争时新者胜
-      const result = await window.robin.getList(state.scope, { limit: Math.max(100, state.listItems.length), retainingIDs: [...state.retainedIDs], sort: currentListSort() });
-      if (result.ok && seq === listReqSeq) {
-        const beforeIDs = new Set(state.listItems.map((entry) => entry.id));
-        const afterIDs = new Set(result.data.map((entry) => entry.id));
-        let sameSet = beforeIDs.size === afterIDs.size;
-        if (sameSet) for (const id of afterIDs) { if (!beforeIDs.has(id)) { sameSet = false; break; } }
-        state.listItems = result.data;
-        if (sameSet) {
-          views.list.updateItems(result.data, state.selectedEntryID);
-        } else {
-          // 行集变化（过滤规则/新增文章/删除）：全量重建，保持选择与滚动位置
-          const scrollTop = document.getElementById('list-scroll')?.scrollTop || 0;
-          // F10：精选开启时行集变化走精选重取（普通 render 会让位于精选视图，载荷需新）
-          if (picksState.on && ListView.picksEligible(state.scope)) {
-            await refreshSmartPicks();
-          } else {
-            views.list.render(result.data, state.scope, state.selectedEntryID, currentHasUnread());
-          }
-          views.list.setDigestVisible(state.scope?.kind === 'today' || state.scope?.kind === 'unread');
-          const scroller = document.getElementById('list-scroll');
-          if (scroller) scroller.scrollTop = scrollTop;
-        }
+      if (refreshingNow && setChanged) {
+        state.listPullPending = true;
+        scheduleRefreshListPull();
+      } else if (setChanged || state.listPullPending) {
+        state.listPullPending = false;
+        cancelScheduledRefreshListPull();
+        await pullListSilently();
       }
     }
     const item = state.listItems.find((entry) => entry.id === state.selectedEntryID);
     if (item) views.reader.updateEntryState({ isRead: item.isRead, isStarred: item.isStarred, isLater: item.isLater });
   });
+
+  /** R120：视野列表静默重拉（onStateChanged 共用通路；不改选择、不闪滚动）。 */
+  async function pullListSilently() {
+    refreshListLastPullAt = Date.now();
+    const seq = ++listReqSeq; // P1-8：与 reloadList 同一序号空间，互相竞争时新者胜
+    const result = await window.robin.getList(state.scope, { limit: Math.max(100, state.listItems.length), retainingIDs: [...state.retainedIDs], sort: currentListSort() });
+    if (result.ok && seq === listReqSeq) {
+      const beforeIDs = new Set(state.listItems.map((entry) => entry.id));
+      const afterIDs = new Set(result.data.map((entry) => entry.id));
+      let sameSet = beforeIDs.size === afterIDs.size;
+      if (sameSet) for (const id of afterIDs) { if (!beforeIDs.has(id)) { sameSet = false; break; } }
+      state.listItems = result.data;
+      if (sameSet) {
+        views.list.updateItems(result.data, state.selectedEntryID);
+      } else {
+        // 行集变化（过滤规则/新增文章/删除）：全量重建，保持选择与滚动位置
+        const scrollTop = document.getElementById('list-scroll')?.scrollTop || 0;
+        // F10：精选开启时行集变化走精选重取（普通 render 会让位于精选视图，载荷需新）
+        if (picksState.on && ListView.picksEligible(state.scope)) {
+          await refreshSmartPicks();
+        } else {
+          views.list.render(result.data, state.scope, state.selectedEntryID, currentHasUnread());
+        }
+        views.list.setDigestVisible(state.scope?.kind === 'today' || state.scope?.kind === 'unread');
+        const scroller = document.getElementById('list-scroll');
+        if (scroller) scroller.scrollTop = scrollTop;
+      }
+    }
+  }
+
+  let refreshListPullTimer = null;
+  let refreshListLastPullAt = 0;
+  function cancelScheduledRefreshListPull() {
+    if (refreshListPullTimer) { clearTimeout(refreshListPullTimer); refreshListPullTimer = null; }
+  }
+  function scheduleRefreshListPull() {
+    if (refreshListPullTimer) clearTimeout(refreshListPullTimer);
+    // 尾沿 1.2s 合批；最长等待 5s 兜底——持续灌文的长刷新（每拍都快照 <1.2s）
+    // 不会把列表压住全程，侧栏计数照常、列表周期性跟上
+    const wait = Date.now() - refreshListLastPullAt >= 5000 ? 0 : 1200;
+    refreshListPullTimer = setTimeout(() => {
+      refreshListPullTimer = null;
+      if (state.searchMode) return; // 搜索态不拉（P1-4 同理）；退出搜索时 reloadList 兜底
+      state.listPullPending = false;
+      refreshListLastPullAt = Date.now();
+      pullListSilently().catch(() => {});
+    }, wait);
+  }
 
   /** 当前视图的行集是否会随条目读/星状态变化（决定增量补丁后是否需要重拉）。 */
   function scopeSetAffectedByEntryState(scope, changes) {

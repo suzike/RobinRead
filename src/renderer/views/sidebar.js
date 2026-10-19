@@ -24,6 +24,7 @@ export class SidebarView {
     this.collapsedAccounts = new Set(JSON.parse(localStorage.getItem('robinread.collapsedAccounts') || '[]'));
     this.collapsedFolders = new Set(JSON.parse(localStorage.getItem('robinread.collapsedFolders') || '[]'));
     this.selectedFeedIDs = new Set();
+    this._multiSelectAnchor = null; // R121 shift 连选锚点（feedID；随多选清空重置）
     this.lastData = null;
     this.lastCounts = null;
     this.lastScope = null;
@@ -43,6 +44,7 @@ export class SidebarView {
     this.lastScope = scope;
     this.scrollEl.innerHTML = '';
     this.selectedFeedIDs.clear();
+    this._multiSelectAnchor = null;
 
     const hasAnyAccount = sidebar.length > 0;
     const hasAnyFeed = sidebar.some((account) => (account.rootFeeds?.length || 0) + (account.folders?.length || 0) > 0);
@@ -302,6 +304,7 @@ export class SidebarView {
         // 多选（对应 List 多选 → .feeds scope）
         if (this.selectedFeedIDs.has(feed.id)) this.selectedFeedIDs.delete(feed.id);
         else this.selectedFeedIDs.add(feed.id);
+        this._multiSelectAnchor = feed.id; // R121：shift 连选锚点
         this._refreshMultiSelect();
         if (this.selectedFeedIDs.size >= 2) {
           this.handlers.onSelect({ kind: 'feeds', feedIDs: [...this.selectedFeedIDs] });
@@ -310,7 +313,27 @@ export class SidebarView {
         }
         return;
       }
+      // R121 Shift 连选：锚点行到当前行之间的订阅整体选为多选。只取可见行——
+      // 折叠文件夹（.collapsed）与折叠账户（inline display:none）里的行仍在 DOM，
+      // 不过滤会把看不见的订阅悄悄卷进批量删除/移动（审查 P2）。
+      // 锚点允许来自单选（size=0 也连）——与桌面文件管理器习惯一致：单击定位，Shift 拉区间。
+      if (event.shiftKey && this._multiSelectAnchor) {
+        const ids = [...this.scrollEl.querySelectorAll('.sidebar-row[data-feed-id]')]
+          .filter((r) => !r.closest('.sidebar-folder.collapsed') && r.closest('.sidebar-group')?.style?.display !== 'none')
+          .map((r) => r.dataset.feedId);
+        const a = ids.indexOf(String(this._multiSelectAnchor));
+        const b = ids.indexOf(String(feed.id));
+        if (a >= 0 && b >= 0) {
+          const [from, to] = a < b ? [a, b] : [b, a];
+          this.selectedFeedIDs.clear();
+          for (let i = from; i <= to; i += 1) this.selectedFeedIDs.add(ids[i]);
+          this._refreshMultiSelect();
+          this.handlers.onSelect({ kind: 'feeds', feedIDs: [...this.selectedFeedIDs] });
+          return;
+        }
+      }
       this.selectedFeedIDs.clear();
+      this._multiSelectAnchor = feed.id;
       this._refreshMultiSelect();
       this.handlers.onSelect({ kind: 'feed', feedID: feed.id });
     });
@@ -602,6 +625,17 @@ export class SidebarView {
     storeBtn.querySelector('.nav-label').textContent = t('商店');
     storeBtn.addEventListener('click', () => this.handlers.onOpenStore());
     navMore.appendChild(storeBtn);
+
+    // R121 批量订阅管理：复选框多选 + 一键移除/移入文件夹/标已读（用户实报
+    // 「没法批量选择订阅源移除」——Ctrl+点多选不可发现，做成显式入口）
+    const manageBtn = document.createElement('button');
+    manageBtn.className = 'footer-nav-btn';
+    manageBtn.dataset.navGroup = 'content';
+    manageBtn.title = t('订阅管理');
+    manageBtn.innerHTML = `${icon('checkAll')}<span class="nav-label"></span>`;
+    manageBtn.querySelector('.nav-label').textContent = t('管理');
+    manageBtn.addEventListener('click', () => this.handlers.onOpenManageFeeds?.());
+    navMore.appendChild(manageBtn);
 
     const aihotBtn = document.createElement('button');
     aihotBtn.className = 'footer-nav-btn';

@@ -75,6 +75,9 @@ const {
 const { i18n } = require('./I18N');
 
 const DEFAULT_TIMELINE_LIMIT = 100;
+// R120 灌文窗口：常规刷新只收近 INGEST_WINDOW_DAYS 天（存量源历史回补）；新源首抓不吃窗（封顶 FIRST_SYNC_MAX）
+const INGEST_WINDOW_DAYS = 365;
+const FIRST_SYNC_MAX = 500;
 const TRANSLATION_PROMPT_VERSION = 2;
 const MAX_PARAGRAPHS_PER_TRANSLATION_BATCH = 8; // 逐句双语：句级单元更短，批次适当加大
 const MAX_CHARACTERS_PER_TRANSLATION_BATCH = 1600;
@@ -228,6 +231,7 @@ class AppStore extends EventEmitter {
     this.lastRefreshOutcome = null;
     this._refreshTimer = null;
     this._outboxTimer = null;
+    this._housekeepingTimer = null; // R120 空闲维护单飞（45s 延迟，shutdown 清）
     this._closed = false; // 退出序哨兵：shutdown() 置位后所有触碰 DB 的定时器回调短路
     this._retainedUnreadIDs = new Set(); // 未读会话保留
     this._retainedStarredIDs = new Set();
@@ -929,7 +933,7 @@ class AppStore extends EventEmitter {
     });
     if (folderID) this.feedsRepo.setFeedFolder(feed.id, folderID);
 
-    this._applyParsedEntries(feed, result.parsed.entries);
+    await this._applyParsedEntriesChunked(feed, result.parsed.entries);
     this.feedsRepo.updateFeed(feed.id, (f) => ({ ...f, lastRefreshedAt: nowSeconds() }));
     this._invalidatePrepared(); // 订阅结构变更：宁可多失效
     this.fulltext.kick(); // 新订阅首批文章按源设置后台补抓全文
@@ -984,7 +988,7 @@ class AppStore extends EventEmitter {
     });
     if (folderID) this.feedsRepo.setFeedFolder(feed.id, folderID);
 
-    this._applyParsedEntries(feed, result.parsed?.entries || []);
+    await this._applyParsedEntriesChunked(feed, result.parsed?.entries || []);
     this.feedsRepo.updateFeed(feed.id, (f) => ({
       ...f, etag: result.etag ?? f.etag, lastModified: result.lastModified ?? f.lastModified, lastRefreshedAt: nowSeconds(),
     }));
@@ -1065,18 +1069,38 @@ class AppStore extends EventEmitter {
     return fetchFeed(feed, { force });
   }
 
-  _applyParsedEntries(feed, parsedEntries) {
-    const cutoff = nowSeconds() - 90 * 24 * 3600; // 90 天保留窗口
-    let newUnread = [];
+  /**
+   * 灌文准备（R120）：首抓判定 + 入库窗口 + 首抓封顶。
+   * - 入库窗口：旧 90 天硬窗把全历史源截成「只剩几篇」（新订阅首抓也被截）。
+   *   现在：源内 0 篇（首抓/重订）= 不吃时间窗，按发布时间新→旧全量入库（封顶
+   *   FIRST_SYNC_MAX 篇）；常规刷新窗口 90 → 365 天，存量源的历史篇目随刷新回补。
+   */
+  _ingestPrep(feed, parsedEntries) {
+    const firstSync = this.database.prepare('SELECT COUNT(*) c FROM items WHERE feed_id = ?').get(feed.id).c === 0;
+    const cutoff = nowSeconds() - INGEST_WINDOW_DAYS * 24 * 3600;
+    let entries = parsedEntries;
+    if (firstSync && entries.length > FIRST_SYNC_MAX) {
+      const stamped = entries.map((e, idx) => ({ e, ts: e.publishedAt ?? nowSeconds(), idx }));
+      stamped.sort((a, b) => (b.ts - a.ts) || (a.idx - b.idx));
+      entries = stamped.slice(0, FIRST_SYNC_MAX).map((x) => x.e);
+    }
+    return { firstSync, cutoff, entries };
+  }
+
+  /**
+   * 灌文核心（同步）：传入的 entries 一段一个事务，返回 { newUnread, toPrefetch }。
+   * 存储治理墓碑：被保留期限淘汰过的文章，源站刷新时不再灌回来。
+   * 整批单事务：逐篇独立事务曾导致每篇一次 WAL fsync + FTS 重排（灌文高峰堵死主进程），
+   * 合批后一次落盘，中途失败整批回滚（下次刷新按无此批处理，安全重灌）。
+   */
+  _ingestEntriesSync(feed, entries, firstSync, cutoff) {
+    const newUnread = [];
     const toPrefetch = [];
-    // 存储治理墓碑：被保留期限淘汰过的文章，源站刷新时不再灌回来
-    // 整批单事务：逐篇独立事务曾导致每篇一次 WAL fsync + FTS 重排（灌文高峰堵死主进程），
-    // 合批后一个 feed 一次落盘，中途失败整批回滚（下次刷新按无此批处理，安全重灌）
     const tombstoneQuery = this.database.prepare('SELECT 1 FROM pruned_articles WHERE item_id = ?');
     this.database.transaction(() => {
-      for (const parsed of parsedEntries) {
+      for (const parsed of entries) {
         const publishedAt = parsed.publishedAt ?? nowSeconds();
-        if (publishedAt < cutoff) continue;
+        if (!firstSync && publishedAt < cutoff) continue;
         const entryID = `local:${feed.id}:${stableDigest(parsed.id)}`;
         if (tombstoneQuery.get(entryID)) continue;
         const existing = this.articlesRepo.entry(entryID);
@@ -1117,6 +1141,12 @@ class AppStore extends EventEmitter {
         }
       }
     });
+    return { newUnread, toPrefetch };
+  }
+
+  /** 灌文收尾：追更高亮缓存 / 规则 / 继承打标 / 聚类登记 / 全文与译文队列 / AIHOT 预抓。 */
+  _finishIngest(feed, parsedEntries, newUnreadIn, toPrefetch) {
+    let newUnread = newUnreadIn;
     // F18 网页追更：合成文章的 diff 高亮正文直写 article_caches——主消毒管线会剥
     // <ins>/class（白名单外），缓存通路（articleContent 命中缓存原样返回）才能保留
     // 「新增段高亮」标记；isSanitized=true 语义成立：内容是本服务组装的转义文本。
@@ -1164,6 +1194,39 @@ class AppStore extends EventEmitter {
     // 后台预抓 AIHOT item 页（异步串行，不阻塞刷新；失败静默）
     if (toPrefetch.length) this._prefetchArticles(toPrefetch);
     return newUnread;
+  }
+
+  /**
+   * 同步灌文（整段一个事务）。探针 / 诊断脚本兼容通路——生产路径请用
+   * _applyParsedEntriesChunked（分片让行，见下），两者共用同一核心与收尾。
+   */
+  _applyParsedEntries(feed, parsedEntries) {
+    const { firstSync, cutoff, entries } = this._ingestPrep(feed, parsedEntries);
+    const { newUnread, toPrefetch } = this._ingestEntriesSync(feed, entries, firstSync, cutoff);
+    return this._finishIngest(feed, parsedEntries, newUnread, toPrefetch);
+  }
+
+  /**
+   * 生产灌文（R120 后台静默刷新核心）：
+   * 单源整段一个同步事务曾把主进程堵死数百 ms～数秒（node:sqlite 全同步，6 路并发
+   * 下 IPC 排队 → 整个应用「刷新即卡死」）。改为每片 20 篇一事务，片间 setImmediate
+   * 让行，UI/IPC 在灌文期间保持响应；片内仍合批（WAL fsync 不回退）。
+   */
+  async _applyParsedEntriesChunked(feed, parsedEntries) {
+    const { firstSync, cutoff, entries } = this._ingestPrep(feed, parsedEntries);
+    const newUnread = [];
+    const toPrefetch = [];
+    const CHUNK = 20; // 每片篇数：同步块耗时预算——常规文章片耗 <50ms；FTS 封顶
+                      // 64KB 的巨文尾部（20×64K trigram）也压在数百 ms 内
+    for (let start = 0; start < entries.length; start += CHUNK) {
+      const r = this._ingestEntriesSync(feed, entries.slice(start, start + CHUNK), firstSync, cutoff);
+      newUnread.push(...r.newUnread);
+      toPrefetch.push(...r.toPrefetch);
+      if (start + CHUNK < entries.length) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    }
+    return this._finishIngest(feed, parsedEntries, newUnread, toPrefetch);
   }
 
   /** 后台预抓 AIHOT 文章 item 页完整内容（并发 3 + 跳过已有缓存 + 失败静默）。 */
@@ -1605,7 +1668,7 @@ class AppStore extends EventEmitter {
       this.translation.kick(); // F33：手动刷新收尾同样起译文队列
       return { newEntries: 0 };
     }
-    const newIDs = this._applyParsedEntries(feed, result.parsed.entries);
+    const newIDs = await this._applyParsedEntriesChunked(feed, result.parsed.entries);
     this.feedsRepo.updateFeed(feedID, (f) => ({
       ...f,
       title: result.parsed.title || f.title,
@@ -2270,6 +2333,26 @@ class AppStore extends EventEmitter {
     return buffer.toString('base64');
   }
 
+  /** R120：维护单飞调度——刷新触发的每日维护延迟到空闲时段（不与灌库/启动抢主进程）。 */
+  _scheduleHousekeepingIdle() {
+    if (this._housekeepingTimer) return;
+    this._housekeepingTimer = setTimeout(() => {
+      this._housekeepingTimer = null;
+      if (this._dbClosed()) return;
+      // 批量刷新仍在进行（大库/慢网可能超 45s）：顺延 30s 再试，维护绝不与灌库抢主进程
+      if (this.refreshStatus.state === 'refreshing') {
+        this._housekeepingTimer = setTimeout(() => {
+          this._housekeepingTimer = null;
+          if (this._dbClosed() || this.refreshStatus.state === 'refreshing') return;
+          try { this.housekeeping(); } catch (err) { console.warn('[RobinRead] 数据管家执行失败：', err.message); }
+        }, 30 * 1000);
+        return;
+      }
+      try { this.housekeeping(); } catch (err) { console.warn('[RobinRead] 数据管家执行失败：', err.message); }
+    }, 45 * 1000);
+    this._housekeepingTimer.unref?.();
+  }
+
   /**
    * 数据管家：每日一次的轻量维护。
    * - 清理孤儿 AI 产物（文章已删除后残留的摘要/翻译/划词解析）
@@ -2324,7 +2407,10 @@ class AppStore extends EventEmitter {
     if (this.refreshStatus.state === 'refreshing') return;
     this.refreshStatus = { state: 'refreshing' };
     this._emitState();
-    this.housekeeping(); // 刷新前顺手做每日维护（内部有当日节流）
+    // R120：每日维护（窗口函数大 DELETE + FTS 孤儿扫）移出刷新热路径——原先在刷新
+    // 开始同步跑，叠加灌库事务把主进程堵死数秒（启动刷新 = 开机即卡）。改为空闲
+    // 45s 后单飞执行（内部仍有当日节流），刷新全程只剩网络+分片灌库。
+    this._scheduleHousekeepingIdle();
 
     const enabledAccounts = this.accounts.enabledAccounts();
     let updatedFeeds = 0;
@@ -2450,7 +2536,7 @@ class AppStore extends EventEmitter {
       this.evolution.recordFetch({ feedID: feed.id, ok: true, entryCount: 0 });
       return [];
     }
-    const newIDs = this._applyParsedEntries(feed, result.parsed.entries);
+    const newIDs = await this._applyParsedEntriesChunked(feed, result.parsed.entries);
     this.feedsRepo.updateFeed(feed.id, (f) => ({
       ...f,
       title: (result.parsed.title || f.title),
@@ -2776,6 +2862,7 @@ class AppStore extends EventEmitter {
     this._closed = true;
     if (this._outboxTimer) { clearTimeout(this._outboxTimer); this._outboxTimer = null; }
     if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null; } // 批 H 审查 P2：30 分钟自动刷新 interval 同为关库后弹窗源
+    if (this._housekeepingTimer) { clearTimeout(this._housekeepingTimer); this._housekeepingTimer = null; }
     if (this._emitTimer) { clearTimeout(this._emitTimer); this._emitTimer = null; } // 80ms 状态推送防抖：关库后触发即 snapshot 抛错弹窗（用户实见）
     try { this.api?.stop(); } catch (_) { /* F39 开放 API：退出自动停服释放端口 */ }
     try { this.pocket?.stop(); } catch (_) { /* F31 口袋知更：退出自动停服释放端口 */ }
