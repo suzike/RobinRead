@@ -47,9 +47,9 @@ async function httpStream(url, { headers, signal } = {}) {
   return { status: res.status, headers: res.headers, webStream: res.body };
 }
 
-async function fetchFeed(feed, { force = false } = {}) {
+async function fetchFeed(feed, { force = false, timeoutMs = 30000 } = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  const timer = setTimeout(() => controller.abort(), Math.max(3000, Number(timeoutMs) || 30000));
   try {
     const headers = {
       'User-Agent': APP_UA,

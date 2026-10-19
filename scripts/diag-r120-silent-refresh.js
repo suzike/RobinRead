@@ -90,7 +90,100 @@ app.whenReady().then(async () => {
     const mainSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'main', 'main.js'), 'utf8');
     const appSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'app.js'), 'utf8');
     ok(/R120[\s\S]{0,400}10s[\s\S]{0,200}}, 10000\);/.test(mainSrc) || /}, 10000\);/.test(mainSrc), 'D1a 启动刷新延迟 10s（main.js）');
-    ok(appSrc.includes('scheduleRefreshListPull') && appSrc.includes("refreshStatus?.state === 'refreshing'"), 'D1b 渲染层刷新中列表重拉合批在场（app.js）');
+    ok(appSrc.includes('scheduleRefreshListPull') && appSrc.includes("refreshStatus?.state === 'refreshing'"), 'D1b 渲染层刷新中列表重拉合批（app.js）');
+
+    // ── E 组（R120.7 真实库剖析后的追加修复）──
+    // E1 分片按字节自适应：30 篇 × 40KB 正文（1.2MB）必须切成多片（>128KB/片），且全程心跳 <300ms
+    {
+      const feedE = store.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: '巨文源E', siteURL: 'https://e.example', feedURL: 'https://e.example/rss' });
+      const bigBody = `<p>${'巨文正文内容。'.repeat(4000)}</p>`; // ≈ 24KB 字符
+      let ingestCalls = 0;
+      const orig = AppStore.prototype._ingestEntriesSync;
+      AppStore.prototype._ingestEntriesSync = function (...a) { ingestCalls += 1; return orig.apply(this, a); };
+      let lastT = Date.now(); let maxGapE = 0;
+      const hbE = setInterval(() => { const t = Date.now(); if (t - lastT > maxGapE) maxGapE = t - lastT; lastT = t; }, 5);
+      await store._applyParsedEntriesChunked(feedE, Array.from({ length: 30 }, (_, i) => ({
+        id: `big-${i}`, title: `巨文 ${i}`, url: `https://e.example/${i}`,
+        publishedAt: now - i * DAY, summary: '巨文摘要', contentHTML: bigBody, enclosure: null,
+      })));
+      clearInterval(hbE);
+      AppStore.prototype._ingestEntriesSync = orig;
+      ok(countItems(feedE.id) === 30, `E1a 巨文源 30 篇全量入库（实际 ${countItems(feedE.id)}）`);
+      ok(ingestCalls >= 5, `E1b 按字节自适应切多片（30×24KB → ${ingestCalls} 片 ≥5）`);
+      ok(maxGapE < 300, `E1c 巨文灌库心跳最大间隙 ${maxGapE}ms < 300ms`);
+    }
+
+    // E2 FTS 回填：游标续跑（只补剩余）+ 刷新中让位 + 完成置位
+    {
+      const feedF = store.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: '回填源F', siteURL: 'https://f.example', feedURL: 'https://f.example/rss' });
+      store._applyParsedEntries(store.feedsRepo.feed(feedF.id), Array.from({ length: 60 }, (_, i) => ({
+        id: `bf-${i}`, title: `回填 ${i} robinread-probe`, url: `https://f.example/${i}`,
+        publishedAt: now - i * DAY, summary: '摘要', contentHTML: `<p>${'回填正文。'.repeat(800)}</p>`, enclosure: null,
+      })));
+      store.preferences.set('RobinRead.fts.backfilled', false);
+      store.preferences.set('RobinRead.fts.backfill.cursor', 0);
+      // E2a 刷新进行中回填让位：1.6s 内游标不得推进
+      store.refreshStatus = { state: 'refreshing' };
+      const bfPromise = store._ftsBackfill();
+      await new Promise((r) => setTimeout(r, 1600));
+      const cursorDuring = Number(store.preferences.get('RobinRead.fts.backfill.cursor', 0));
+      store.refreshStatus = { state: 'idle' };
+      await bfPromise;
+      ok(cursorDuring === 0, `E2a 刷新进行中回填让位（1.6s 内游标未动=${cursorDuring === 0}）`);
+      ok(store.preferences.get('RobinRead.fts.backfilled') === true, 'E2b 回填完成置完成标记');
+      // E2c 游标续跑：置回 feedF 第 40 篇的 rowid 再跑 → 只补剩余 20 篇（不从头重跑）
+      store.preferences.set('RobinRead.fts.backfilled', false);
+      const midRowid = Number(store.database.prepare(`
+        SELECT a.rowid AS rid FROM articles a
+        INNER JOIN items i ON i.id = a.item_id
+        WHERE i.feed_id = ? ORDER BY a.rowid LIMIT 1 OFFSET 40
+      `).get(feedF.id).rid);
+      const maxRowid = Number(store.database.prepare('SELECT MAX(rowid) m FROM articles').get().m);
+      store.preferences.set('RobinRead.fts.backfill.cursor', midRowid);
+      let resumedBatches = 0;
+      const origTx = store.database.transaction.bind(store.database);
+      store.database.transaction = (fn) => { resumedBatches += 1; return origTx(fn); };
+      await store._ftsBackfill();
+      store.database.transaction = origTx;
+      ok(store.preferences.get('RobinRead.fts.backfilled') === true,
+        `E2c 游标续跑（从 feedF+40 处续，本轮仅 ${resumedBatches} 批而非全库重扫）`);
+      ok(resumedBatches > 0 && resumedBatches <= 6, `E2c 续跑批量级正确（${resumedBatches} 批 ≈ 剩余 20 行/每批 20）`);
+      void maxRowid;
+    }
+
+    // E3 批量超时 + E4 新鲜度跳过 + E5 死源过滤口径（'scheduled' 也跳）
+    {
+      const seen = [];
+      store._fetchForFeed = async (feed, opts) => {
+        seen.push({ id: feed.id, timeoutMs: opts?.timeoutMs });
+        return { notModified: true, etag: null, lastModified: null };
+      };
+      const feedG = store.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: '新鲜源G', siteURL: 'https://g.example', feedURL: 'https://g.example/rss' });
+      const feedH = store.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: '陈旧源H', siteURL: 'https://h.example', feedURL: 'https://h.example/rss' });
+      const feedI = store.feedsRepo.insertFeed({ accountID: LOCAL_ACCOUNT_ID, title: '死源I', siteURL: 'https://i.example', feedURL: 'https://i.example/rss' });
+      store.feedsRepo.updateFeed(feedG.id, (f) => ({ ...f, lastRefreshedAt: nowSeconds() })); // 刚刷过
+      store.feedsRepo.updateFeed(feedH.id, (f) => ({ ...f, lastRefreshedAt: nowSeconds() - 3600 }));
+      store.feedsRepo.updateFeed(feedI.id, (f) => ({ ...f, lastRefreshedAt: nowSeconds() - 3600 }));
+      store.database.prepare('INSERT INTO feed_health (feed_id, fetch_success_count, fetch_failure_count, consecutive_failures, is_dead) VALUES (?, 0, 9, 9, 1) ON CONFLICT(feed_id) DO UPDATE SET is_dead = 1').run(feedI.id);
+
+      seen.length = 0;
+      await store.refresh('scheduled');
+      const schedIds = new Set(seen.map((s) => s.id));
+      ok(!schedIds.has(feedG.id), 'E4a 定时刷新跳过周期内已刷源（新鲜源G 未被打）');
+      ok(!schedIds.has(feedI.id), 'E5a 定时刷新跳过死源（源I 未被打——既有 bug：scheduled 口径从未生效）');
+      ok(seen.length > 0 && seen.every((s) => s.timeoutMs === 15000), `E3a 批量刷新超时收紧 15s（样本 ${JSON.stringify(seen[0] || null)}）`);
+
+      seen.length = 0;
+      await store.refresh('manual');
+      const manualCalls = seen.filter((s) => s.id === feedI.id);
+      ok(manualCalls.length === 1 && manualCalls[0].timeoutMs === 30000, 'E3b+E5b 手动刷新含死源且保持默认 30s（复活路径不变）');
+
+      seen.length = 0;
+      store.feedsRepo.updateFeed(feedH.id, (f) => ({ ...f, lastRefreshedAt: nowSeconds() - 3600 })); // 上一轮 scheduled 刚刷过它，重置回陈旧
+      await store.refresh('launch');
+      const launchIds = new Set(seen.map((s) => s.id));
+      ok(!launchIds.has(feedG.id) && launchIds.has(feedH.id), 'E4b 启动刷新跳过 15 分钟内已刷源（G 跳 / H 打）');
+    }
 
     console.log(failed === 0 ? 'ALL PASSED' : `${failed} 项失败`);
     try { store.database.close(); } catch (_) { /* 探针直关即可 */ }

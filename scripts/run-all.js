@@ -173,7 +173,7 @@ const OFFLINE = [
   { file: 'scripts/diag-f32-userscript.js', runner: 'electron', timeout: 480000, desc: 'F32 知更实验室·用户脚本：v31迁移(user_scripts列齐备/索引/链尾序/重跑幂等)/内置示例(构造幂等种子/权限声明/注释即文档/真实可跑+幂等不叠加·经沙箱)/.ruser导入(合法往返/权限白名单裁剪/坏JSON拒绝/缺name拒绝/64KB执行闸拒绝/空代码拒绝/野权限拒绝/语法错误编译预检拒绝/非对象拒绝)/文件导入(256KB大小闸/合法带bytes)/启停删(enabledScripts投影/不存在拒绝)/示例导出JSON真实可再导入/沙箱经专用帧真执行(变换生效/无return保持/异常隔离坏脚本跳过计数后续照跑/多脚本列表序/权限声明制未声明丢弃/全局遮蔽document-window-fetch不可达/context白名单title-url/actions声明收集权限要求坏fn丢弃上限6/空脚本零开销/runActionFn字符串结果+异常隔离)/UI实验室分区真渲染(脚本列表/权限展示/导入导出按钮)+userScripts:* IPC/老库无损+示例删除不复活(新store实证)/静态锚点(AppStore/preload 8通道/IPC/reader钩子+按钮+IPC拉取/沙箱红线严格模式+全局遮蔽+无eval/专用帧唯一unsafe-eval+主页面CSP不放松/分区/CSS/i18n/DDL只进迁移链)（离线）' },
   { file: 'scripts/diag-phase10-export.js', runner: 'node', desc: '导出工厂：EPUB 结构 + 对照版式/自定义CSS 链路（离线）' },
   { file: 'scripts/e2e-card-export.js', runner: 'electron', desc: '精读卡片导出 E2E：真 IPC 链路+预览弹窗（离线）' },
-  { file: 'scripts/diag-r120-silent-refresh.js', runner: 'electron', desc: 'R120 后台静默刷新：灌库分片让行(心跳间隙<600ms+事件loop持续转)+首抓不吃90天窗全量300篇+首抓封顶500+常规窗365天(300d进400d拒)+同内容重刷0新增+housekeeping移出热路径(45s空闲单飞)+静态锚(启动延迟10s/渲染层列表重拉合批)（离线）' },
+  { file: 'scripts/diag-r120-silent-refresh.js', runner: 'electron', desc: 'R120/120.7 后台静默刷新（真实库 604 源剖析三轮迭代）：灌库分片让行+按字节自适应切片(48KB/片巨文心跳<300ms)+首抓全量500帽+365天窗+幂等+housekeeping让位+FTS回填重写(刷新中让位/游标断点续跑/完成置位)+批量刷新15s超时免重试+定时跳新鲜源+死源过滤scheduled口径修复(既有bug)+静态锚（离线）' },
   { file: 'scripts/diag-r121-feed-manager.js', runner: 'electron', desc: 'R121 批量订阅管理：侧栏更多行管理入口+订阅管理浮层6行分组+行点击/Shift连选区间+搜索过滤后全选只选可见+一键移除确认框真删(6→4)+浮层行数同步+Esc关闭+静态锚(侧栏Shift连选/右键批量管理入口)（离线）' },
 ];
 const ONLINE = [

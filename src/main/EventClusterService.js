@@ -32,7 +32,9 @@ const EVENT_CANDIDATE_CAP = 400;  // 粗筛候选上限（内存精排 N 侧约�
 const EVENT_KEYWORD_POOL = 4;     // 粗筛显著词个数
 const TITLE_SLICE = 200;          // 参与分词的标题长度
 const MEMBER_CAP = 50;            // summaries 单簇返回成员上限（全景卡展开用）
-const DRAIN_BATCH = 50;           // 后台合批：单轮处理条目数（批间让出事件循环）
+const DRAIN_BATCH = 4;            // 后台合批：单轮处理条目数（批间让出事件循环）
+// R120.7 真实库实证：50/批在 3.7 万篇库上单批同步 6.6s（候选 LIKE 粗筛×50 中途不让行）；
+// 8/批实测残余 ~1.1s（8×140ms）仍可感知；4/批压回 ~500ms——聚类纯后台，不赶时间。
 const DRAIN_DELAY_MS = 50;        // 入库钩子登记 → 开始聚类的延迟（合攒同批灌文）
 const REBUILD_CAP = 2000;         // 批量补跑单次扫描条目上限（近窗口最新优先）
 

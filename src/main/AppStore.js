@@ -265,8 +265,11 @@ class AppStore extends EventEmitter {
     this._cleanupDuplicates();
     this._repairAggregatorMeta();
     this._repairEncodedEntities().catch(() => { /* 自愈失败不阻塞启动，下次再试 */ }); // 存量标题/摘要 HTML 实体一次性自愈（借鉴上游 v1.4.2）
-    // 全文索引回填（存量文章一次性，分批让出事件循环；FTS 不可用时内部自动跳过）
-    setTimeout(() => { this._ftsBackfill().catch(() => {}); }, 8000);
+    // 全文索引回填（存量文章一次性；FTS 不可用时内部自动跳过）
+    // R120.7：固定 8s 开跑曾与 10s 启动刷新撞车（604 源实库两个巨兽互相踩）——
+    // 改由 _scheduleFtsBackfill 等首轮刷新结束后再起（3min 无刷新兜底）
+    this._ftsBackfillTimer = null;
+    this._scheduleFtsBackfill();
   }
 
   /**
@@ -1057,7 +1060,7 @@ class AppStore extends EventEmitter {
    * 邮件源走 MailService，普通源走 FeedService（返回结构同构）。
    * 停止态（monitor-stopped）仍进 monitor 分支：服务内部直接 notModified（不再自动抓）。
    */
-  _fetchForFeed(feed, { force = false } = {}) {
+  _fetchForFeed(feed, { force = false, timeoutMs } = {}) {
     if (PageMonitorService.isMonitorFeed(feed)) return this.monitor.fetchFeed(feed, { force });
     // 漂流合成源（F28）永不刷新：正文已在导入时落缓存，刷新必走 platforms 分派→adapter=null 报错
     //（批 D 审查 P1：导入过包后每轮刷新 failedFeedCount≥1 + 源体检误标死源）
@@ -1066,7 +1069,7 @@ class AppStore extends EventEmitter {
       if (feed.platform === 'mail') return this.mail.fetchFeed(feed, { force });
       return this.platforms.fetchFeed(feed, { force });
     }
-    return fetchFeed(feed, { force });
+    return fetchFeed(feed, { force, timeoutMs }); // R120.7：批量自动刷新可收紧超时（默认 30s 不变）
   }
 
   /**
@@ -1209,20 +1212,37 @@ class AppStore extends EventEmitter {
   /**
    * 生产灌文（R120 后台静默刷新核心）：
    * 单源整段一个同步事务曾把主进程堵死数百 ms～数秒（node:sqlite 全同步，6 路并发
-   * 下 IPC 排队 → 整个应用「刷新即卡死」）。改为每片 20 篇一事务，片间 setImmediate
+   * 下 IPC 排队 → 整个应用「刷新即卡死」）。改为分片一事务、片间 setImmediate
    * 让行，UI/IPC 在灌文期间保持响应；片内仍合批（WAL fsync 不回退）。
+   *
+   * R120.7 片长按字节自适应：真实库剖析发现定长 20 篇/片在巨文源（每篇数十字节~
+   * 数百 KB 正文）上单片可达 300-600ms——604 源一年窗回补期间实测 >300ms 间隙
+   * 151 次。现按累计正文体积切 片（≈128KB 或 20 篇先到为准），巨文源自动缩到
+   * 每片 1-3 篇，单块同步耗时压回 <100ms。
    */
   async _applyParsedEntriesChunked(feed, parsedEntries) {
     const { firstSync, cutoff, entries } = this._ingestPrep(feed, parsedEntries);
     const newUnread = [];
     const toPrefetch = [];
-    const CHUNK = 20; // 每片篇数：同步块耗时预算——常规文章片耗 <50ms；FTS 封顶
-                      // 64KB 的巨文尾部（20×64K trigram）也压在数百 ms 内
-    for (let start = 0; start < entries.length; start += CHUNK) {
-      const r = this._ingestEntriesSync(feed, entries.slice(start, start + CHUNK), firstSync, cutoff);
+    const CHUNK_MAX_N = 20;      // 片内篇数上限
+    const CHUNK_MAX_BYTES = 48 * 1024; // 片内累计正文体积上限（UTF-16 码元）——
+    // 真实库实测：128KB/片 trigram 单块仍 300-500ms（87 次 >300ms）；48KB 压回 <150ms
+    const sizeOf = (e) => (e.contentHTML ? e.contentHTML.length : 0) + (e.summary ? e.summary.length : 0);
+    let start = 0;
+    while (start < entries.length) {
+      let n = 0;
+      let bytes = 0;
+      while (start + n < entries.length && n < CHUNK_MAX_N) {
+        const sz = sizeOf(entries[start + n]);
+        if (n > 0 && bytes + sz > CHUNK_MAX_BYTES) break;
+        bytes += sz;
+        n += 1;
+      }
+      const r = this._ingestEntriesSync(feed, entries.slice(start, start + n), firstSync, cutoff);
       newUnread.push(...r.newUnread);
       toPrefetch.push(...r.toPrefetch);
-      if (start + CHUNK < entries.length) {
+      start += n;
+      if (start < entries.length) {
         await new Promise((resolve) => setImmediate(resolve));
       }
     }
@@ -1886,17 +1906,33 @@ class AppStore extends EventEmitter {
   }
 
   /**
-   * 存量文章一次性回填全文索引（分批 + 让出事件循环，不阻塞启动与交互）。
+   * 存量文章一次性回填全文索引（R120.7 真实库剖析重写）。
    * 新入库文章由 Repositories 写入点实时索引，回填只补历史数据。
+   *
+   * 用户实库（604 源 / 3.7 万篇 / 1.5GB）曾在此永久卡死：旧实现 400 篇/批只有
+   * 30ms 让行，单批同步数秒（plainText+trigram 64KB 正文 ×400），全程主进程反复
+   * 堵死；且完成标记只在全部跑完后置位——启动刷新一撞车就中断，下次启动从第 0
+   * 行重跑，永不收敛。新契约：
+   *  - 每批 20 篇 + 批间 50ms 呼吸：单批同步块 <100ms（配合回填正文 8KB 前缀降帽）
+   *  - 游标持久化（RobinRead.fts.backfill.cursor）：中断续跑不从头来
+   *  - 调度让位（_scheduleFtsBackfill）：等首轮刷新结束后再跑，不与灌库抢主进程
+   *  - 回填正文只索引前 8KB（搜索价值集中在前部；新文章实时索引仍 64KB 全量）
    */
   async _ftsBackfill() {
     if (!this._ftsEnabled()) return;
     if (this.preferences.get('RobinRead.fts.backfilled', false)) return;
-    const batchSize = 400;
-    let lastRowid = 0;
+    const batchSize = 20;
+    const BODY_BACKFILL_CAP = 8 * 1024;
+    let lastRowid = Number(this.preferences.get('RobinRead.fts.backfill.cursor', 0)) || 0;
     let total = 0;
     try {
       for (;;) {
+        // 刷新/灌库进行中：让出（回填是纯后台任务，绝不与用户可感路径抢事件循环）
+        let waited = 0;
+        while (this.refreshStatus.state === 'refreshing' && waited < 10 * 60 * 1000) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          waited += 1000;
+        }
         const batch = this.database.prepare(`
           SELECT a.rowid AS rid, a.item_id, COALESCE(a.title, '') AS title,
                  COALESCE(a.author, '') AS author, COALESCE(a.summary, '') AS summary,
@@ -1912,18 +1948,35 @@ class AppStore extends EventEmitter {
           for (const r of batch) {
             // 无提取缓存时索引 RSS 正文（去标签纯文本），正文搜索才有完整覆盖；
             // 统一走 syncEntry：插入的同时维护 rowid 映射（绕过会留无映射行→重复索引）
-            const body = r.body_source.startsWith('<') ? plainText(r.body_source) : r.body_source;
+            let body = r.body_source.startsWith('<') ? plainText(r.body_source) : r.body_source;
+            if (body.length > BODY_BACKFILL_CAP) body = body.slice(0, BODY_BACKFILL_CAP);
             SearchIndex.syncEntry(this.database, r.item_id, r.title, r.author, r.summary, body);
           }
         });
         total += batch.length;
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        this.preferences.set('RobinRead.fts.backfill.cursor', lastRowid); // 断点续跑
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
       this.preferences.set('RobinRead.fts.backfilled', true);
-      if (total > 0) console.log(`[RobinRead] 全文索引回填完成：${total} 篇`);
+      if (total > 0) console.log(`[RobinRead] 全文索引回填完成：${total} 篇（本段）`);
     } catch (err) {
-      console.warn('[RobinRead] 全文索引回填中断（下次启动重试）：', err.message);
+      console.warn('[RobinRead] 全文索引回填中断（下次启动从游标续跑）：', err.message);
     }
+  }
+
+  /** R120.7：回填调度——不再固定 8s 开跑（会与 10s 启动刷新撞车）；等首轮刷新
+   *  结束后 60s 起跑；3 分钟仍无刷新（关闭启动刷新的用户）兜底直跑。单飞防重入。 */
+  _scheduleFtsBackfill() {
+    if (this._ftsBackfillTimer) return;
+    const kick = () => {
+      if (this._ftsBackfillTimer) { clearTimeout(this._ftsBackfillTimer); this._ftsBackfillTimer = null; }
+      if (this._dbClosed()) return;
+      if (this.refreshStatus.state === 'refreshing') { this._ftsBackfillTimer = setTimeout(kick, 60 * 1000); return; }
+      this._ftsBackfillRunning = this._ftsBackfill().finally(() => { this._ftsBackfillRunning = null; });
+    };
+    this._ftsBackfillTimer = setTimeout(kick, 3 * 60 * 1000); // 兜底：无刷新时也终会开跑
+    this._ftsBackfillTimer.unref?.();
+    this._ftsBackfillKick = kick; // refresh() 完成时主动 kick（60s 让位）
   }
 
   _snippet(text, query) {
@@ -2418,21 +2471,41 @@ class AppStore extends EventEmitter {
     const newUnreadEntries = [];
 
     try {
+      // R120.7 批量刷新节流（真实库 604 源剖析：慢源 30s 超时 × 全量重试令刷新
+      // 15 分钟收不了尾，全程处于「刷新中」卡顿态）：
+      //  - 超时收紧：手动单源 30s 不变；启动/定时批量 15s（含重试至多 ~31s/源）
+      //  - 新鲜度跳过：定时刷新跳过本周期内已刷过的源；启动刷新跳过 15 分钟内
+      //    刚刷过的源（重启不是新闻窗口，604 源全部重打一遍纯属浪费）
+      const isBatch = origin === 'launch' || origin === 'scheduled' || origin === 'auto';
+      const batchTimeoutMs = isBatch ? 15000 : 30000;
+      let minFreshSec = 0;
+      if (origin === 'scheduled' || origin === 'auto') {
+        const intervalSec = refreshIntervalSeconds(this.preferences.get(PreferenceKey.refreshInterval, 'thirtyMinutes')) || 1800;
+        minFreshSec = Math.max(300, Math.floor(intervalSec * 0.8));
+      } else if (origin === 'launch') {
+        minFreshSec = 900;
+      }
+      const nowTs = nowSeconds();
       for (const account of enabledAccounts) {
         if (account.type === 'local') {
           const allFeeds = this.feedsRepo.feeds(account.id);
           let feeds = allFeeds;
           // 死源（连续 5 次失败）不再拖自动刷新：定时轮询跳过；
-          // 启动刷新与手动刷新仍包含它们（成功即自动复活 is_dead=0）
-          if (origin === 'auto') {
+          // 启动刷新与手动刷新仍包含它们（成功即自动复活 is_dead=0）。
+          // R120.7：既有 bug——定时器传 'scheduled' 而过滤只认 'auto'，死源从未
+          // 被跳过（慢死源 30s 超时拖尾的元凶之一），两口径都纳入。
+          if (origin === 'auto' || origin === 'scheduled') {
             const dead = new Set(this.database.prepare(
               'SELECT feed_id FROM feed_health WHERE is_dead = 1'
             ).all().map((r) => r.feed_id));
             feeds = allFeeds.filter((f) => !dead.has(f.id));
           }
+          if (minFreshSec > 0) {
+            feeds = feeds.filter((f) => nowTs - Number(f.lastRefreshedAt ?? 0) >= minFreshSec);
+          }
           // 并发限流：几十个源同时打出会挤爆代理/连接池（52 源全并发实测随机挂 18 个），
           // 改 6 路 worker 串行消费，整体耗时依旧远低于串行
-          const results = await this._mapWithConcurrency(feeds, 6, (feed) => this._refreshLocalFeed(feed));
+          const results = await this._mapWithConcurrency(feeds, 6, (feed) => this._refreshLocalFeed(feed, { timeoutMs: batchTimeoutMs, retry: !isBatch }));
           for (const result of results) {
             if (result.status === 'fulfilled') {
               updatedFeeds += 1;
@@ -2464,6 +2537,12 @@ class AppStore extends EventEmitter {
         updatedFeeds,
         finishedAt: nowSeconds(),
       };
+      // R120.7：首轮刷新落地 60s 后起 FTS 存量回填（若尚未开跑；单飞）
+      if (this._ftsBackfillKick && !this._ftsBackfillRunning) {
+        const kick = this._ftsBackfillKick;
+        if (this._ftsBackfillTimer) { clearTimeout(this._ftsBackfillTimer); this._ftsBackfillTimer = null; }
+        this._ftsBackfillTimer = setTimeout(kick, 60 * 1000);
+      }
     } catch (err) {
       this.refreshStatus = { state: 'failed', message: errorMessage(err), finishedAt: nowSeconds() };
     }
@@ -2508,18 +2587,20 @@ class AppStore extends EventEmitter {
     return results;
   }
 
-  async _refreshLocalFeed(feed) {
+  async _refreshLocalFeed(feed, { timeoutMs, retry = true } = {}) {
     let result;
     try {
-      result = await this._fetchForFeed(feed); // F5：平台源分派给 PlatformService
+      result = await this._fetchForFeed(feed, { timeoutMs }); // F5：平台源分派给 PlatformService
     } catch (err) {
-      // 瞬时网络抖动（连接重置/超时等非 HTTP 状态错误）自动重试一次，再失败才计入失败
+      // 瞬时网络抖动（连接重置/超时等非 HTTP 状态错误）自动重试一次，再失败才计入失败。
+      // R120.7：批量刷新（launch/scheduled/auto）不重试——604 源实库的慢源尾巴
+      // 每个烧 2×15s 令刷新 15 分钟收不了尾；失败源下个周期自然再试，手动刷新保留重试。
       const message = err?.message || String(err);
-      const noRetry = /^HTTP /.test(message) || (err && err.statusCode != null);
+      const noRetry = !retry || /^HTTP /.test(message) || (err && err.statusCode != null);
       if (!noRetry) {
         await new Promise((resolve) => setTimeout(resolve, 900));
         try {
-          result = await this._fetchForFeed(feed);
+          result = await this._fetchForFeed(feed, { timeoutMs });
         } catch (retryErr) {
           this.evolution.recordFetch({ feedID: feed.id, ok: false, error: retryErr?.message || String(retryErr) });
           throw retryErr;
@@ -2863,6 +2944,7 @@ class AppStore extends EventEmitter {
     if (this._outboxTimer) { clearTimeout(this._outboxTimer); this._outboxTimer = null; }
     if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null; } // 批 H 审查 P2：30 分钟自动刷新 interval 同为关库后弹窗源
     if (this._housekeepingTimer) { clearTimeout(this._housekeepingTimer); this._housekeepingTimer = null; }
+    if (this._ftsBackfillTimer) { clearTimeout(this._ftsBackfillTimer); this._ftsBackfillTimer = null; } // R120.7 回填调度定时器
     if (this._emitTimer) { clearTimeout(this._emitTimer); this._emitTimer = null; } // 80ms 状态推送防抖：关库后触发即 snapshot 抛错弹窗（用户实见）
     try { this.api?.stop(); } catch (_) { /* F39 开放 API：退出自动停服释放端口 */ }
     try { this.pocket?.stop(); } catch (_) { /* F31 口袋知更：退出自动停服释放端口 */ }
